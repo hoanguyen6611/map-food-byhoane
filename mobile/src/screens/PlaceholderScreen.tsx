@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme, type ThemeColors } from '../theme/ThemeContext';
 
 /**
  * Factory for trivial placeholder screens: a centered `<Text>` naming the
@@ -7,6 +8,8 @@ import { StyleSheet, Text, View } from 'react-native';
  */
 export function createPlaceholderScreen(title: string) {
   function PlaceholderScreen() {
+    const { colors } = useTheme();
+    const styles = createStyles(colors);
     return (
       <View style={styles.container}>
         <Text style={styles.text}>{title}</Text>
@@ -17,15 +20,17 @@ export function createPlaceholderScreen(title: string) {
   return PlaceholderScreen;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-  },
-  text: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    text: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+  });

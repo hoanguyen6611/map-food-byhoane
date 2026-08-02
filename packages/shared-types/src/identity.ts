@@ -11,3 +11,22 @@ export interface RoleDto {
   code: RoleCode;
   label: string;
 }
+
+// Admin User Management — docs/01-prd-mvp.md §10.11 ("manage users
+// (suspend/ban)"), added in docs/build-prompts/08-favorites-notifications-polish.md
+// as a gap-fix: no earlier build-prompt module (1-8) actually implemented
+// this despite it being explicit MVP scope. API-only for now — see
+// backend/src/modules/admin/admin-user.controller.ts's doc comment.
+export interface AdminUserListItemDto {
+  id: string;
+  email: string;
+  displayName: string | null;
+  roleCode: RoleCode;
+  status: UserStatus;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface UpdateUserRoleRequest {
+  roleCode: RoleCode;
+}

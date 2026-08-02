@@ -16,6 +16,7 @@ import type { MainStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'EditProfile'>;
 
@@ -37,6 +38,8 @@ export function EditProfileScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   // Pre-fill the form once `GET /me` resolves (task 5 requirement); avatar
   // is intentionally left untouched — no media upload pipeline until Module 7.
@@ -122,6 +125,7 @@ export function EditProfileScreen({ navigation }: Props) {
           value={displayName}
           onChangeText={markDirty(setDisplayName)}
           placeholder="Tên hiển thị"
+          placeholderTextColor={colors.textTertiary}
         />
         {!displayNameValid && displayName.length > 0 ? (
           <Text style={styles.fieldError}>Tên phải từ 2-50 ký tự.</Text>
@@ -137,6 +141,7 @@ export function EditProfileScreen({ navigation }: Props) {
           }}
           keyboardType="phone-pad"
           placeholder="0912345678"
+          placeholderTextColor={colors.textTertiary}
         />
         {(!phoneValid || phoneError) && (
           <Text style={styles.fieldError}>
@@ -150,6 +155,7 @@ export function EditProfileScreen({ navigation }: Props) {
           value={bio}
           onChangeText={markDirty(setBio)}
           placeholder="Vài dòng về bạn"
+          placeholderTextColor={colors.textTertiary}
           multiline
         />
 
@@ -159,48 +165,52 @@ export function EditProfileScreen({ navigation }: Props) {
           value={homeCity}
           onChangeText={markDirty(setHomeCity)}
           placeholder="TP. Hồ Chí Minh"
+          placeholderTextColor={colors.textTertiary}
         />
 
         <Pressable style={[styles.button, !canSave && styles.buttonDisabled]} onPress={handleSave} disabled={!canSave}>
-          {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Lưu</Text>}
+          {isSaving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>Lưu</Text>}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  container: { flexGrow: 1, padding: 24, backgroundColor: '#fff' },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
-    fontSize: 16,
-  },
-  multiline: { minHeight: 80, textAlignVertical: 'top' },
-  fieldError: { color: '#a94442', fontSize: 13, marginBottom: 12 },
-  button: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  errorBanner: {
-    backgroundColor: '#fdecea',
-    borderColor: '#f5c6cb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#a94442', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flexGrow: 1, padding: 24, backgroundColor: colors.background },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.textPrimary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 8,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+    },
+    multiline: { minHeight: 80, textAlignVertical: 'top' },
+    fieldError: { color: colors.error, fontSize: 13, marginBottom: 12 },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    errorBanner: {
+      backgroundColor: colors.errorBg,
+      borderColor: colors.errorBorder,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorText: { color: colors.error, fontSize: 14 },
+  });

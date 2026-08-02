@@ -7,7 +7,10 @@ import type {
   PriceRangeCode,
   RestaurantCategoryCode,
   RestaurantDetailDto,
+  RestaurantSitemapEntryDto,
   RestaurantSummaryDto,
+  ReviewCriteriaCode,
+  ReviewDto,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
@@ -16,12 +19,17 @@ import { clampRadiusKm } from './restaurant.util';
 
 // Per docs business rule: cap returned markers per viewport request.
 const MAX_MARKERS = 200;
+// RestaurantDetailDto.reviews is a small newest-first PREVIEW, not the full
+// list — see GET /restaurants/:id/reviews (ReviewModule) for the paginated
+// view with the full rating breakdown.
+const REVIEW_PREVIEW_COUNT = 5;
 // Per docs/05-system-architecture.md §8 Caching Strategy: 30-60s TTL.
 const VIEWPORT_CACHE_TTL_SECONDS = 45;
 const CACHE_VERSION_KEY = 'viewport:cache:version';
 
 interface RawRestaurantRow {
   id: string;
+  slug: string;
   name: string;
   category_code: string;
   composite_score: Prisma.Decimal | null;
@@ -75,6 +83,34 @@ export class RestaurantService {
   }
 
   /**
+   * Same contract as `getDetail`, keyed by the restaurant's unique `slug`
+   * instead of its uuid — added for build-prompts/09-public-web.md, whose
+   * whole point is clean indexable URLs (`/quan/pho-hoa-pasteur`, not
+   * `/quan/3fa85f64-...`). The mobile app keeps using id-based lookups
+   * unchanged; this is purely an additional lookup path onto the same
+   * public-only (published, non-deleted) query.
+   */
+  async getDetailBySlug(slug: string): Promise<RestaurantDetailDto> {
+    const restaurant = await this.prisma.restaurant.findFirst({
+      where: { slug, deletedAt: null, status: { publicationStatus: 'published' } },
+      include: RESTAURANT_DETAIL_INCLUDE,
+    });
+    if (!restaurant) {
+      throw new NotFoundException('Không tìm thấy quán ăn');
+    }
+    return this.buildDetailDto(restaurant);
+  }
+
+  /** All published restaurant slugs — used by the public web app's sitemap.xml. */
+  async listPublishedSlugs(): Promise<RestaurantSitemapEntryDto[]> {
+    const rows = await this.prisma.restaurant.findMany({
+      where: { deletedAt: null, status: { publicationStatus: 'published' } },
+      select: { slug: true, updatedAt: true },
+    });
+    return rows.map((r) => ({ slug: r.slug, updatedAt: r.updatedAt.toISOString() }));
+  }
+
+  /**
    * Reusable by AdminRestaurantService, which needs to see restaurants
    * regardless of publication status (pending/hidden/etc.) — never used by
    * any public-facing endpoint.
@@ -87,10 +123,18 @@ export class RestaurantService {
   }
 
   async buildDetailDto(restaurant: RestaurantWithDetailRelations): Promise<RestaurantDetailDto> {
-    const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'restaurant', ownerId: restaurant.id, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-    });
+    const [photos, reviewRows] = await Promise.all([
+      this.prisma.photo.findMany({
+        where: { ownerType: 'restaurant', ownerId: restaurant.id, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.review.findMany({
+        where: { restaurantId: restaurant.id, status: 'published', deletedAt: null },
+        include: { user: { include: { profile: true } }, ratings: { include: { criteria: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: REVIEW_PREVIEW_COUNT,
+      }),
+    ]);
     const vnNow = toVnNow(new Date());
     const openingHourRows: OpeningHourRow[] = restaurant.openingHours;
 
@@ -134,8 +178,44 @@ export class RestaurantService {
       photos: photos.map((p) => ({ id: p.id, url: p.storageKey, width: p.width, height: p.height })),
       compositeScore: restaurant.status?.compositeScore ? Number(restaurant.status.compositeScore) : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
-      reviews: [],
+      reviews: reviewRows.map((r) => this.toReviewPreviewDto(r)),
       aiSummary: null,
+    };
+  }
+
+  private toReviewPreviewDto(review: {
+    id: string;
+    restaurantId: string;
+    user: { id: string; profile: { displayName: string } | null };
+    ratings: { score: number; criteria: { code: string } }[];
+    overallRating: number;
+    comment: string | null;
+    dishesOrdered: string[];
+    billTotalVnd: number | null;
+    partySize: number | null;
+    visitedAt: Date | null;
+    waitTimeMinutes: number | null;
+    wouldReturn: boolean | null;
+    status: string;
+    editedAt: Date | null;
+    createdAt: Date;
+  }): ReviewDto {
+    return {
+      id: review.id,
+      restaurantId: review.restaurantId,
+      author: { id: review.user.id, displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh' },
+      overallRating: review.overallRating,
+      ratings: review.ratings.map((r) => ({ criteriaCode: r.criteria.code as ReviewCriteriaCode, score: r.score })),
+      comment: review.comment,
+      dishesOrdered: review.dishesOrdered,
+      billTotalVnd: review.billTotalVnd,
+      partySize: review.partySize,
+      visitedAt: review.visitedAt?.toISOString() ?? null,
+      waitTimeMinutes: review.waitTimeMinutes,
+      wouldReturn: review.wouldReturn,
+      status: review.status as ReviewDto['status'],
+      editedAt: review.editedAt?.toISOString() ?? null,
+      createdAt: review.createdAt.toISOString(),
     };
   }
 
@@ -183,6 +263,7 @@ export class RestaurantService {
     const rows = await this.prisma.$queryRaw<RawRestaurantRow[]>`
       SELECT
         r.id,
+        r.slug,
         r.name,
         rc.code AS category_code,
         rs.composite_score,
@@ -236,6 +317,7 @@ export class RestaurantService {
     const rows = await this.prisma.$queryRaw<RawRestaurantRow[]>`
       SELECT
         r.id,
+        r.slug,
         r.name,
         rc.code AS category_code,
         rs.composite_score,
@@ -253,9 +335,9 @@ export class RestaurantService {
       WHERE r.deleted_at IS NULL
         AND rs.publication_status = 'published'
         AND l.geo_point && ST_MakeEnvelope(${swLng}, ${swLat}, ${neLng}, ${neLat}, 4326)::geography
-      -- No real composite score yet (build-prompts/06), so recency is the
-      -- best available proxy for "quality" ordering per this module's scope.
-      ORDER BY r.created_at DESC
+      -- Composite score (build-prompts/06) is now real — rank well-reviewed
+      -- places first, falling back to recency when scores are equal/absent.
+      ORDER BY rs.composite_score DESC NULLS LAST, r.created_at DESC
       LIMIT ${MAX_MARKERS}
     `;
 
@@ -297,6 +379,7 @@ export class RestaurantService {
 
     return rows.map((row) => ({
       id: row.id,
+      slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
       thumbnailUrl: null, // honestly null until build-prompts/07's MediaModule exists

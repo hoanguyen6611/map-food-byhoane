@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CuisineCode, FacilityType, PriceRangeCode } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { getFilterValues, useFilterStore, type FilterValues } from '../../store/filterStore';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Filter'>;
 
@@ -77,6 +78,8 @@ function toggleInArray<T>(list: T[], value: T): T[] {
  */
 export function FilterScreen({ navigation }: Props) {
   const [local, setLocal] = useState<FilterValues>(() => getFilterValues(useFilterStore.getState()));
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const selectedBucket = PRICE_BUCKETS.find(
     (bucket) => bucket.min === local.priceMin && bucket.max === local.priceMax,
@@ -241,57 +244,58 @@ export function FilterScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { padding: 16, paddingBottom: 32 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#333', marginTop: 20, marginBottom: 10 },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowLabel: { fontSize: 14, color: '#333' },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 },
-  stepperButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f2f2f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonText: { fontSize: 18, fontWeight: '700', color: '#e4572e' },
-  stepperValue: { fontSize: 15, fontWeight: '600', color: '#222', minWidth: 64, textAlign: 'center' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f2f2f2',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  chipSelected: { backgroundColor: '#fde8e0', borderColor: '#e4572e' },
-  chipText: { fontSize: 13, color: '#444', fontWeight: '600' },
-  chipTextSelected: { color: '#e4572e' },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  clearButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e4572e',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  clearButtonText: { color: '#e4572e', fontWeight: '700', fontSize: 15 },
-  applyButton: {
-    flex: 1,
-    backgroundColor: '#e4572e',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  applyButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollContent: { padding: 16, paddingBottom: 32 },
+    sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 10 },
+    rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    rowLabel: { fontSize: 14, color: colors.textPrimary },
+    stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 },
+    stepperButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperButtonText: { fontSize: 18, fontWeight: '700', color: colors.primary },
+    stepperValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, minWidth: 64, textAlign: 'center' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    chipSelected: { backgroundColor: colors.primarySurface, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+    chipTextSelected: { color: colors.primary },
+    footer: {
+      flexDirection: 'row',
+      gap: 12,
+      padding: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    clearButton: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    clearButtonText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
+    applyButton: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    applyButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+  });

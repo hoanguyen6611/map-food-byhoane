@@ -1,25 +1,56 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatDistanceMeters, formatPriceRange } from '../lib/format';
+import { useTheme, type ThemeColors } from '../theme/ThemeContext';
+
+/**
+ * The subset of fields `RestaurantCard` actually renders — satisfied by both
+ * `RestaurantSummaryDto` (search/list/map results) and
+ * `FavoriteRestaurantSummaryDto` (Favorites screen, which has no
+ * lat/lng/distanceMeters/isOpenNow since it isn't a viewport/geo query).
+ * Structural typing means both DTOs are assignable here without an explicit
+ * adapter — this card just doesn't render the open/closed badge or distance
+ * for callers that don't have that data.
+ */
+interface RestaurantCardData
+  extends Pick<RestaurantSummaryDto, 'id' | 'name' | 'compositeScore' | 'reviewCount' | 'priceRange'> {
+  isOpenNow?: boolean;
+  distanceMeters?: number | null;
+}
 
 interface Props {
-  restaurant: RestaurantSummaryDto;
+  restaurant: RestaurantCardData;
   onPress: () => void;
+  /** Omit to render the card without a favorite heart overlay at all. */
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 /**
  * Generic reusable list-item card (docs/04-screen-list.md screen 12) shared
- * by SearchResultScreen and ListScreen (build-prompts/04). Distinct from the
- * map's compact `src/components/map/RestaurantPreviewCard.tsx`, which stays
- * as the marker-tap bottom-sheet preview and is NOT reused here.
+ * by SearchResultScreen, ListScreen, and FavoritesScreen (build-prompts/04,
+ * /08). Distinct from the map's compact
+ * `src/components/map/RestaurantPreviewCard.tsx`, which stays as the
+ * marker-tap bottom-sheet preview and is NOT reused here.
  *
  * Thumbnail is always a branded placeholder (`thumbnailUrl` is honestly null
  * until build-prompts/07's media pipeline exists); rating is never
  * fabricated — a null `compositeScore` renders "Chưa có đánh giá" instead of
  * a synthesized number.
+ *
+ * Favorite heart is a small overlay in the top-right corner — tapping it
+ * toggles favorite status without triggering the card's own `onPress` (the
+ * inner `Pressable` captures the touch itself, so it never bubbles up to the
+ * outer card `Pressable`). `isFavorited`/`onToggleFavorite` are supplied by
+ * the parent screen (which fetches `useFavoriteIds()` once), NOT fetched
+ * per-card, to avoid a redundant live query per list item.
  */
-export function RestaurantCard({ restaurant, onPress }: Props) {
+export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavorite }: Props) {
   const priceLabel = formatPriceRange(restaurant.priceRange);
+  const showFavoriteButton = onToggleFavorite !== undefined;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   return (
     <Pressable style={styles.container} onPress={onPress}>
@@ -43,14 +74,36 @@ export function RestaurantCard({ restaurant, onPress }: Props) {
         </View>
 
         <View style={styles.metaRow}>
-          <View style={[styles.badge, restaurant.isOpenNow ? styles.badgeOpen : styles.badgeClosed]}>
-            <Text style={styles.badgeText}>{restaurant.isOpenNow ? 'Đang mở cửa' : 'Đã đóng cửa'}</Text>
-          </View>
-          {restaurant.distanceMeters !== null ? (
+          {restaurant.isOpenNow !== undefined ? (
+            <View style={[styles.badge, restaurant.isOpenNow ? styles.badgeOpen : styles.badgeClosed]}>
+              <Text style={styles.badgeText}>{restaurant.isOpenNow ? 'Đang mở cửa' : 'Đã đóng cửa'}</Text>
+            </View>
+          ) : null}
+          {restaurant.distanceMeters !== null && restaurant.distanceMeters !== undefined ? (
             <Text style={styles.distanceText}>{formatDistanceMeters(restaurant.distanceMeters)}</Text>
           ) : null}
         </View>
       </View>
+
+      {showFavoriteButton ? (
+        <Pressable
+          style={styles.favoriteButton}
+          hitSlop={8}
+          onPress={(event) => {
+            event.stopPropagation();
+            onToggleFavorite?.();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isFavorited ? `Bỏ yêu thích ${restaurant.name}` : `Yêu thích ${restaurant.name}`}
+          accessibilityState={{ selected: isFavorited }}
+        >
+          <Ionicons
+            name={isFavorited ? 'heart' : 'heart-outline'}
+            size={18}
+            color={isFavorited ? colors.primary : colors.textTertiary}
+          />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -61,6 +114,8 @@ export function RestaurantCard({ restaurant, onPress }: Props) {
  * (not worth a new dependency for this module's scope).
  */
 export function RestaurantCardSkeleton() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.container}>
       <View style={[styles.thumbnailPlaceholder, styles.skeletonBlock]} />
@@ -73,41 +128,57 @@ export function RestaurantCardSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  thumbnailPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
-    backgroundColor: '#fde8e0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  thumbnailEmoji: { fontSize: 28 },
-  info: { flex: 1, justifyContent: 'center' },
-  name: { fontSize: 15, fontWeight: '700', color: '#222', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
-  ratingText: { fontSize: 13, color: '#888' },
-  dot: { fontSize: 13, color: '#bbb' },
-  priceText: { fontSize: 13, color: '#444', fontWeight: '600' },
-  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-  badgeOpen: { backgroundColor: '#e3f6e8' },
-  badgeClosed: { backgroundColor: '#f6e3e3' },
-  badgeText: { fontSize: 11, fontWeight: '600', color: '#333' },
-  distanceText: { fontSize: 12, color: '#666' },
-  skeletonBlock: { backgroundColor: '#eee', borderRadius: 6 },
-  skeletonLineWide: { height: 14, width: '70%', marginBottom: 8 },
-  skeletonLineNarrow: { height: 12, width: '45%', marginBottom: 8 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      padding: 12,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginBottom: 10,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    favoriteButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.15,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    thumbnailPlaceholder: {
+      width: 64,
+      height: 64,
+      borderRadius: 10,
+      backgroundColor: colors.primarySurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    thumbnailEmoji: { fontSize: 28 },
+    info: { flex: 1, justifyContent: 'center' },
+    name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
+    ratingText: { fontSize: 13, color: colors.textSecondary },
+    dot: { fontSize: 13, color: colors.textTertiary },
+    priceText: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
+    badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+    badgeOpen: { backgroundColor: colors.successBg },
+    badgeClosed: { backgroundColor: colors.errorBg },
+    badgeText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary },
+    distanceText: { fontSize: 12, color: colors.textSecondary },
+    skeletonBlock: { backgroundColor: colors.surfaceAlt, borderRadius: 6 },
+    skeletonLineWide: { height: 14, width: '70%', marginBottom: 8 },
+    skeletonLineNarrow: { height: 12, width: '45%', marginBottom: 8 },
+  });

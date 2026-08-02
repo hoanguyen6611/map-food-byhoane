@@ -76,3 +76,19 @@ CI/CD:         GitHub Actions + EAS Build/Submit (mobile), Docker image deploy (
 | **Total** | | **≈ $10–80/month**, scalable up only when real usage demands it |
 
 This is deliberately over-provisioned toward "cheap and swappable" rather than "maximally scalable," per the project rule to balance portfolio quality against real deployability.
+
+## 5. Public Web App (Post-MVP Phase — decided during the Module 5→6 transition)
+
+The MVP (§Phase 1 in [08-roadmap-sprint.md](08-roadmap-sprint.md)) is mobile-only, per the PRD's "mobile-first" positioning ([01-prd-mvp.md](01-prd-mvp.md) §1). A public, end-user-facing web app was added to scope as a **follow-on phase after Phase 1 (mobile MVP) completes** — see [08-roadmap-sprint.md](08-roadmap-sprint.md) §1 "Phase 1.5 — Public Web".
+
+**Decision: Next.js (App Router) + TypeScript, SSR/SSG-first.**
+
+**Why:** the stated goal for this web app is SEO/discovery — Google-indexable restaurant detail and search/listing pages that give the product an acquisition channel the mobile app structurally cannot have (app stores don't get organically crawled per-restaurant). That requires content to be present in the initial server-rendered HTML, which rules out a client-only SPA (the existing admin-web Vite+React pattern is right for a logged-in internal tool, wrong here). Next.js was chosen over a custom SSR setup because it's the default, well-supported choice for this exact "public marketing/content site with some dynamic data" shape, and because the team already has React/TypeScript fluency from mobile + admin-web — no new language, only a new rendering model to learn.
+
+**Scope boundary (explicit, to avoid quietly re-scoping into "rebuild the whole app twice"):** SEO/discovery-first means map + search + restaurant detail pages are the core surface, server-rendered and indexable. Auth-gated write actions (write a review, favorite, add a restaurant) either deep-link/redirect into the mobile app or get a minimal web implementation — exact cutoff is a call for whoever scopes that phase's build-prompt module, not decided here. Full feature parity with mobile was explicitly considered and rejected for the initial cut (would double UI-maintenance surface for a benefit — a place to do everything the app already does — that isn't the reason this phase exists).
+
+**Code sharing:** `packages/shared-types` (already used by backend/mobile/admin-web) extends the same way to the new `web/` workspace — no new cross-package typing work needed, same monorepo pattern.
+
+```
+Public Web:    Next.js (App Router) + TypeScript + @foodmap/shared-types (SSR/SSG, SEO-first)
+```

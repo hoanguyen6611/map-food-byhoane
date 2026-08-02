@@ -14,6 +14,7 @@ import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import type { MainStackParamList, MainTabParamList } from '../../navigation/types';
 import { useRestaurantsInBounds } from '../../hooks/useRestaurantsInBounds';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
+import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
 import {
   DEFAULT_REGION_DELTA,
   HCMC_CENTER,
@@ -24,6 +25,7 @@ import {
   type LatLng,
 } from '../../lib/geo';
 import { RestaurantPreviewCard } from '../../components/map/RestaurantPreviewCard';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Map'>,
@@ -56,6 +58,8 @@ const MANUAL_AREAS: { label: string; center: LatLng }[] = [
  * its own mount, as instructed.
  */
 export function MapScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const mapRef = useRef<MapView | null>(null);
   const regionChangeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,6 +116,8 @@ export function MapScreen({ navigation }: Props) {
 
   const restaurantsQuery = useRestaurantsInBounds(debouncedBounds);
   const restaurants = restaurantsQuery.data ?? [];
+  const favoriteIdsQuery = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
 
   const hasCachedData = restaurantsQuery.data !== undefined;
   const showInitialLoading = initialRegion === null || (restaurantsQuery.isLoading && !hasCachedData);
@@ -147,7 +153,7 @@ export function MapScreen({ navigation }: Props) {
   if (showInitialLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#e4572e" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Đang tải bản đồ...</Text>
       </View>
     );
@@ -187,7 +193,7 @@ export function MapScreen({ navigation }: Props) {
 
       {restaurantsQuery.isFetching && hasCachedData ? (
         <View style={styles.refetchIndicator}>
-          <ActivityIndicator size="small" color="#e4572e" />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : null}
 
@@ -200,7 +206,12 @@ export function MapScreen({ navigation }: Props) {
             <Pressable onPress={openManualAreaPicker}>
               <Text style={styles.bannerLink}>Chọn khu vực thủ công</Text>
             </Pressable>
-            <Pressable onPress={() => setLocationBannerVisible(false)} hitSlop={8}>
+            <Pressable
+              onPress={() => setLocationBannerVisible(false)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Đóng thông báo"
+            >
               <Text style={styles.bannerDismiss}>✕</Text>
             </Pressable>
           </View>
@@ -221,7 +232,12 @@ export function MapScreen({ navigation }: Props) {
       ) : null}
 
       {deviceLocation ? (
-        <Pressable style={styles.recenterButton} onPress={handleRecenter}>
+        <Pressable
+          style={styles.recenterButton}
+          onPress={handleRecenter}
+          accessibilityRole="button"
+          accessibilityLabel="Về vị trí của tôi"
+        >
           <Text style={styles.recenterButtonText}>◎</Text>
         </Pressable>
       ) : null}
@@ -244,89 +260,101 @@ export function MapScreen({ navigation }: Props) {
             setSelectedRestaurant(null);
             navigation.navigate('RestaurantDetail', { restaurantId });
           }}
+          isFavorited={favoriteIdsQuery.data?.has(selectedRestaurant.id) ?? false}
+          onToggleFavorite={() =>
+            toggleFavorite.mutate({
+              restaurantId: selectedRestaurant.id,
+              isFavorited: favoriteIdsQuery.data?.has(selectedRestaurant.id) ?? false,
+            })
+          }
         />
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  loadingText: { marginTop: 12, color: '#666', fontSize: 14 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#a94442', marginBottom: 8 },
-  errorBody: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32, marginBottom: 20 },
-  retryButton: { backgroundColor: '#e4572e', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-  retryButtonText: { color: '#fff', fontWeight: '700' },
-  refetchIndicator: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 56 : 16,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  banner: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 56 : 16,
-    left: 16,
-    right: 16,
-    backgroundColor: '#333',
-    borderRadius: 10,
-    padding: 12,
-  },
-  bannerStacked: { top: (Platform.OS === 'ios' ? 56 : 16) + 68 },
-  bannerText: { color: '#fff', fontSize: 13 },
-  bannerActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  bannerLink: { color: '#ffd08a', fontWeight: '700', fontSize: 13 },
-  bannerDismiss: { color: '#fff', fontSize: 14, fontWeight: '700', paddingHorizontal: 4 },
-  emptyState: {
-    position: 'absolute',
-    top: '40%',
-    left: 32,
-    right: 32,
-    alignItems: 'center',
-  },
-  emptyStateTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#333',
-    textAlign: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  emptyStateHint: {
-    fontSize: 13,
-    color: '#555',
-    textAlign: 'center',
-    marginTop: 6,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  recenterButton: {
-    position: 'absolute',
-    right: 16,
-    bottom: 24,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  recenterButtonText: { fontSize: 20, color: '#e4572e' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 14 },
+    errorTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+    errorBody: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32, marginBottom: 20 },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+    refetchIndicator: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 56 : 16,
+      right: 16,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 6,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    banner: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 56 : 16,
+      left: 16,
+      right: 16,
+      backgroundColor: colors.overlayBanner,
+      borderRadius: 10,
+      padding: 12,
+    },
+    bannerStacked: { top: (Platform.OS === 'ios' ? 56 : 16) + 68 },
+    bannerText: { color: colors.overlayBannerText, fontSize: 13 },
+    bannerActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+    bannerLink: { color: colors.overlayBannerLink, fontWeight: '700', fontSize: 13 },
+    bannerDismiss: { color: colors.overlayBannerText, fontSize: 14, fontWeight: '700', paddingHorizontal: 4 },
+    emptyState: {
+      position: 'absolute',
+      top: '40%',
+      left: 32,
+      right: 32,
+      alignItems: 'center',
+    },
+    // Deliberately theme-invariant (white-translucent-on-map), same rationale
+    // as `overlayBanner`: this is a floating label over the MAP TILES (which
+    // this module explicitly doesn't re-theme), not part of the app's normal
+    // reading surface — flipping it dark would fight the light map beneath it.
+    emptyStateTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#333',
+      textAlign: 'center',
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      overflow: 'hidden',
+    },
+    emptyStateHint: {
+      fontSize: 13,
+      color: '#555',
+      textAlign: 'center',
+      marginTop: 6,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      overflow: 'hidden',
+    },
+    recenterButton: {
+      position: 'absolute',
+      right: 16,
+      bottom: 24,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    recenterButtonText: { fontSize: 20, color: colors.primary },
+  });

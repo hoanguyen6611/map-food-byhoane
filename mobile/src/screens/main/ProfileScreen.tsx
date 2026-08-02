@@ -8,6 +8,8 @@ import type { MainStackParamList, MainTabParamList } from '../../navigation/type
 import { authApi } from '../../api/auth';
 import { secureStorage } from '../../lib/secureStorage';
 import { useAuthStore } from '../../store/authStore';
+import { useNotificationsList } from '../../hooks/useNotifications';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Profile'>,
@@ -15,11 +17,10 @@ type Props = CompositeScreenProps<
 >;
 
 /**
- * Screen 23 (User Profile) per docs/04-screen-list.md. Module 2 scope is the
- * account-management essentials (display identity, Edit Profile, Logout) so
- * the Definition of Done's Register -> ... -> Logout -> Login flow works
- * end-to-end. Favorites/Notifications/Settings menu links are intentionally
- * left out — those screens are still placeholders owned by later modules.
+ * Screen 23 (User Profile) per docs/04-screen-list.md. Module 2 scope was the
+ * account-management essentials (display identity, Edit Profile, Logout);
+ * build-prompts/08 adds the Notifications and Settings menu links those
+ * screens now support.
  */
 export function ProfileScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
@@ -27,6 +28,12 @@ export function ProfileScreen({ navigation }: Props) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const meQuery = useQuery({ queryKey: ['me'], queryFn: authApi.me });
+  // pageSize: 1 keeps this cheap — only `unreadCount` (not the items) is used,
+  // for the menu row's unread badge.
+  const notificationsQuery = useNotificationsList(1, 1);
+  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const displayName = meQuery.data?.profile.displayName ?? '';
   const email = meQuery.data?.user.email ?? user?.email ?? '';
@@ -53,7 +60,7 @@ export function ProfileScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       {meQuery.isLoading ? (
-        <ActivityIndicator style={styles.headerSpinner} />
+        <ActivityIndicator style={styles.headerSpinner} color={colors.primary} />
       ) : (
         <View style={styles.header}>
           <Text style={styles.displayName}>{displayName || 'Cá nhân'}</Text>
@@ -65,13 +72,26 @@ export function ProfileScreen({ navigation }: Props) {
         <Text style={styles.menuItemText}>Chỉnh sửa hồ sơ</Text>
       </Pressable>
 
+      <Pressable style={[styles.menuItem, styles.menuItemRow]} onPress={() => navigation.navigate('Notifications')}>
+        <Text style={styles.menuItemText}>Thông báo</Text>
+        {unreadCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+
+      <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
+        <Text style={styles.menuItemText}>Cài đặt</Text>
+      </Pressable>
+
       <Pressable
         style={[styles.menuItem, styles.logoutItem]}
         onPress={handleLogout}
         disabled={isLoggingOut}
       >
         {isLoggingOut ? (
-          <ActivityIndicator color="#a94442" />
+          <ActivityIndicator color={colors.error} />
         ) : (
           <Text style={[styles.menuItemText, styles.logoutText]}>Đăng xuất</Text>
         )}
@@ -80,19 +100,31 @@ export function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 24 },
-  headerSpinner: { marginVertical: 32 },
-  header: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24 },
-  displayName: { fontSize: 22, fontWeight: '700' },
-  email: { fontSize: 14, color: '#666', marginTop: 4 },
-  menuItem: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  menuItemText: { fontSize: 16, fontWeight: '500' },
-  logoutItem: { marginTop: 24, borderTopColor: '#eee' },
-  logoutText: { color: '#a94442', fontWeight: '700' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, paddingTop: 24 },
+    headerSpinner: { marginVertical: 32 },
+    header: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24 },
+    displayName: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
+    email: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+    menuItem: {
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    menuItemText: { fontSize: 16, fontWeight: '500', color: colors.textPrimary },
+    menuItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    badge: {
+      minWidth: 22,
+      height: 22,
+      borderRadius: 11,
+      paddingHorizontal: 6,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badgeText: { color: colors.onPrimary, fontSize: 11, fontWeight: '700' },
+    logoutItem: { marginTop: 24, borderTopColor: colors.divider },
+    logoutText: { color: colors.error, fontWeight: '700' },
+  });

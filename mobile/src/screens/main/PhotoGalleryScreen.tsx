@@ -16,6 +16,7 @@ import type { PhotoDto } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
 import { ApiError } from '../../api/client';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PhotoGallery'>;
 
@@ -34,11 +35,13 @@ export function PhotoGalleryScreen({ route }: Props) {
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   if (detailQuery.isLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#e4572e" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -62,7 +65,7 @@ export function PhotoGalleryScreen({ route }: Props) {
   if (photos.length === 0) {
     return (
       <View style={styles.centeredContainer}>
-        <Ionicons name="image-outline" size={40} color="#bbb" />
+        <Ionicons name="image-outline" size={40} color={colors.textTertiary} />
         <Text style={styles.emptyText}>Chưa có ảnh nào</Text>
       </View>
     );
@@ -114,30 +117,33 @@ export function PhotoGalleryScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centeredContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 32,
-    gap: 10,
-  },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: '#a94442', textAlign: 'center' },
-  retryButton: { backgroundColor: '#e4572e', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-  retryButtonText: { color: '#fff', fontWeight: '700' },
-  emptyText: { fontSize: 15, color: '#999', fontWeight: '600' },
-  row: { gap: GRID_GAP },
-  thumb: { width: THUMB_SIZE, height: THUMB_SIZE, marginBottom: GRID_GAP, backgroundColor: '#f2f2f2' },
-  viewerContainer: { flex: 1, backgroundColor: '#000' },
-  viewerCloseButton: {
-    position: 'absolute',
-    top: 52,
-    right: 16,
-    zIndex: 1,
-    padding: 8,
-  },
-  viewerPage: { width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center' },
-  viewerImage: { width: SCREEN_WIDTH, height: '100%' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    centeredContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      paddingHorizontal: 32,
+      gap: 10,
+    },
+    errorTitle: { fontSize: 16, fontWeight: '700', color: colors.error, textAlign: 'center' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+    emptyText: { fontSize: 15, color: colors.textTertiary, fontWeight: '600' },
+    row: { gap: GRID_GAP },
+    thumb: { width: THUMB_SIZE, height: THUMB_SIZE, marginBottom: GRID_GAP, backgroundColor: colors.surfaceAlt },
+    // The full-screen photo viewer is deliberately always black (standard
+    // photo-viewer convention, like Photos apps), independent of app theme.
+    viewerContainer: { flex: 1, backgroundColor: '#000' },
+    viewerCloseButton: {
+      position: 'absolute',
+      top: 52,
+      right: 16,
+      zIndex: 1,
+      padding: 8,
+    },
+    viewerPage: { width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center' },
+    viewerImage: { width: SCREEN_WIDTH, height: '100%' },
+  });

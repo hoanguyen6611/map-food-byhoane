@@ -23,6 +23,7 @@ const DEFAULT_PAGE_SIZE = 20;
 
 interface RawRow {
   id: string;
+  slug: string;
   name: string;
   category_code: string;
   composite_score: Prisma.Decimal | null;
@@ -116,6 +117,14 @@ export class SearchService {
       ) = ${query.facilities.length}`);
     }
 
+    if (query.category) {
+      conditions.push(Prisma.sql`rc.code = ${query.category}`);
+    }
+
+    if (query.district) {
+      conditions.push(Prisma.sql`a.district = ${query.district}`);
+    }
+
     const whereClause = Prisma.join(conditions, ' AND ');
     const textRankExpr = query.q
       ? Prisma.sql`ts_rank_cd(r.search_vector, plainto_tsquery('simple', immutable_unaccent(${query.q})))`
@@ -127,6 +136,7 @@ export class SearchService {
     const rows = await this.prisma.$queryRaw<RawRow[]>`
       SELECT
         r.id,
+        r.slug,
         r.name,
         rc.code AS category_code,
         rs.composite_score,
@@ -141,12 +151,15 @@ export class SearchService {
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
+      JOIN addresses a ON a.id = r.address_id
       LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
       LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
       WHERE ${whereClause}
-      -- TODO Module 6: fold compositeScore into this ranking once real
-      -- review-derived scores exist (per build-prompts/04's scope note).
-      ORDER BY text_rank DESC, distance_meters ASC NULLS LAST, r.created_at DESC
+      -- Relevance first (0 for every row when there's no q, so this tier is
+      -- a no-op in pure-browse mode), then composite score (build-prompts/06)
+      -- so a well-reviewed restaurant outranks a mediocre one for the same
+      -- query, then proximity, then recency as the final tiebreak.
+      ORDER BY text_rank DESC, rs.composite_score DESC NULLS LAST, distance_meters ASC NULLS LAST, r.created_at DESC
       LIMIT ${MAX_CANDIDATES}
     `;
 
@@ -208,6 +221,7 @@ export class SearchService {
 
     return rows.map((row) => ({
       id: row.id,
+      slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
       thumbnailUrl: null,

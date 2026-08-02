@@ -20,6 +20,17 @@ Assumption (stated per project rule on unspecified inputs): solo/small-team pace
 - **Tiêu chí hoàn thành:** All P0 user stories in [02-user-stories.md](02-user-stories.md) pass acceptance criteria; 30–50 seed restaurants live; moderation queue functional end-to-end.
 - **Chỉ số đo lường:** Time-to-first-result on map <2s p95; 0 critical security findings open; demo walkthrough completes without a crash.
 
+### Phase 1.5 — Public Web (SEO/Discovery)
+
+*Added during the Module 5→6 transition — see [01-prd-mvp.md](01-prd-mvp.md) §15 A7 and [07-tech-stack.md](07-tech-stack.md) §5 for the decision record.*
+
+- **Mục tiêu:** Give the product a Google-indexable public surface (map/search/restaurant-detail pages) that the mobile app structurally can't provide — an acquisition channel via organic search, not a mobile-feature-parity rebuild.
+- **Tính năng:** Server-rendered restaurant detail pages, search/listing pages, city/district landing pages — all read-only and indexable. Auth-gated write actions (review, favorite, add restaurant) deep-link into the mobile app or get a minimal web implementation; exact cutoff is decided when this phase's build-prompt module is written, not here.
+- **Phụ thuộc:** Phase 1 (mobile MVP, Modules 1-8) complete — this phase does not start earlier, so it never competes with mobile MVP schedule. Reuses the existing backend API and `packages/shared-types` as-is; no backend rework expected beyond adding SSR-friendly cacheable read endpoints if profiling shows a need.
+- **Rủi ro:** Building a second frontend doubles UI-maintenance surface if scope creeps toward full parity. **Mitigation:** hard scope boundary — SEO/discovery surfaces only for the initial cut, tracked explicitly so "just add reviews to web too" doesn't silently expand it.
+- **Tiêu chí hoàn thành:** Restaurant detail and search pages server-render with correct data and are crawlable (verifiable via view-source, not just DevTools' rendered DOM); Lighthouse SEO score meets a defined bar (set when the build-prompt module is written).
+- **Chỉ số đo lường:** Organic search impressions/clicks on restaurant detail pages (once indexed); web→app conversion rate for write actions that redirect.
+
 ### Phase 2 — Community
 - **Mục tiêu:** Turn passive users into an active contribution loop.
 - **Tính năng:** Follow, like, comment, check-in, feed, contributor ranking, badges, Food Passport.
@@ -89,7 +100,7 @@ Rationale: Auth must exist before anything write-gated (reviews, contribution); 
 
 ## 4. Post-MVP Phase Sequencing (indicative, re-scope after real MVP usage data)
 
-| | Phase 2 (Community) | Phase 3 (AI) | Phase 4 (Business) | Phase 5 (Monetization) |
-|---|---|---|---|---|
-| Est. duration | 6–8 weeks | 6–10 weeks | 6–8 weeks | 8–12 weeks |
-| Trigger to start | MVP has real seed engagement | Sufficient review/search volume logged | Phase 2/3 stable, owner interest validated | Owner adoption from Phase 4 proven |
+| | Phase 1.5 (Public Web) | Phase 2 (Community) | Phase 3 (AI) | Phase 4 (Business) | Phase 5 (Monetization) |
+|---|---|---|---|---|---|
+| Est. duration | 3–5 weeks | 6–8 weeks | 6–10 weeks | 6–8 weeks | 8–12 weeks |
+| Trigger to start | Phase 1 (mobile MVP) complete | MVP has real seed engagement | Sufficient review/search volume logged | Phase 2/3 stable, owner interest validated | Owner adoption from Phase 4 proven |

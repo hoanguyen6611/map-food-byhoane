@@ -27,6 +27,7 @@ This folder breaks Phase 1 (MVP) implementation into 8 sequential modules, mirro
 | 6 | [06-reviews-scoring.md](06-reviews-scoring.md) | S6 | Review module + composite scoring job + review screens |
 | 7 | [07-contribution-media-moderation-ai.md](07-contribution-media-moderation-ai.md) | S7 | Add Restaurant, media upload, AI moderation pipeline, Admin Moderation Queue |
 | 8 | [08-favorites-notifications-polish.md](08-favorites-notifications-polish.md) | S8 | Favorites, notifications, security/perf hardening, demo readiness |
+| 9 | [09-public-web.md](09-public-web.md) | Phase 1.5 (added mid-project, see `docs/07-tech-stack.md` §5) | SEO-focused Next.js public web app — built ahead of Module 7 at the project owner's direction |
 
 ## Conventions every module prompt assumes
 

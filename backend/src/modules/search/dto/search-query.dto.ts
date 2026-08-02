@@ -11,7 +11,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import type { CuisineCode, FacilityType } from '@foodmap/shared-types';
+import type { CuisineCode, FacilityType, RestaurantCategoryCode } from '@foodmap/shared-types';
 
 const FACILITY_TYPES: FacilityType[] = [
   'wifi',
@@ -23,6 +23,15 @@ const FACILITY_TYPES: FacilityType[] = [
   'pet_friendly',
   'card_payment',
   'private_room',
+];
+
+const CATEGORY_CODES: RestaurantCategoryCode[] = [
+  'quan_an',
+  'quan_ca_phe',
+  'nha_hang',
+  'xe_day',
+  'quan_via_he',
+  'quan_bar',
 ];
 
 const CUISINE_CODES: CuisineCode[] = [
@@ -104,6 +113,18 @@ export class SearchQueryDto {
   @IsArray()
   @IsIn(CUISINE_CODES, { each: true })
   cuisine?: CuisineCode[];
+
+  // Added for build-prompts/09-public-web.md's category/district browse
+  // chips — a gap in the original build-prompts/04-search-filter.md scope
+  // (only cuisine/facilities were filterable, not the restaurant's own
+  // category or its address district), generically useful for mobile too.
+  @IsOptional()
+  @IsIn(CATEGORY_CODES)
+  category?: RestaurantCategoryCode;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
 
   @IsOptional()
   @Type(() => Number)

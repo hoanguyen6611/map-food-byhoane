@@ -10,6 +10,8 @@ Legend for priority tags used throughout this document: **[MVP]** must ship in P
 
 The Food Map of Vietnam is a mobile-first, community-powered food discovery platform for Vietnam. It combines a specialized map of restaurants/cafés/street vendors, structured multi-criteria reviews, and an AI layer (natural-language search, recommendation explanation, review summarization, content moderation) to answer a question Google Maps does not answer well: **not "what's nearby," but "what's actually right for me, right now."**
 
+*Scope update (added during the Module 5→6 transition, see A7 in §15):* a public, SEO-focused end-user web app is now planned as a follow-on phase after Phase 1 (mobile MVP) completes — see [08-roadmap-sprint.md](08-roadmap-sprint.md) §1 "Phase 1.5 — Public Web" and [07-tech-stack.md](07-tech-stack.md) §5. This does not change the MVP's mobile-first scope below; it adds a phase after it.
+
 This is currently a solo portfolio project, but every architectural and product decision in this document is made as if it will become a real, commercially viable product — modular monolith backend, clean domain boundaries, admin tooling for manual data seeding, and a moderation pipeline that assumes real user-generated content from day one.
 
 ## 2. Product Vision
@@ -278,6 +280,7 @@ See §10 for the full template per feature. Consolidated FR list: FR-1 Auth, FR-
 - A4: Push notifications in MVP are limited to transactional (moderation result, submission approved/rejected) — no marketing push infra needed yet.
 - A5: No payment processing of any kind touches the MVP; architecture reserves entities/fields but no PCI-scope code is written.
 - A6: Legal/ToS/Privacy Policy content is out of scope for engineering deliverables but a placeholder screen/flow is designed (Settings → Privacy Policy).
+- A7: A public end-user web app (Next.js, SSR/SSG, SEO/discovery-first — see [07-tech-stack.md](07-tech-stack.md) §5) was added to scope after Phase 1 planning began; it is sequenced as **Phase 1.5**, starting only after the mobile MVP (Phase 1, Modules 1-8) is complete, so it doesn't compete with or delay mobile MVP delivery.
 
 ## 16. Risks & Mitigations (product-level)
 

@@ -9,14 +9,20 @@
 // the Prisma Client. Geospatial queries (ST_DWithin/ST_MakeEnvelope) are run
 // via `$queryRaw` in the RestaurantModule (see build-prompts/03-map-geospatial.md).
 //
-// CAVEAT for whoever runs the next `prisma migrate dev --create-only`: the
-// GIST index on locations.geo_point, the GIN trigram index on
-// restaurants.name, and (as of build-prompts/04-search-filter.md) the GIN
-// index + generated column on restaurants.search_vector are all hand-written
-// raw SQL (Prisma has no schema-level syntax for them) and therefore
-// invisible to Prisma's diff engine. Every future migration will spuriously
-// propose dropping them — delete those lines from the generated
-// migration.sql before applying it. Do not actually drop them.
+// CAVEAT for whoever runs the next `prisma migrate dev --create-only` (which,
+// as of build-prompts/05, fails non-interactively anyway — use
+// `prisma migrate diff --from-url <url> --to-schema-datamodel ./prisma/schema.prisma --script`,
+// hand-create the migration folder, strip the spurious lines below, then
+// `prisma migrate deploy`): the GIST index on locations.geo_point, the GIN
+// trigram index on restaurants.name, the GIN index + generated column on
+// restaurants.search_vector, and (as of build-prompts/06-reviews-scoring.md)
+// the partial unique index `reviews_user_id_restaurant_id_active_key` (on
+// `(user_id, restaurant_id) WHERE deleted_at IS NULL` — enforces "one active
+// review per user per restaurant") are all hand-written raw SQL (Prisma has
+// no schema-level syntax for a partial index either) and therefore invisible
+// to Prisma's diff engine. Every future migration will spuriously propose
+// dropping them — delete those lines from the generated migration.sql before
+// applying it. Do not actually drop them.
 
 generator client {
   provider = "prisma-client-js"
@@ -101,6 +107,10 @@ model User {
   searchHistory        SearchHistory[]
   uploadedPhotos       Photo[]
   auditLogs            AuditLog[]
+  reviews              Review[]
+  moderationDecisions  ModerationResult[] @relation("ModerationDecidedBy")
+  favorites            Favorite[]
+  notifications        Notification[]
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
   // treats NULL as distinct per standard unique-index semantics — this is
@@ -183,11 +193,12 @@ enum FacilityType {
 }
 
 model RestaurantCategory {
-  id          String       @id @default(uuid())
-  code        String       @unique
-  label       String
-  icon        String?
-  restaurants Restaurant[]
+  id             String           @id @default(uuid())
+  code           String           @unique
+  label          String
+  icon           String?
+  restaurants    Restaurant[]
+  reviewCriteria ReviewCriteria[]
 
   @@map("restaurant_categories")
 }
@@ -293,6 +304,8 @@ model Restaurant {
   openingHours        OpeningHour[]
   facilities          RestaurantFacility[]
   menus               Menu[]
+  reviews             Review[]
+  favorites           Favorite[]
 
   @@index([categoryId])
   @@index([priceRangeId])
@@ -411,6 +424,159 @@ model Photo {
 
   @@index([ownerType, ownerId])
   @@map("photos")
+}
+
+// ---------- Reviews & Ratings (docs/06-database-erd.md §5) ----------
+
+model ReviewCriteria {
+  id                 String              @id @default(uuid())
+  code               String              @unique
+  label              String
+  appliesToCategoryId String?            @map("applies_to_category_id")
+  appliesToCategory  RestaurantCategory? @relation(fields: [appliesToCategoryId], references: [id])
+  ratings            ReviewRating[]
+
+  @@map("review_criteria")
+}
+
+enum ReviewStatus {
+  pending
+  published
+  rejected
+  hidden
+}
+
+model Review {
+  id              String       @id @default(uuid())
+  userId          String       @map("user_id")
+  user            User         @relation(fields: [userId], references: [id])
+  restaurantId    String       @map("restaurant_id")
+  restaurant      Restaurant   @relation(fields: [restaurantId], references: [id])
+  overallRating   Int          @map("overall_rating")
+  comment         String?
+  dishesOrdered   String[]     @map("dishes_ordered")
+  billTotalVnd    Int?         @map("bill_total_vnd")
+  partySize       Int?         @map("party_size")
+  visitedAt       DateTime?    @map("visited_at")
+  waitTimeMinutes Int?         @map("wait_time_minutes")
+  wouldReturn     Boolean?     @map("would_return")
+  status          ReviewStatus @default(pending)
+  // Non-null triggers the public "Đã chỉnh sửa" marker — only set when an
+  // edit happens >48h after createdAt, per docs/01-prd-mvp.md §10.5.
+  editedAt        DateTime?    @map("edited_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at")
+
+  ratings         ReviewRating[]
+
+  // "One active review per user per restaurant" (docs/06-database-erd.md §5)
+  // needs a PARTIAL unique index (`WHERE deleted_at IS NULL`), which Prisma's
+  // schema DSL can't express — hand-added in migration.sql, same pattern as
+  // the geo/trigram indexes noted at the top of this file. Do not add a
+  // plain `@@unique([userId, restaurantId])` here; it would wrongly block a
+  // new review after a prior one was soft-deleted.
+  @@index([restaurantId, status])
+  @@map("reviews")
+}
+
+model ReviewRating {
+  id         String         @id @default(uuid())
+  reviewId   String         @map("review_id")
+  review     Review         @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  criteriaId String         @map("criteria_id")
+  criteria   ReviewCriteria @relation(fields: [criteriaId], references: [id])
+  score      Int
+
+  @@unique([reviewId, criteriaId])
+  @@map("review_ratings")
+}
+
+// ---------- Moderation & Trust (docs/06-database-erd.md §7) ----------
+
+enum ModerationTargetType {
+  review
+  contribution
+  photo
+  video
+}
+
+enum ModerationRecommendedAction {
+  auto_approve
+  hold_for_review
+  reject
+}
+
+enum ModerationDecision {
+  pending
+  approved
+  rejected
+  edit_requested
+}
+
+// Module 6 populates this with a rule-based stand-in check (wordlist +
+// heuristics) instead of a real AIGateway call — see ReviewModerationService
+// for the `// TODO Module 7` marker. The table/state-machine shape is the
+// real one Module 7 will use unchanged, only the scoring implementation
+// swaps out.
+model ModerationResult {
+  id                String                       @id @default(uuid())
+  targetType        ModerationTargetType         @map("target_type")
+  targetId          String                       @map("target_id")
+  riskScore         Decimal                      @db.Decimal(3, 2) @map("risk_score")
+  labels            String[]
+  aiReason          String                       @map("ai_reason")
+  recommendedAction ModerationRecommendedAction  @map("recommended_action")
+  decidedBy         String?                      @map("decided_by")
+  decider           User?                        @relation("ModerationDecidedBy", fields: [decidedBy], references: [id])
+  decision          ModerationDecision           @default(pending)
+  decidedAt         DateTime?                    @map("decided_at")
+  modelVersion      String                       @map("model_version")
+  createdAt         DateTime                     @default(now()) @map("created_at")
+
+  @@index([targetType, targetId])
+  @@index([decision])
+  @@map("moderation_results")
+}
+
+// ---------- Favorites & Notifications (docs/06-database-erd.md §6, §8) ----------
+
+model Favorite {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@unique([userId, restaurantId])
+  @@map("favorites")
+}
+
+enum NotificationType {
+  moderation_result
+  report_resolved
+  contribution_status
+}
+
+// `payload` carries the deep-link target (screen + id) per the ERD note —
+// e.g. `{ screen: 'Reviews', restaurantId }` for a moderation_result
+// notification about a review. No producer exists until
+// docs/build-prompts/07-contribution-media-moderation-ai.md's moderation
+// queue writes real rows on decisions; a few demo rows are seeded directly
+// (prisma/seed-notifications.ts) so this module's UI has something real to
+// render/test in the meantime.
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  payload   Json
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
 }
 
 // ---------- System (docs/06-database-erd.md §10) ----------

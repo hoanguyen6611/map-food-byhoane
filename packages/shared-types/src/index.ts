@@ -8,3 +8,6 @@ export * from './restaurant';
 export * from './auth';
 export * from './search';
 export * from './restaurant-detail';
+export * from './review';
+export * from './favorite';
+export * from './notification';

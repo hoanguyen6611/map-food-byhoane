@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 interface Props {
   /**
@@ -19,6 +20,8 @@ interface Props {
  */
 export function PermissionLocationScreen({ onDone }: Props) {
   const [isRequesting, setIsRequesting] = useState(false);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   async function handleAllow() {
     setIsRequesting(true);
@@ -44,7 +47,7 @@ export function PermissionLocationScreen({ onDone }: Props) {
         disabled={isRequesting}
       >
         {isRequesting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.primaryButtonText}>Cho phép vị trí</Text>
         )}
@@ -57,27 +60,28 @@ export function PermissionLocationScreen({ onDone }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#fff',
-  },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 12, textAlign: 'center' },
-  body: { fontSize: 14, color: '#555', textAlign: 'center', marginBottom: 32 },
-  primaryButton: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  skipButton: { paddingVertical: 8 },
-  skipButtonText: { color: '#888', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      backgroundColor: colors.background,
+    },
+    title: { fontSize: 24, fontWeight: '700', marginBottom: 12, textAlign: 'center', color: colors.textPrimary },
+    body: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 32 },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      paddingHorizontal: 32,
+      alignItems: 'center',
+      width: '100%',
+      marginBottom: 16,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    primaryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    skipButton: { paddingVertical: 8 },
+    skipButtonText: { color: colors.textTertiary, fontSize: 14 },
+  });

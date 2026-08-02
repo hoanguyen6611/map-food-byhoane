@@ -15,6 +15,7 @@ import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 // TODO(later module): Google / Apple native sign-in buttons per screen spec
 // (docs/04-screen-list.md #4) — out of scope for Module 2, backend OAuth
@@ -34,6 +35,8 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const canSubmit = isValidEmail(email) && password.length > 0 && !isSubmitting;
 
@@ -71,7 +74,7 @@ export function LoginScreen({ navigation }: Props) {
         <Text style={styles.title}>Đăng nhập</Text>
 
         {errorMessage ? (
-          <View style={styles.errorBanner}>
+          <View style={styles.errorBanner} accessibilityRole="alert">
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         ) : null}
@@ -86,6 +89,8 @@ export function LoginScreen({ navigation }: Props) {
           keyboardType="email-address"
           textContentType="emailAddress"
           placeholder="ban@example.com"
+          placeholderTextColor={colors.textTertiary}
+          accessibilityLabel="Email"
         />
 
         <Text style={styles.label}>Mật khẩu</Text>
@@ -96,6 +101,8 @@ export function LoginScreen({ navigation }: Props) {
           secureTextEntry
           textContentType="password"
           placeholder="••••••••"
+          placeholderTextColor={colors.textTertiary}
+          accessibilityLabel="Mật khẩu"
         />
 
         <Pressable
@@ -104,7 +111,7 @@ export function LoginScreen({ navigation }: Props) {
           disabled={!canSubmit}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>Đăng nhập</Text>
           )}
@@ -122,38 +129,41 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 24, textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  linkRow: { marginTop: 16, alignItems: 'center' },
-  link: { color: '#e4572e', fontSize: 14, fontWeight: '600' },
-  errorBanner: {
-    backgroundColor: '#fdecea',
-    borderColor: '#f5c6cb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#a94442', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.background },
+    title: { fontSize: 28, fontWeight: '700', marginBottom: 24, textAlign: 'center', color: colors.textPrimary },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.textPrimary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 16,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    linkRow: { marginTop: 16, alignItems: 'center' },
+    link: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    errorBanner: {
+      backgroundColor: colors.errorBg,
+      borderColor: colors.errorBorder,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorText: { color: colors.error, fontSize: 14 },
+  });

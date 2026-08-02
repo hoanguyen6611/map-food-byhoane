@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../navigation/types';
 import { addRecentSearch, getRecentSearches } from '../../lib/recentSearches';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Search'>;
 
@@ -29,6 +30,8 @@ export function SearchScreen({ navigation }: Props) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +72,7 @@ export function SearchScreen({ navigation }: Props) {
           value={query}
           onChangeText={setQuery}
           placeholder="Tìm quán ăn, món ăn, khu vực..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textTertiary}
           returnKeyType="search"
           onSubmitEditing={() => submitQuery(query)}
         />
@@ -109,31 +112,38 @@ export function SearchScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#222',
-  },
-  cancelText: { fontSize: 15, color: '#e4572e', fontWeight: '600' },
-  hint: { paddingHorizontal: 16, paddingBottom: 8, fontSize: 12, color: '#a94442' },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
-  section: { marginTop: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#888', marginBottom: 8, textTransform: 'uppercase' },
-  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
-  suggestionIcon: { fontSize: 15 },
-  suggestionText: { fontSize: 15, color: '#333' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 8,
+      gap: 12,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    cancelText: { fontSize: 15, color: colors.primary, fontWeight: '600' },
+    hint: { paddingHorizontal: 16, paddingBottom: 8, fontSize: 12, color: colors.error },
+    scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
+    section: { marginTop: 16 },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+    },
+    suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
+    suggestionIcon: { fontSize: 15 },
+    suggestionText: { fontSize: 15, color: colors.textPrimary },
+  });

@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text } from 'react-native';
+import { useTheme, type ThemeColors } from '../theme/ThemeContext';
 
 interface AuthGateModalProps {
   visible: boolean;
@@ -33,6 +34,8 @@ export function AuthGateModal({
   onLoginPress,
   onRegisterPress,
 }: AuthGateModalProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <Pressable style={styles.backdrop} onPress={onDismiss}>
@@ -60,37 +63,38 @@ export function AuthGateModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
-  },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 14, color: '#555', marginBottom: 20, textAlign: 'center' },
-  primaryButton: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  secondaryButtonText: { color: '#e4572e', fontSize: 16, fontWeight: '700' },
-  dismissButton: { alignItems: 'center', paddingVertical: 8 },
-  dismissText: { color: '#888', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlayScrim,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      padding: 24,
+    },
+    title: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center', color: colors.textPrimary },
+    message: { fontSize: 14, color: colors.textSecondary, marginBottom: 20, textAlign: 'center' },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    primaryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    secondaryButton: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    secondaryButtonText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+    dismissButton: { alignItems: 'center', paddingVertical: 8 },
+    dismissText: { color: colors.textSecondary, fontSize: 14 },
+  });

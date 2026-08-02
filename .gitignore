@@ -19,6 +19,9 @@ backend/dist/
 admin-web/dist/
 admin-web/dist-ssr/
 
+# Public web (Next.js)
+web/.next/
+
 # Mobile (Expo)
 mobile/.expo/
 mobile/.expo-shared/

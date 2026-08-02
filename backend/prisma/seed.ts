@@ -59,6 +59,19 @@ const PRICE_RANGES = [
   { code: 'above_500k', minVnd: 500_000, maxVnd: null },
 ];
 
+// MVP set per docs/06-database-erd.md §5 — all `appliesToCategory: null`
+// (applies to all categories); the V1 extension list (menu_accuracy,
+// wait_time, etc.) is explicitly out of scope until then.
+const REVIEW_CRITERIA = [
+  { code: 'food_quality', label: 'Chất lượng món ăn' },
+  { code: 'space', label: 'Không gian' },
+  { code: 'price', label: 'Giá cả' },
+  { code: 'service', label: 'Phục vụ' },
+  { code: 'hygiene', label: 'Vệ sinh' },
+  { code: 'wifi', label: 'Wifi' },
+  { code: 'parking', label: 'Chỗ để xe' },
+];
+
 async function main() {
   console.log('Seeding reference data...');
 
@@ -113,6 +126,14 @@ async function main() {
       where: { code: priceRange.code },
       update: { minVnd: priceRange.minVnd, maxVnd: priceRange.maxVnd },
       create: priceRange,
+    });
+  }
+
+  for (const criteria of REVIEW_CRITERIA) {
+    await prisma.reviewCriteria.upsert({
+      where: { code: criteria.code },
+      update: { label: criteria.label },
+      create: criteria,
     });
   }
 

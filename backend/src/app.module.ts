@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -12,6 +13,7 @@ import { UserModule } from './modules/user/user.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { SearchModule } from './modules/search/search.module';
 import { ReviewModule } from './modules/review/review.module';
+import { FavoriteModule } from './modules/favorite/favorite.module';
 import { MediaModule } from './modules/media/media.module';
 import { ContributionModule } from './modules/contribution/contribution.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
@@ -25,6 +27,22 @@ import { AdminModule } from './modules/admin/admin.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    // Composite-score recompute job (build-prompts/06) runs as a worker
+    // within this same process — a modular monolith at this scale doesn't
+    // warrant a separate deployed worker (see docs/07-tech-stack.md §2).
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const redisUrl = new URL(config.get<string>('REDIS_URL', 'redis://localhost:6379'));
+        return {
+          connection: {
+            host: redisUrl.hostname,
+            port: Number(redisUrl.port || 6379),
+          },
+        };
+      },
+    }),
     // Domain modules — empty shells until their build-prompt module lands
     // (see docs/build-prompts/00-how-to-use.md and docs/05-system-architecture.md §3).
     AuthModule,
@@ -32,6 +50,7 @@ import { AdminModule } from './modules/admin/admin.module';
     RestaurantModule,
     SearchModule,
     ReviewModule,
+    FavoriteModule,
     MediaModule,
     ContributionModule,
     ModerationModule,

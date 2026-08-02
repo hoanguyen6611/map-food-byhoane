@@ -24,7 +24,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'light',
+  // 'automatic' so native chrome (keyboard appearance, etc.) follows the OS
+  // scheme too — the in-app ThemeProvider (src/theme/ThemeContext.tsx) is
+  // the source of truth for the app's OWN UI and can diverge from this via
+  // an explicit user override, but native OS-level surfaces only ever
+  // follow the system setting regardless.
+  userInterfaceStyle: 'automatic',
   ios: {
     supportsTablet: true,
     infoPlist: {

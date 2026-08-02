@@ -15,6 +15,7 @@ import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 // TODO(later module): Google / Apple native sign-in buttons — see the same
 // TODO in LoginScreen.tsx for rationale.
@@ -39,6 +40,8 @@ export function RegisterScreen({ navigation }: Props) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const passwordsMatch = password.length > 0 && password === confirmPassword;
   const canSubmit =
@@ -92,6 +95,7 @@ export function RegisterScreen({ navigation }: Props) {
           value={displayName}
           onChangeText={setDisplayName}
           placeholder="Nguyễn Văn A"
+          placeholderTextColor={colors.textTertiary}
         />
 
         <Text style={styles.label}>Email</Text>
@@ -104,6 +108,7 @@ export function RegisterScreen({ navigation }: Props) {
           keyboardType="email-address"
           textContentType="emailAddress"
           placeholder="ban@example.com"
+          placeholderTextColor={colors.textTertiary}
         />
 
         <Text style={styles.label}>Mật khẩu</Text>
@@ -114,6 +119,7 @@ export function RegisterScreen({ navigation }: Props) {
           secureTextEntry
           textContentType="newPassword"
           placeholder="Tối thiểu 8 ký tự, có số"
+          placeholderTextColor={colors.textTertiary}
         />
 
         <Text style={styles.label}>Xác nhận mật khẩu</Text>
@@ -123,6 +129,7 @@ export function RegisterScreen({ navigation }: Props) {
           onChangeText={setConfirmPassword}
           secureTextEntry
           placeholder="Nhập lại mật khẩu"
+          placeholderTextColor={colors.textTertiary}
         />
         {confirmPassword.length > 0 && !passwordsMatch ? (
           <Text style={styles.fieldError}>Mật khẩu xác nhận không khớp.</Text>
@@ -148,7 +155,7 @@ export function RegisterScreen({ navigation }: Props) {
           disabled={!canSubmit}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>Đăng ký</Text>
           )}
@@ -162,53 +169,56 @@ export function RegisterScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 24, textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  fieldError: { color: '#a94442', fontSize: 13, marginTop: -12, marginBottom: 12 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#999',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  checkboxChecked: { backgroundColor: '#e4572e', borderColor: '#e4572e' },
-  checkboxMark: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  checkboxLabel: { flex: 1, fontSize: 13, color: '#333' },
-  button: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  linkRow: { marginTop: 16, alignItems: 'center' },
-  link: { color: '#e4572e', fontSize: 14, fontWeight: '600' },
-  errorBanner: {
-    backgroundColor: '#fdecea',
-    borderColor: '#f5c6cb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#a94442', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.background },
+    title: { fontSize: 28, fontWeight: '700', marginBottom: 24, textAlign: 'center', color: colors.textPrimary },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.textPrimary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 16,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+    },
+    fieldError: { color: colors.error, fontSize: 13, marginTop: -12, marginBottom: 12 },
+    checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.textTertiary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+    checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+    checkboxMark: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
+    checkboxLabel: { flex: 1, fontSize: 13, color: colors.textPrimary },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    linkRow: { marginTop: 16, alignItems: 'center' },
+    link: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    errorBanner: {
+      backgroundColor: colors.errorBg,
+      borderColor: colors.errorBorder,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorText: { color: colors.error, fontSize: 14 },
+  });

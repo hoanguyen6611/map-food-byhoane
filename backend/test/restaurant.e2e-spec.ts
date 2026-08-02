@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import type { RestaurantSummaryDto } from '@foodmap/shared-types';
+import type { RestaurantDetailDto, RestaurantSitemapEntryDto, RestaurantSummaryDto } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 
 // Covers docs/02-user-stories.md Epic B (US-B1–B4) backend contract, per the
@@ -113,6 +113,29 @@ describe('Restaurants — map/geospatial (e2e)', () => {
         .query({ swLat: 0.1, swLng: 0.1, neLat: 0.2, neLng: 0.2 })
         .expect(200);
       expect(listBody(res)).toEqual([]);
+    });
+  });
+
+  // Covers build-prompts/09-public-web.md's clean-URL requirement.
+  describe('GET /restaurants/slug/:slug and GET /restaurants/sitemap-index', () => {
+    it('sitemap-index lists every published restaurant slug + updatedAt, and each resolves via the slug lookup', async () => {
+      const indexRes = await request(app.getHttpServer()).get('/restaurants/sitemap-index').expect(200);
+      const entries = indexRes.body as RestaurantSitemapEntryDto[];
+      expect(Array.isArray(entries)).toBe(true);
+      expect(entries.length).toBeGreaterThan(0);
+      for (const entry of entries.slice(0, 3)) {
+        expect(typeof entry.slug).toBe('string');
+        expect(new Date(entry.updatedAt).toString()).not.toBe('Invalid Date');
+      }
+
+      const sample = entries[0];
+      const detailRes = await request(app.getHttpServer()).get(`/restaurants/slug/${sample.slug}`).expect(200);
+      const detail = detailRes.body as RestaurantDetailDto;
+      expect(detail.slug).toBe(sample.slug);
+    });
+
+    it('404s for an unknown slug', async () => {
+      await request(app.getHttpServer()).get('/restaurants/slug/no-such-restaurant-zzz').expect(404);
     });
   });
 });

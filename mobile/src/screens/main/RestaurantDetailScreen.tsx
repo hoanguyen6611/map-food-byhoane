@@ -16,10 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
 import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
+import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
 import { useAuthStore } from '../../store/authStore';
 import { formatPriceRange } from '../../lib/format';
 import { CATEGORY_LABELS, DAY_LABELS, FACILITY_META, formatVndFull } from '../../lib/restaurantLabels';
 import { ApiError } from '../../api/client';
+import { ReviewCard } from '../../components/ReviewCard';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RestaurantDetail'>;
 
@@ -29,21 +32,28 @@ const MENU_PREVIEW_COUNT = 3;
 
 /**
  * Screen 11 (Restaurant Detail) per docs/04-screen-list.md /
- * docs/build-prompts/05-restaurant-detail-admin-seed.md. Reviews and AI
- * summary sections intentionally render honest "not available yet" copy —
- * `reviewCount`/`aiSummary` are always 0/null until build-prompts/06 and 07
- * ship, per the DTO's own contract comment.
+ * docs/build-prompts/05-restaurant-detail-admin-seed.md. The rating/reviews
+ * section is wired to the real `reviews[]` preview + `compositeScore` per
+ * build-prompts/06 (still honestly "Chưa có đánh giá" when `reviewCount` is
+ * 0 — some restaurants genuinely have none). AI summary intentionally still
+ * renders honest "not available yet" copy — `aiSummary` is always null
+ * until build-prompts/07 ships, per the DTO's own contract comment.
  */
 export function RestaurantDetailScreen({ route, navigation }: Props) {
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const favoriteIdsQuery = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorited = favoriteIdsQuery.data?.has(restaurantId) ?? false;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   if (detailQuery.isLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#e4572e" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Đang tải thông tin quán...</Text>
       </View>
     );
@@ -94,11 +104,13 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
     Alert.alert('Sắp ra mắt', 'Tính năng báo cáo sẽ sớm được ra mắt.');
   }
 
-  // No-op: intentionally disabled. There is no Favorites backend endpoint
-  // yet (that's build-prompts/08's scope) — wiring this up now would just
-  // mean every tap 404s, so we render an honest "coming soon" state instead
-  // of a button that appears to work but silently fails.
-  function handleFavoritePress() {}
+  // RootNavigator only ever mounts MainStack (where this screen lives) when
+  // `isAuthenticated` is true, so this screen is never reached by a guest in
+  // the current architecture — the favorite toggle can be wired
+  // unconditionally (build-prompts/08).
+  function handleFavoritePress() {
+    toggleFavorite.mutate({ restaurantId, isFavorited });
+  }
 
   function handleCall() {
     if (restaurant!.phone) {
@@ -136,7 +148,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
         </View>
       ) : (
         <View style={styles.noPhotoPlaceholder}>
-          <Ionicons name="image-outline" size={36} color="#bbb" />
+          <Ionicons name="image-outline" size={36} color={colors.textTertiary} />
           <Text style={styles.noPhotoText}>Chưa có ảnh</Text>
         </View>
       )}
@@ -150,19 +162,34 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
           {priceLabel ? <Text style={styles.priceText}>{priceLabel}đ</Text> : null}
         </View>
 
-        {/* --- Rating: honestly empty until build-prompts/06 --- */}
+        {/* --- Rating + review preview (build-prompts/06) --- */}
         <View style={styles.section}>
-          <Text style={styles.ratingText}>
-            {restaurant.reviewCount > 0
-              ? `★ ${restaurant.compositeScore?.toFixed(1) ?? '—'} (${restaurant.reviewCount})`
-              : 'Chưa có đánh giá'}
-          </Text>
+          <View style={styles.ratingHeaderRow}>
+            <Text style={styles.ratingText}>
+              {restaurant.reviewCount > 0
+                ? `★ ${restaurant.compositeScore?.toFixed(1) ?? '—'} (${restaurant.reviewCount} đánh giá)`
+                : 'Chưa có đánh giá'}
+            </Text>
+            <Pressable onPress={() => navigation.navigate('WriteReview', { restaurantId })}>
+              <Text style={styles.linkText}>Viết đánh giá</Text>
+            </Pressable>
+          </View>
+          {restaurant.reviewCount > 0 ? (
+            <>
+              {restaurant.reviews.slice(0, 3).map((review) => (
+                <ReviewCard key={review.id} review={review} compact />
+              ))}
+              <Pressable onPress={() => navigation.navigate('Reviews', { restaurantId })}>
+                <Text style={styles.linkText}>Xem tất cả đánh giá</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
 
         {/* --- Address + map --- */}
         <View style={styles.section}>
           <View style={styles.rowStart}>
-            <Ionicons name="location-outline" size={18} color="#666" style={styles.rowIcon} />
+            <Ionicons name="location-outline" size={18} color={colors.textSecondary} style={styles.rowIcon} />
             <Text style={styles.addressText}>{restaurant.address.fullAddressText}</Text>
           </View>
           <View style={styles.mapContainer}>
@@ -188,7 +215,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
         {/* --- Phone --- */}
         {restaurant.phone ? (
           <Pressable style={[styles.section, styles.rowStart]} onPress={handleCall}>
-            <Ionicons name="call-outline" size={18} color="#666" style={styles.rowIcon} />
+            <Ionicons name="call-outline" size={18} color={colors.textSecondary} style={styles.rowIcon} />
             <Text style={styles.phoneText}>{restaurant.phone}</Text>
           </Pressable>
         ) : null}
@@ -222,7 +249,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
                 const meta = FACILITY_META[facility];
                 return (
                   <View key={facility} style={styles.facilityItem}>
-                    <Ionicons name={meta.icon} size={18} color="#e4572e" />
+                    <Ionicons name={meta.icon} size={18} color={colors.primary} />
                     <Text style={styles.facilityLabel}>{meta.label}</Text>
                   </View>
                 );
@@ -273,19 +300,34 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
         {/* --- Action buttons --- */}
         <View style={styles.actionsRow}>
           <Pressable
-            style={[styles.actionButton, styles.actionButtonDisabled]}
+            style={[
+              styles.actionButton,
+              isFavorited ? styles.actionButtonFavorited : styles.actionButtonOutlineOrange,
+            ]}
             onPress={handleFavoritePress}
-            disabled
+            accessibilityRole="button"
+            accessibilityLabel={isFavorited ? 'Bỏ yêu thích quán này' : 'Yêu thích quán này'}
+            accessibilityState={{ selected: isFavorited }}
           >
-            <Ionicons name="heart-outline" size={18} color="#999" />
-            <Text style={styles.actionButtonTextDisabled}>Sắp ra mắt</Text>
+            <Ionicons
+              name={isFavorited ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isFavorited ? colors.onPrimary : colors.primary}
+            />
+            <Text style={isFavorited ? styles.actionButtonText : styles.actionButtonTextOutlineOrange}>
+              {isFavorited ? 'Đã lưu' : 'Yêu thích'}
+            </Text>
           </Pressable>
-          <Pressable style={styles.actionButton} onPress={handleDirections}>
-            <Ionicons name="navigate-outline" size={18} color="#fff" />
+          <Pressable style={styles.actionButton} onPress={handleDirections} accessibilityRole="button">
+            <Ionicons name="navigate-outline" size={18} color={colors.onPrimary} />
             <Text style={styles.actionButtonText}>Chỉ đường</Text>
           </Pressable>
-          <Pressable style={[styles.actionButton, styles.actionButtonOutline]} onPress={handleReport}>
-            <Ionicons name="flag-outline" size={18} color="#a94442" />
+          <Pressable
+            style={[styles.actionButton, styles.actionButtonOutline]}
+            onPress={handleReport}
+            accessibilityRole="button"
+          >
+            <Ionicons name="flag-outline" size={18} color={colors.error} />
             <Text style={styles.actionButtonTextOutline}>Báo cáo</Text>
           </Pressable>
         </View>
@@ -298,91 +340,100 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingBottom: 32 },
-  centeredContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 32,
-  },
-  loadingText: { marginTop: 12, color: '#666', fontSize: 14 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#a94442', marginBottom: 8 },
-  errorBody: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 },
-  retryButton: { backgroundColor: '#e4572e', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-  retryButtonText: { color: '#fff', fontWeight: '700' },
-  noPhotoPlaceholder: {
-    height: CAROUSEL_HEIGHT,
-    backgroundColor: '#f2f2f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  noPhotoText: { color: '#999', fontSize: 14, fontWeight: '600' },
-  carouselDots: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  carouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.6)' },
-  carouselDotActive: { backgroundColor: '#fff', width: 8, height: 8, borderRadius: 4 },
-  body: { padding: 16 },
-  name: { fontSize: 22, fontWeight: '800', color: '#222', marginBottom: 6 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  categoryText: { fontSize: 14, color: '#666', fontWeight: '600' },
-  separatorDot: { fontSize: 13, color: '#bbb' },
-  priceText: { fontSize: 14, color: '#444', fontWeight: '600' },
-  ratingText: { fontSize: 14, color: '#888' },
-  section: { marginTop: 18 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#222', marginBottom: 8 },
-  rowStart: { flexDirection: 'row', alignItems: 'flex-start' },
-  rowIcon: { marginRight: 8, marginTop: 1 },
-  addressText: { flex: 1, fontSize: 14, color: '#444', lineHeight: 20 },
-  phoneText: { fontSize: 14, color: '#1e6fd9', fontWeight: '600' },
-  mapContainer: { height: 140, borderRadius: 10, overflow: 'hidden', marginTop: 10 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  badgeOpen: { backgroundColor: '#e3f6e8' },
-  badgeClosed: { backgroundColor: '#f6e3e3' },
-  badgeText: { fontSize: 12, fontWeight: '700', color: '#333' },
-  hourRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  hourDay: { fontSize: 13, color: '#666' },
-  hourTime: { fontSize: 13, color: '#333', fontWeight: '600' },
-  facilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  facilityItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%' },
-  facilityLabel: { fontSize: 13, color: '#444' },
-  emptyInlineText: { fontSize: 13, color: '#999', fontStyle: 'italic' },
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f2f2f2',
-  },
-  menuItemName: { fontSize: 14, color: '#333', flex: 1, marginRight: 8 },
-  menuItemPrice: { fontSize: 14, color: '#e4572e', fontWeight: '700' },
-  linkText: { fontSize: 14, color: '#1e6fd9', fontWeight: '700', marginTop: 8 },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#e4572e',
-    borderRadius: 10,
-    paddingVertical: 12,
-  },
-  actionButtonDisabled: { backgroundColor: '#f2f2f2' },
-  actionButtonOutline: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#a94442' },
-  actionButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  actionButtonTextDisabled: { color: '#999', fontWeight: '700', fontSize: 13 },
-  actionButtonTextOutline: { color: '#a94442', fontWeight: '700', fontSize: 13 },
-  authHint: { marginTop: 14, fontSize: 12, color: '#999', textAlign: 'center' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollContent: { paddingBottom: 32 },
+    centeredContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      paddingHorizontal: 32,
+    },
+    loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 14 },
+    errorTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+    errorBody: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+    noPhotoPlaceholder: {
+      height: CAROUSEL_HEIGHT,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    noPhotoText: { color: colors.textTertiary, fontSize: 14, fontWeight: '600' },
+    carouselDots: {
+      position: 'absolute',
+      bottom: 10,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    // Deliberately theme-invariant — these dots sit on top of the photo
+    // carousel itself, not the app's normal reading surface.
+    carouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.6)' },
+    carouselDotActive: { backgroundColor: '#fff', width: 8, height: 8, borderRadius: 4 },
+    body: { padding: 16 },
+    name: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    categoryText: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
+    separatorDot: { fontSize: 13, color: colors.textTertiary },
+    priceText: { fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
+    ratingText: { fontSize: 14, color: colors.textSecondary },
+    ratingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    section: { marginTop: 18 },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
+    rowStart: { flexDirection: 'row', alignItems: 'flex-start' },
+    rowIcon: { marginRight: 8, marginTop: 1 },
+    addressText: { flex: 1, fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+    phoneText: { fontSize: 14, color: colors.link, fontWeight: '600' },
+    mapContainer: { height: 140, borderRadius: 10, overflow: 'hidden', marginTop: 10 },
+    badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+    badgeOpen: { backgroundColor: colors.successBg },
+    badgeClosed: { backgroundColor: colors.errorBg },
+    badgeText: { fontSize: 12, fontWeight: '700', color: colors.textPrimary },
+    hourRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+    hourDay: { fontSize: 13, color: colors.textSecondary },
+    hourTime: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
+    facilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+    facilityItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%' },
+    facilityLabel: { fontSize: 13, color: colors.textPrimary },
+    emptyInlineText: { fontSize: 13, color: colors.textTertiary, fontStyle: 'italic' },
+    menuRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    menuItemName: { fontSize: 14, color: colors.textPrimary, flex: 1, marginRight: 8 },
+    menuItemPrice: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+    linkText: { fontSize: 14, color: colors.link, fontWeight: '700', marginTop: 8 },
+    actionsRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 12,
+    },
+    actionButtonOutline: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.error },
+    actionButtonFavorited: { backgroundColor: colors.primary },
+    actionButtonOutlineOrange: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+    // 14pt, not 13 — colors.onPrimary/colors.primary on colors.primary is
+    // 3.68:1, which only clears WCAG AA at the large-text threshold (≥14pt
+    // bold); 13pt bold falls just short of that (accessibility pass, see
+    // ThemeColors.primaryStrong's doc comment for the general pattern).
+    actionButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
+    actionButtonTextOutline: { color: colors.error, fontWeight: '700', fontSize: 13 },
+    actionButtonTextOutlineOrange: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+    authHint: { marginTop: 14, fontSize: 12, color: colors.textTertiary, textAlign: 'center' },
+  });

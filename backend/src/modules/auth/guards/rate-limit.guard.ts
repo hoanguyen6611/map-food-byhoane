@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { RedisService } from '../../../redis/redis.service';
+import type { RequestUser } from '../auth.types';
 import {
   RATE_LIMIT_KEY,
   RateLimitOptions,
@@ -58,6 +59,19 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private buildIdentifier(request: Request): string {
+    // Authenticated endpoints (e.g. review submission) rate-limit per user,
+    // not per IP — an IP-only key would collectively throttle every user
+    // behind the same NAT/office network (and every automated test run from
+    // the same test-runner IP), which is both wrong for real users sharing
+    // a network and breaks test suites that legitimately create many
+    // reviews across many distinct registered users in one run. Pre-auth
+    // endpoints (login/register/forgot-password) have no `request.user`
+    // yet (set by JwtAuthGuard, which must run before this guard), so they
+    // keep the original IP(+email) identifier.
+    const authenticatedUser = (request as unknown as { user?: RequestUser }).user;
+    if (authenticatedUser?.id) {
+      return `user:${authenticatedUser.id}`;
+    }
     const ip = request.ip ?? 'unknown';
     const email =
       typeof (request.body as { email?: unknown } | undefined)?.email ===

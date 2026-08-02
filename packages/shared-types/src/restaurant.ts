@@ -56,6 +56,8 @@ export interface PriceRangeDto {
 // computes real values; thumbnailUrl is honestly null until build-prompts/07's MediaModule exists.
 export interface RestaurantSummaryDto {
   id: string;
+  /** Stable, SEO-friendly identifier — see build-prompts/09-public-web.md's slug-based detail route. */
+  slug: string;
   name: string;
   categoryCode: RestaurantCategoryCode;
   thumbnailUrl: string | null;

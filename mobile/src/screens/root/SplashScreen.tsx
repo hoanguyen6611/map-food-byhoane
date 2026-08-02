@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 /**
  * Screen 1 (Splash) per docs/04-screen-list.md. Boots the app: hydrates the
@@ -20,6 +21,8 @@ import { useAuthStore } from '../../store/authStore';
  */
 export function SplashScreen() {
   const hydrate = useAuthStore((state) => state.hydrate);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   useEffect(() => {
     hydrate();
@@ -28,18 +31,19 @@ export function SplashScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>The Food Map of Vietnam</Text>
-      <ActivityIndicator style={styles.spinner} />
+      <ActivityIndicator style={styles.spinner} color={colors.primary} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-  },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  spinner: { marginTop: 8 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    title: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: colors.textPrimary },
+    spinner: { marginTop: 8 },
+  });

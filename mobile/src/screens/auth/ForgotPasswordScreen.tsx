@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
@@ -35,6 +36,8 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   useEffect(() => {
     return () => {
@@ -112,6 +115,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
           keyboardType="email-address"
           textContentType="emailAddress"
           placeholder="ban@example.com"
+          placeholderTextColor={colors.textTertiary}
         />
 
         <Pressable
@@ -120,7 +124,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
           disabled={!canSubmit}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>
               {cooldownSeconds > 0 ? `Gửi lại sau ${cooldownSeconds}s` : 'Gửi liên kết'}
@@ -136,48 +140,51 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#555', marginBottom: 24, textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#e4572e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  linkRow: { marginTop: 16, alignItems: 'center' },
-  link: { color: '#e4572e', fontSize: 14, fontWeight: '600' },
-  errorBanner: {
-    backgroundColor: '#fdecea',
-    borderColor: '#f5c6cb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#a94442', fontSize: 14 },
-  successBanner: {
-    backgroundColor: '#e6f4ea',
-    borderColor: '#b7dfc0',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  successText: { color: '#256029', fontSize: 14 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    container: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.background },
+    title: { fontSize: 28, fontWeight: '700', marginBottom: 8, textAlign: 'center', color: colors.textPrimary },
+    subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 24, textAlign: 'center' },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.textPrimary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 16,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    linkRow: { marginTop: 16, alignItems: 'center' },
+    link: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    errorBanner: {
+      backgroundColor: colors.errorBg,
+      borderColor: colors.errorBorder,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorText: { color: colors.error, fontSize: 14 },
+    successBanner: {
+      backgroundColor: colors.successBg,
+      borderColor: colors.successBorder,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    successText: { color: colors.success, fontSize: 14 },
+  });

@@ -9,6 +9,8 @@ import { RestaurantCard, RestaurantCardSkeleton } from '../../components/Restaur
 import { useFilterStore, countActiveFilters, type FilterValues } from '../../store/filterStore';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
 import { useRestaurantSearch } from '../../hooks/useRestaurantSearch';
+import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'List'>,
@@ -49,6 +51,8 @@ function sortItems(items: RestaurantSummaryDto[], sort: SortOption): RestaurantS
  */
 export function ListScreen({ navigation }: Props) {
   const [sort, setSort] = useState<SortOption>('default');
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const distanceKm = useFilterStore((s) => s.distanceKm);
   const priceMin = useFilterStore((s) => s.priceMin);
@@ -66,6 +70,8 @@ export function ListScreen({ navigation }: Props) {
   const { location, isResolved: locationResolved } = useDeviceLocation();
 
   const resultsQuery = useRestaurantSearch({ filters, location, enabled: locationResolved });
+  const favoriteIdsQuery = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
 
   const items: RestaurantSummaryDto[] = useMemo(
     () => sortItems(resultsQuery.data?.pages.flatMap((page) => page.items) ?? [], sort),
@@ -144,13 +150,20 @@ export function ListScreen({ navigation }: Props) {
             <RestaurantCard
               restaurant={item}
               onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: item.id })}
+              isFavorited={favoriteIdsQuery.data?.has(item.id) ?? false}
+              onToggleFavorite={() =>
+                toggleFavorite.mutate({
+                  restaurantId: item.id,
+                  isFavorited: favoriteIdsQuery.data?.has(item.id) ?? false,
+                })
+              }
             />
           )}
           onEndReachedThreshold={0.4}
           onEndReached={handleLoadMore}
           ListFooterComponent={
             resultsQuery.isFetchingNextPage ? (
-              <ActivityIndicator style={styles.footerSpinner} size="small" color="#e4572e" />
+              <ActivityIndicator style={styles.footerSpinner} size="small" color={colors.primary} />
             ) : null
           }
         />
@@ -159,49 +172,50 @@ export function ListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f7f7' },
-  headerBar: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    gap: 8,
-  },
-  filterButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f2f2f2',
-  },
-  filterButtonText: { fontSize: 12, fontWeight: '600', color: '#444' },
-  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sortChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f2f2f2' },
-  sortChipSelected: { backgroundColor: '#fde8e0' },
-  sortChipText: { fontSize: 12, fontWeight: '600', color: '#666' },
-  sortChipTextSelected: { color: '#e4572e' },
-  errorBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 10,
-    padding: 12,
-  },
-  errorBannerText: { color: '#fff', fontSize: 13, flex: 1 },
-  errorBannerRetry: { color: '#ffd08a', fontWeight: '700', fontSize: 13, marginLeft: 12 },
-  listContent: { padding: 16 },
-  footerSpinner: { marginVertical: 16 },
-  centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#a94442', marginBottom: 8 },
-  errorBody: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#333', textAlign: 'center', marginBottom: 8 },
-  emptyHint: { fontSize: 13, color: '#666', textAlign: 'center' },
-  retryButton: { backgroundColor: '#e4572e', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-  retryButtonText: { color: '#fff', fontWeight: '700' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundAlt },
+    headerBar: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      gap: 8,
+    },
+    filterButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceAlt,
+    },
+    filterButtonText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+    sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    sortChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: colors.surfaceAlt },
+    sortChipSelected: { backgroundColor: colors.primarySurface },
+    sortChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+    sortChipTextSelected: { color: colors.primary },
+    errorBanner: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: colors.overlayBanner,
+      marginHorizontal: 16,
+      marginTop: 10,
+      borderRadius: 10,
+      padding: 12,
+    },
+    errorBannerText: { color: colors.overlayBannerText, fontSize: 13, flex: 1 },
+    errorBannerRetry: { color: colors.overlayBannerLink, fontWeight: '700', fontSize: 13, marginLeft: 12 },
+    listContent: { padding: 16 },
+    footerSpinner: { marginVertical: 16 },
+    centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    errorTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+    errorBody: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
+    emptyHint: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+  });

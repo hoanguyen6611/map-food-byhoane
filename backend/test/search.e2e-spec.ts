@@ -123,6 +123,30 @@ describe('Search & Filter (e2e)', () => {
         );
       }
     });
+
+    // Added for build-prompts/09-public-web.md's category/district browse
+    // chips (backend/src/modules/search/dto/search-query.dto.ts).
+    it('filters by category and by district', async () => {
+      const categoryRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ category: 'quan_ca_phe' })
+        .expect(200);
+      const categoryItems = body(categoryRes).items;
+      expect(categoryItems.length).toBeGreaterThan(0);
+      expect(categoryItems.every((r) => r.categoryCode === 'quan_ca_phe')).toBe(true);
+
+      const districtRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ district: 'Quận 1' })
+        .expect(200);
+      expect(body(districtRes).items.length).toBeGreaterThan(0);
+
+      const combinedRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ category: 'quan_bar', district: 'zzz-no-such-district' })
+        .expect(200);
+      expect(body(combinedRes).items).toEqual([]);
+    });
   });
 
   describe('GET /search — validation', () => {

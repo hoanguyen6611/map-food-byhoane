@@ -5,6 +5,7 @@ import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
 import { formatVndFull } from '../../lib/restaurantLabels';
 import { ApiError } from '../../api/client';
+import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Menu'>;
 
@@ -36,11 +37,13 @@ function groupByCategory(items: MenuItemDto[]): { category: string; items: MenuI
 export function MenuScreen({ route }: Props) {
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   if (detailQuery.isLoading) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#e4572e" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -95,34 +98,37 @@ export function MenuScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 16, paddingBottom: 32 },
-  centeredContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: '#a94442', textAlign: 'center' },
-  retryButton: { backgroundColor: '#e4572e', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-  retryButtonText: { color: '#fff', fontWeight: '700' },
-  emptyText: { fontSize: 15, color: '#999', fontWeight: '600', textAlign: 'center' },
-  group: { marginBottom: 20 },
-  groupTitle: { fontSize: 16, fontWeight: '800', color: '#222', marginBottom: 10 },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f2f2f2',
-  },
-  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 },
-  itemName: { fontSize: 14, color: '#333', flexShrink: 1 },
-  popularBadge: { backgroundColor: '#fde8e0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  popularBadgeText: { fontSize: 10, fontWeight: '700', color: '#e4572e' },
-  itemPrice: { fontSize: 14, color: '#e4572e', fontWeight: '700' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 16, paddingBottom: 32 },
+    centeredContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      paddingHorizontal: 32,
+      gap: 12,
+    },
+    errorTitle: { fontSize: 16, fontWeight: '700', color: colors.error, textAlign: 'center' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+    emptyText: { fontSize: 15, color: colors.textTertiary, fontWeight: '600', textAlign: 'center' },
+    group: { marginBottom: 20 },
+    groupTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 10 },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 },
+    itemName: { fontSize: 14, color: colors.textPrimary, flexShrink: 1 },
+    popularBadge: { backgroundColor: colors.primarySurface, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+    // `primaryStrong`, not `primary` — this text is too small to qualify for
+    // WCAG AA's large-text exemption (see ThemeColors.primaryStrong's doc comment).
+    popularBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primaryStrong },
+    itemPrice: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+  });
