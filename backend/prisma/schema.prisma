@@ -1,0 +1,434 @@
+// Prisma schema for "The Food Map of Vietnam" backend.
+// Module 1 scope only: Identity & Access + Restaurant Core entities
+// per docs/06-database-erd.md §2-3. Review/Media/Moderation/Contribution
+// tables are added by their own build-prompt modules (06, 07).
+//
+// Note on geospatial data: Prisma has no first-class PostGIS geography type,
+// so `Location.geoPoint` is declared `Unsupported(...)` and is kept in sync
+// with `lat`/`lng` via a DB trigger (see migration.sql) rather than through
+// the Prisma Client. Geospatial queries (ST_DWithin/ST_MakeEnvelope) are run
+// via `$queryRaw` in the RestaurantModule (see build-prompts/03-map-geospatial.md).
+//
+// CAVEAT for whoever runs the next `prisma migrate dev --create-only`: the
+// GIST index on locations.geo_point, the GIN trigram index on
+// restaurants.name, and (as of build-prompts/04-search-filter.md) the GIN
+// index + generated column on restaurants.search_vector are all hand-written
+// raw SQL (Prisma has no schema-level syntax for them) and therefore
+// invisible to Prisma's diff engine. Every future migration will spuriously
+// propose dropping them — delete those lines from the generated
+// migration.sql before applying it. Do not actually drop them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity & Access (docs/06-database-erd.md §2) ----------
+
+enum OAuthProvider {
+  google
+  apple
+  none
+}
+
+enum UserStatus {
+  active
+  suspended
+  deleted
+}
+
+enum RoleCode {
+  guest
+  user
+  moderator
+  admin
+  owner
+}
+
+model Role {
+  id              String           @id @default(uuid())
+  code            RoleCode         @unique
+  label           String
+  rolePermissions RolePermission[]
+  users           User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid())
+  code            String           @unique
+  description     String?
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  passwordHash    String?       @map("password_hash")
+  oauthProvider   OAuthProvider @default(none) @map("oauth_provider")
+  oauthSubjectId  String?       @map("oauth_subject_id")
+  phone           String?
+  roleId          String        @map("role_id")
+  role            Role          @relation(fields: [roleId], references: [id])
+  status          UserStatus    @default(active)
+  emailVerifiedAt DateTime?     @map("email_verified_at")
+  lastLoginAt     DateTime?     @map("last_login_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  profile              UserProfile?
+  submittedRestaurants Restaurant[]         @relation("SubmittedRestaurants")
+  ownedRestaurants     Restaurant[]         @relation("OwnedRestaurants")
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  searchHistory        SearchHistory[]
+  uploadedPhotos       Photo[]
+  auditLogs            AuditLog[]
+
+  // Unique index below allows multiple (none, NULL) rows since Postgres
+  // treats NULL as distinct per standard unique-index semantics — this is
+  // the intended behavior (only OAuth accounts need a non-null subject id).
+  @@unique([oauthProvider, oauthSubjectId])
+  @@map("users")
+}
+
+// Implementation detail supporting docs/build-prompts/02-auth.md's refresh-token
+// rotation requirement — not itself enumerated in docs/06-database-erd.md, which
+// documents domain entities rather than auth-internals plumbing. Tokens are
+// stored as a SHA-256 hash (fast equality lookup), never the raw value —
+// unlike password hashing, refresh tokens are high-entropy random strings, so
+// a fast deterministic hash (not bcrypt) is the correct/standard choice here.
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash         String    @unique @map("token_hash")
+  expiresAt         DateTime  @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  replacedByTokenId String?   @map("replaced_by_token_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Single-use password reset token (30-minute expiry per docs/01-prd-mvp.md §10.1).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model UserProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName   String   @map("display_name")
+  // FK to Photo added once MediaModule exists (build-prompts/07) — plain
+  // nullable id for now so this table doesn't need a migration later.
+  avatarPhotoId String?  @map("avatar_photo_id")
+  bio           String?
+  homeCity      String?  @map("home_city")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("user_profiles")
+}
+
+// ---------- Restaurant Core (docs/06-database-erd.md §3) ----------
+
+enum RestaurantPublicationStatus {
+  pending
+  in_review
+  published
+  rejected
+  hidden
+  removed
+}
+
+enum FacilityType {
+  wifi
+  parking_car
+  parking_motorbike
+  air_conditioner
+  outdoor_seating
+  kid_friendly
+  pet_friendly
+  card_payment
+  private_room
+}
+
+model RestaurantCategory {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  label       String
+  icon        String?
+  restaurants Restaurant[]
+
+  @@map("restaurant_categories")
+}
+
+model Cuisine {
+  id                 String              @id @default(uuid())
+  code               String              @unique
+  label              String
+  dishes             Dish[]
+  restaurantCuisines RestaurantCuisine[]
+
+  @@map("cuisines")
+}
+
+model RestaurantCuisine {
+  restaurantId String     @map("restaurant_id")
+  cuisineId    String     @map("cuisine_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  cuisine      Cuisine    @relation(fields: [cuisineId], references: [id], onDelete: Cascade)
+
+  @@id([restaurantId, cuisineId])
+  @@map("restaurant_cuisines")
+}
+
+model Dish {
+  id            String      @id @default(uuid())
+  name          String
+  cuisineId     String?     @map("cuisine_id")
+  cuisine       Cuisine?    @relation(fields: [cuisineId], references: [id])
+  aliasKeywords String[]    @map("alias_keywords")
+  menuItems     MenuItem[]
+
+  @@map("dishes")
+}
+
+model PriceRange {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  minVnd      Int          @map("min_vnd")
+  maxVnd      Int?         @map("max_vnd")
+  restaurants Restaurant[]
+
+  @@map("price_ranges")
+}
+
+model Address {
+  id              String      @id @default(uuid())
+  line            String
+  ward            String?
+  district        String
+  province        String
+  fullAddressText String      @map("full_address_text")
+  restaurant      Restaurant?
+
+  @@map("addresses")
+}
+
+model Location {
+  id       String @id @default(uuid())
+  lat      Decimal @db.Decimal(9, 6)
+  lng      Decimal @db.Decimal(9, 6)
+  // Kept in sync with lat/lng via a DB trigger — see migration.sql.
+  geoPoint Unsupported("geography(Point, 4326)")? @map("geo_point")
+
+  restaurant Restaurant?
+
+  @@map("locations")
+}
+
+model Restaurant {
+  id            String                       @id @default(uuid())
+  name          String
+  slug          String                       @unique
+  description   String?
+  categoryId    String                       @map("category_id")
+  category      RestaurantCategory           @relation(fields: [categoryId], references: [id])
+  priceRangeId  String?                      @map("price_range_id")
+  priceRange    PriceRange?                  @relation(fields: [priceRangeId], references: [id])
+  phone         String?
+  addressId     String                       @unique @map("address_id")
+  address       Address                      @relation(fields: [addressId], references: [id])
+  locationId    String                       @unique @map("location_id")
+  location      Location                     @relation(fields: [locationId], references: [id])
+  submittedBy   String?                      @map("submitted_by")
+  submitter     User?                        @relation("SubmittedRestaurants", fields: [submittedBy], references: [id])
+  ownerId       String?                      @map("owner_id")
+  owner         User?                        @relation("OwnedRestaurants", fields: [ownerId], references: [id])
+  createdAt     DateTime                     @default(now()) @map("created_at")
+  updatedAt     DateTime                     @updatedAt @map("updated_at")
+  deletedAt     DateTime?                    @map("deleted_at")
+
+  // Generated STORED column (name + description, unaccented) + GIN index —
+  // see migration.sql; Prisma has no schema-level syntax for GENERATED ALWAYS
+  // AS columns, same reason Location.geoPoint is Unsupported (§ near top of
+  // this file). Dish-name/alias-based matching (per
+  // docs/build-prompts/04-search-filter.md) is NOT folded into this column —
+  // Postgres generated columns can only reference the same row, not joined
+  // tables — so SearchService joins menu_items/dishes at query time instead.
+  searchVector  Unsupported("tsvector")?    @map("search_vector")
+
+  status             RestaurantStatus?
+  cuisines            RestaurantCuisine[]
+  openingHours        OpeningHour[]
+  facilities          RestaurantFacility[]
+  menus               Menu[]
+
+  @@index([categoryId])
+  @@index([priceRangeId])
+  @@map("restaurants")
+}
+
+model RestaurantStatus {
+  restaurantId       String                      @id @map("restaurant_id")
+  restaurant         Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  publicationStatus  RestaurantPublicationStatus @default(pending) @map("publication_status")
+  compositeScore     Decimal?                     @db.Decimal(3, 2) @map("composite_score")
+  reviewCount        Int                          @default(0) @map("review_count")
+  lastReviewAt       DateTime?                    @map("last_review_at")
+  lastComputedAt     DateTime?                    @map("last_computed_at")
+
+  @@map("restaurant_status")
+}
+
+model OpeningHour {
+  id           String     @id @default(uuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int        @map("day_of_week")
+  openTime     DateTime?  @db.Time @map("open_time")
+  closeTime    DateTime?  @db.Time @map("close_time")
+  isClosed     Boolean    @default(false) @map("is_closed")
+
+  @@unique([restaurantId, dayOfWeek])
+  @@map("opening_hours")
+}
+
+model RestaurantFacility {
+  id           String       @id @default(uuid())
+  restaurantId String       @map("restaurant_id")
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  facilityType FacilityType @map("facility_type")
+  notes        String?
+
+  @@unique([restaurantId, facilityType])
+  @@map("restaurant_facilities")
+}
+
+model Menu {
+  id           String     @id @default(uuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String?
+  isActive     Boolean    @default(true) @map("is_active")
+  items        MenuItem[]
+
+  @@map("menus")
+}
+
+model MenuItem {
+  id        String  @id @default(uuid())
+  menuId    String  @map("menu_id")
+  menu      Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dishId    String? @map("dish_id")
+  dish      Dish?   @relation(fields: [dishId], references: [id])
+  name      String
+  priceVnd  Int     @map("price_vnd")
+  // FK to Photo added once MediaModule exists (build-prompts/07).
+  photoId   String? @map("photo_id")
+  isPopular Boolean @default(false) @map("is_popular")
+  category  String?
+
+  @@map("menu_items")
+}
+
+// ---------- Search Intelligence (docs/06-database-erd.md §8) ----------
+
+// Write-only in MVP (build-prompts/04-search-filter.md) — feeds V2
+// personalization per docs/08-roadmap-sprint.md; no read API yet.
+model SearchHistory {
+  id             String   @id @default(uuid())
+  userId         String?  @map("user_id")
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deviceId       String?  @map("device_id")
+  queryText      String?  @map("query_text")
+  appliedFilters Json?    @map("applied_filters")
+  resultCount    Int?     @map("result_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("search_history")
+}
+
+// ---------- Media (docs/06-database-erd.md §4, minimal stopgap) ----------
+
+enum PhotoOwnerType {
+  restaurant
+  menu_item
+  user_profile
+}
+
+// Per docs/build-prompts/05-restaurant-detail-admin-seed.md: "a minimal
+// signed-upload endpoint scoped to admin use is acceptable here as a
+// stopgap" — no real object storage (S3/R2) pipeline exists until
+// build-prompts/07's MediaModule, so `storageKey` holds a plain resolvable
+// URL directly (an admin-supplied or seed image URL) rather than an
+// internal bucket key. Ownership is polymorphic (ownerType/ownerId) per the
+// ERD — Postgres/Prisma can't express a real FK across owner types, so this
+// is validated at the application layer (see PhotoService), not the DB.
+model Photo {
+  id           String         @id @default(uuid())
+  ownerType    PhotoOwnerType @map("owner_type")
+  ownerId      String         @map("owner_id")
+  storageKey   String         @map("storage_key")
+  thumbnailKey String?        @map("thumbnail_key")
+  uploadedBy   String?        @map("uploaded_by")
+  uploader     User?          @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  width        Int?
+  height       Int?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  @@index([ownerType, ownerId])
+  @@map("photos")
+}
+
+// ---------- System (docs/06-database-erd.md §10) ----------
+
+// Append-only audit trail for every admin/moderator mutation, per
+// docs/05-system-architecture.md §10 — required starting this module.
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String   @map("actor_id")
+  actor       User     @relation(fields: [actorId], references: [id])
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id")
+  beforeState Json?    @map("before_state")
+  afterState  Json?    @map("after_state")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+  @@map("audit_log")
+}

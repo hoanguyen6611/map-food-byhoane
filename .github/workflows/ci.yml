@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: foodmap
+          POSTGRES_PASSWORD: foodmap
+          POSTGRES_DB: foodmap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foodmap"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://foodmap:foodmap@localhost:5432/foodmap?schema=public
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Prisma generate
+        run: npm run prisma:generate --workspace=backend
+
+      - name: Prisma migrate deploy
+        run: npm run prisma:migrate:deploy --workspace=backend
+
+      - name: Backend unit tests
+        run: npm run test --workspace=backend
+
+      - name: Build all apps
+        run: npm run build

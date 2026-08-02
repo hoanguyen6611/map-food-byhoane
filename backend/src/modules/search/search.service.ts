@@ -1,0 +1,249 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import type {
+  Paginated,
+  PriceRangeCode,
+  RestaurantCategoryCode,
+  RestaurantSummaryDto,
+} from '@foodmap/shared-types';
+import { PrismaService } from '../../prisma/prisma.service';
+import { isOpenNow, toVnNow } from '../restaurant/opening-hours.util';
+import { clampRadiusKm } from '../restaurant/restaurant.util';
+import type { SearchQueryDto } from './dto/search-query.dto';
+
+// Safety ceiling on DB-level candidates fetched before openNow/minRating
+// filtering (which — like build-prompts/03's approach — happens in JS,
+// since isOpenNow's overnight-crossing logic and the "honest null until
+// reviews exist" compositeScore semantics aren't clean single SQL
+// predicates). Fine at this MVP dataset scale (docs/09-testing-plan.md);
+// would need revisiting if the catalog grows past low thousands of rows.
+const MAX_CANDIDATES = 500;
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+
+interface RawRow {
+  id: string;
+  name: string;
+  category_code: string;
+  composite_score: Prisma.Decimal | null;
+  review_count: number;
+  price_code: string | null;
+  price_min_vnd: number | null;
+  price_max_vnd: number | null;
+  lat: Prisma.Decimal;
+  lng: Prisma.Decimal;
+  distance_meters: number | null;
+  text_rank: number;
+}
+
+export interface SearchContext {
+  userId?: string;
+  deviceId?: string;
+}
+
+@Injectable()
+export class SearchService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** `GET /search` (with `q`) and `GET /restaurants` (browse, no `q`) share this. */
+  async search(
+    query: SearchQueryDto,
+    context: SearchContext,
+  ): Promise<Paginated<RestaurantSummaryDto>> {
+    this.validate(query);
+
+    const hasLatLng = query.lat !== undefined && query.lng !== undefined;
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`r.deleted_at IS NULL`,
+      Prisma.sql`rs.publication_status = 'published'`,
+    ];
+
+    if (query.q) {
+      const q = query.q;
+      conditions.push(Prisma.sql`(
+        r.search_vector @@ plainto_tsquery('simple', immutable_unaccent(${q}))
+        OR similarity(immutable_unaccent(r.name), immutable_unaccent(${q})) > 0.2
+        OR EXISTS (
+          SELECT 1 FROM menus mm
+          JOIN menu_items mi ON mi.menu_id = mm.id
+          JOIN dishes d ON d.id = mi.dish_id
+          WHERE mm.restaurant_id = r.id
+            AND (
+              immutable_unaccent(d.name) ILIKE '%' || immutable_unaccent(${q}) || '%'
+              OR EXISTS (
+                SELECT 1 FROM unnest(d.alias_keywords) ak
+                WHERE immutable_unaccent(ak) ILIKE '%' || immutable_unaccent(${q}) || '%'
+              )
+            )
+        )
+      )`);
+    }
+
+    if (hasLatLng) {
+      const radiusMeters = clampRadiusKm(query.distanceKm) * 1000;
+      conditions.push(Prisma.sql`ST_DWithin(
+        l.geo_point,
+        ST_SetSRID(ST_MakePoint(${query.lng}, ${query.lat}), 4326)::geography,
+        ${radiusMeters}
+      )`);
+    }
+
+    if (query.priceMin !== undefined || query.priceMax !== undefined) {
+      // Bucket/requested-range overlap check. A restaurant with no price
+      // bucket assigned (pr is null via the LEFT JOIN) correctly fails to
+      // match any price filter — documented, not a bug.
+      conditions.push(Prisma.sql`(
+        pr.min_vnd <= ${query.priceMax ?? Number.MAX_SAFE_INTEGER}
+        AND (pr.max_vnd IS NULL OR pr.max_vnd >= ${query.priceMin ?? 0})
+      )`);
+    }
+
+    if (query.cuisine && query.cuisine.length > 0) {
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM restaurant_cuisines rcu
+        JOIN cuisines c ON c.id = rcu.cuisine_id
+        WHERE rcu.restaurant_id = r.id AND c.code = ANY(${query.cuisine})
+      )`);
+    }
+
+    if (query.facilities && query.facilities.length > 0) {
+      // ALL requested facilities must be present (contrast with cuisine's
+      // ANY-of semantics above) — per build-prompts/04's filter spec.
+      conditions.push(Prisma.sql`(
+        SELECT COUNT(DISTINCT facility_type)
+        FROM restaurant_facilities
+        WHERE restaurant_id = r.id AND facility_type::text = ANY(${query.facilities})
+      ) = ${query.facilities.length}`);
+    }
+
+    const whereClause = Prisma.join(conditions, ' AND ');
+    const textRankExpr = query.q
+      ? Prisma.sql`ts_rank_cd(r.search_vector, plainto_tsquery('simple', immutable_unaccent(${query.q})))`
+      : Prisma.sql`0`;
+    const distanceExpr = hasLatLng
+      ? Prisma.sql`ST_Distance(l.geo_point, ST_SetSRID(ST_MakePoint(${query.lng}, ${query.lat}), 4326)::geography)`
+      : Prisma.sql`NULL`;
+
+    const rows = await this.prisma.$queryRaw<RawRow[]>`
+      SELECT
+        r.id,
+        r.name,
+        rc.code AS category_code,
+        rs.composite_score,
+        COALESCE(rs.review_count, 0) AS review_count,
+        pr.code AS price_code,
+        pr.min_vnd AS price_min_vnd,
+        pr.max_vnd AS price_max_vnd,
+        l.lat,
+        l.lng,
+        ${distanceExpr} AS distance_meters,
+        ${textRankExpr} AS text_rank
+      FROM restaurants r
+      JOIN locations l ON l.id = r.location_id
+      JOIN restaurant_categories rc ON rc.id = r.category_id
+      LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
+      LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
+      WHERE ${whereClause}
+      -- TODO Module 6: fold compositeScore into this ranking once real
+      -- review-derived scores exist (per build-prompts/04's scope note).
+      ORDER BY text_rank DESC, distance_meters ASC NULLS LAST, r.created_at DESC
+      LIMIT ${MAX_CANDIDATES}
+    `;
+
+    const hydrated = await this.hydrate(rows);
+
+    const filtered = hydrated.filter((item) => {
+      if (query.openNow && !item.isOpenNow) return false;
+      if (query.minRating !== undefined) {
+        if (
+          item.compositeScore === null ||
+          item.compositeScore < query.minRating
+        )
+          return false;
+      }
+      return true;
+    });
+
+    const page = query.page ?? DEFAULT_PAGE;
+    const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
+    const start = (page - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    await this.logSearchHistory(query, context, filtered.length);
+
+    return { items, total: filtered.length, page, pageSize };
+  }
+
+  private validate(query: SearchQueryDto): void {
+    if (
+      query.priceMin !== undefined &&
+      query.priceMax !== undefined &&
+      query.priceMin > query.priceMax
+    ) {
+      throw new BadRequestException(
+        'priceMin must be less than or equal to priceMax',
+      );
+    }
+    if (
+      query.distanceKm !== undefined &&
+      (query.lat === undefined || query.lng === undefined)
+    ) {
+      throw new BadRequestException('distanceKm requires both lat and lng');
+    }
+  }
+
+  private async hydrate(rows: RawRow[]): Promise<RestaurantSummaryDto[]> {
+    if (rows.length === 0) return [];
+
+    const openingHours = await this.prisma.openingHour.findMany({
+      where: { restaurantId: { in: rows.map((r) => r.id) } },
+    });
+    const hoursByRestaurant = new Map<string, typeof openingHours>();
+    for (const hour of openingHours) {
+      const list = hoursByRestaurant.get(hour.restaurantId) ?? [];
+      list.push(hour);
+      hoursByRestaurant.set(hour.restaurantId, list);
+    }
+    const vnNow = toVnNow(new Date());
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      categoryCode: row.category_code as RestaurantCategoryCode,
+      thumbnailUrl: null,
+      compositeScore: row.composite_score ? Number(row.composite_score) : null,
+      reviewCount: row.review_count,
+      priceRange: row.price_code
+        ? {
+            code: row.price_code as PriceRangeCode,
+            minVnd: row.price_min_vnd ?? 0,
+            maxVnd: row.price_max_vnd,
+          }
+        : null,
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      distanceMeters:
+        row.distance_meters !== null ? Math.round(row.distance_meters) : null,
+      isOpenNow: isOpenNow(hoursByRestaurant.get(row.id) ?? [], vnNow),
+    }));
+  }
+
+  private async logSearchHistory(
+    query: SearchQueryDto,
+    context: SearchContext,
+    resultCount: number,
+  ): Promise<void> {
+    // Write-only per build-prompts/04 — feeds V2 personalization, no read API yet.
+    await this.prisma.searchHistory.create({
+      data: {
+        userId: context.userId,
+        deviceId: context.deviceId,
+        queryText: query.q,
+        appliedFilters: JSON.parse(
+          JSON.stringify(query),
+        ) as Prisma.InputJsonValue,
+        resultCount,
+      },
+    });
+  }
+}
