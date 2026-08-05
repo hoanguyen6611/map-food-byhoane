@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { buildAiReason, recommendActionForRiskScore, scoreTextContent } from '../moderation/rule-based-moderation.util';
 
 export interface ModerationCheckInput {
   userId: string;
@@ -14,16 +15,8 @@ export interface ModerationCheckResult {
   recommendedAction: 'auto_approve' | 'hold_for_review';
 }
 
-const URL_PATTERN = /https?:\/\/|www\./i;
-// Spam-indicator phrases (advertising/scam patterns), not a profanity
-// wordlist — a portfolio repo is a public artifact, so this favors
-// structural spam signals over embedding slurs. Real content moderation is
-// Module 7's AIGateway; this is explicitly a stand-in (see class doc below).
-const SPAM_PHRASES = ['click vào link', 'kiếm tiền online', 'quảng cáo', 'inbox zalo', 'liên hệ zalo'];
-const REPEATED_CHAR_PATTERN = /(.)\1{4,}/; // same char 5+ times in a row, e.g. "aaaaa"/"!!!!!"
 const RAPID_FIRE_WINDOW_MS = 60 * 60 * 1000;
 const RAPID_FIRE_THRESHOLD = 5;
-const HOLD_FOR_REVIEW_THRESHOLD = 0.5;
 
 /**
  * Rule-based stand-in for docs/build-prompts/06-reviews-scoring.md — the
@@ -31,6 +24,10 @@ const HOLD_FOR_REVIEW_THRESHOLD = 0.5;
  * (docs/build-prompts/07-contribution-media-moderation.md); this module only
  * needs the ModerationResult table + status state-machine wired correctly
  * so Module 7 can swap the scoring implementation without touching callers.
+ * The text-heuristic scoring itself now lives in
+ * ../moderation/rule-based-moderation.util.ts, shared with
+ * ContributionModerationService — this class's own behavior/signature is
+ * unchanged by that extraction.
  *
  * // TODO Module 7: replace this method's body with a real AIGateway.moderate() call.
  */
@@ -41,29 +38,8 @@ export class ReviewModerationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async check(input: ModerationCheckInput): Promise<ModerationCheckResult> {
-    const labels: string[] = [];
-    let riskScore = 0;
-    const comment = input.comment ?? '';
-
-    if (URL_PATTERN.test(comment)) {
-      labels.push('contains_url');
-      riskScore += 0.4;
-    }
-    const lowerComment = comment.toLowerCase();
-    if (SPAM_PHRASES.some((phrase) => lowerComment.includes(phrase))) {
-      labels.push('spam_phrase');
-      riskScore += 0.3;
-    }
-    const letters = comment.replace(/[^\p{L}]/gu, '');
-    const upperLetters = comment.replace(/[^\p{Lu}]/gu, '');
-    if (letters.length > 20 && upperLetters.length / letters.length > 0.7) {
-      labels.push('all_caps');
-      riskScore += 0.2;
-    }
-    if (REPEATED_CHAR_PATTERN.test(comment)) {
-      labels.push('repeated_chars');
-      riskScore += 0.2;
-    }
+    const { riskScore: textRiskScore, labels } = scoreTextContent(input.comment);
+    let riskScore = textRiskScore;
 
     const recentCount = await this.prisma.review.count({
       where: {
@@ -77,11 +53,8 @@ export class ReviewModerationService {
     }
 
     riskScore = Math.min(1, riskScore);
-    const recommendedAction = riskScore >= HOLD_FOR_REVIEW_THRESHOLD ? 'hold_for_review' : 'auto_approve';
-    const aiReason =
-      labels.length === 0
-        ? 'Không phát hiện dấu hiệu bất thường (kiểm tra rule-based).'
-        : `Phát hiện dấu hiệu: ${labels.join(', ')} (kiểm tra rule-based).`;
+    const recommendedAction = recommendActionForRiskScore(riskScore);
+    const aiReason = buildAiReason(labels);
 
     return { riskScore, labels, aiReason, recommendedAction };
   }

@@ -111,6 +111,13 @@ model User {
   moderationDecisions  ModerationResult[] @relation("ModerationDecidedBy")
   favorites            Favorite[]
   notifications        Notification[]
+  contributions        Contribution[]
+  reportsFiled         Report[]             @relation("ReportedBy")
+  reportsResolved      Report[]             @relation("ReportResolvedBy")
+  crowdedStatusReports CrowdedStatus[]      @relation("CrowdedStatusReportedBy")
+  seatAvailabilityReports SeatAvailability[] @relation("SeatAvailabilityReportedBy")
+  powerOutletReports   PowerOutletStatus[]  @relation("PowerOutletReportedBy")
+  parkingInfoUpdates   ParkingInformation[] @relation("ParkingLastUpdatedBy")
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
   // treats NULL as distinct per standard unique-index semantics — this is
@@ -306,6 +313,12 @@ model Restaurant {
   menus               Menu[]
   reviews             Review[]
   favorites           Favorite[]
+  contributions       Contribution[]
+  aiSummary           AISummary?
+  crowdedStatuses     CrowdedStatus[]
+  seatAvailabilities  SeatAvailability[]
+  powerOutletStatuses PowerOutletStatus[]
+  parkingInformation  ParkingInformation?
 
   @@index([categoryId])
   @@index([priceRangeId])
@@ -399,28 +412,44 @@ enum PhotoOwnerType {
   restaurant
   menu_item
   user_profile
+  review
+  contribution
 }
 
-// Per docs/build-prompts/05-restaurant-detail-admin-seed.md: "a minimal
-// signed-upload endpoint scoped to admin use is acceptable here as a
-// stopgap" — no real object storage (S3/R2) pipeline exists until
-// build-prompts/07's MediaModule, so `storageKey` holds a plain resolvable
-// URL directly (an admin-supplied or seed image URL) rather than an
-// internal bucket key. Ownership is polymorphic (ownerType/ownerId) per the
-// ERD — Postgres/Prisma can't express a real FK across owner types, so this
-// is validated at the application layer (see PhotoService), not the DB.
+// Two producers write this table now: the admin-only stopgap (PhotoService,
+// build-prompts/05) which stores a plain admin-supplied URL directly as
+// `storageKey`, and — as of build-prompts/07's MediaModule — a real
+// signed-upload pipeline (MediaService) that re-encodes every image
+// server-side before writing the row. `mimeType`/`fileSizeBytes` are only
+// ever populated by the real pipeline (nullable, since the admin stopgap
+// never had this info and there's no reason to migrate it retroactively).
+// Ownership is polymorphic (ownerType/ownerId) per the ERD — Postgres/Prisma
+// can't express a real FK across owner types, so this is validated at the
+// application layer, not the DB.
+//
+// `ownerId` is nullable — a deliberate deviation from the ERD (which marks
+// it required): the real upload flow confirms+stores a photo BEFORE its
+// parent review/restaurant exists (the mobile client has no id yet to
+// attach to), so photos start "unattached" (`ownerId: null`) and are
+// re-parented by the owning create-endpoint via a `photoIds` field once the
+// parent is created (see MediaService.reparent). Unattached photos older
+// than 24h are swept by a background job (MediaService.sweepOrphans).
 model Photo {
-  id           String         @id @default(uuid())
-  ownerType    PhotoOwnerType @map("owner_type")
-  ownerId      String         @map("owner_id")
-  storageKey   String         @map("storage_key")
-  thumbnailKey String?        @map("thumbnail_key")
-  uploadedBy   String?        @map("uploaded_by")
-  uploader     User?          @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
-  width        Int?
-  height       Int?
-  createdAt    DateTime       @default(now()) @map("created_at")
-  deletedAt    DateTime?      @map("deleted_at")
+  id                 String            @id @default(uuid())
+  ownerType          PhotoOwnerType    @map("owner_type")
+  ownerId            String?           @map("owner_id")
+  storageKey         String            @map("storage_key")
+  thumbnailKey       String?           @map("thumbnail_key")
+  uploadedBy         String?           @map("uploaded_by")
+  uploader           User?             @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  width              Int?
+  height             Int?
+  mimeType           String?           @map("mime_type")
+  fileSizeBytes      Int?              @map("file_size_bytes")
+  moderationResultId String?           @map("moderation_result_id")
+  moderationResult   ModerationResult? @relation(fields: [moderationResultId], references: [id])
+  createdAt          DateTime          @default(now()) @map("created_at")
+  deletedAt          DateTime?         @map("deleted_at")
 
   @@index([ownerType, ownerId])
   @@map("photos")
@@ -534,9 +563,225 @@ model ModerationResult {
   modelVersion      String                       @map("model_version")
   createdAt         DateTime                     @default(now()) @map("created_at")
 
+  contribution Contribution?
+  photos       Photo[]
+
   @@index([targetType, targetId])
   @@index([decision])
   @@map("moderation_results")
+}
+
+// ---------- Contribution (docs/06-database-erd.md §6, build-prompts/07) ----------
+//
+// Module 7 adds the community submission flow. Moderation reuses the exact
+// rule-based-stand-in pattern already established for reviews (Module 6) —
+// see ContributionModerationService — rather than a real AIGateway call
+// (the Claude adapter is out of scope for this pass; see ai-gateway.interface.ts).
+
+enum ContributionType {
+  new_restaurant
+  edit_suggestion
+  status_update
+  closure_report
+}
+
+enum ContributionStatus {
+  pending
+  auto_approved
+  in_review
+  approved
+  rejected
+  edit_requested
+}
+
+// Generic envelope for any user-submitted change — the single audit trail
+// for "who changed what," independent of whether it was auto- or
+// manually-approved (per the ERD). `targetRestaurantId` is null only for a
+// brand-new restaurant submission (the restaurant is created *together with*
+// this row, in the same transaction — see ContributionService.createNewRestaurant).
+model Contribution {
+  id                 String              @id @default(uuid())
+  userId             String              @map("user_id")
+  user               User                @relation(fields: [userId], references: [id])
+  type               ContributionType
+  targetRestaurantId String?             @map("target_restaurant_id")
+  targetRestaurant   Restaurant?         @relation(fields: [targetRestaurantId], references: [id])
+  payload            Json
+  status             ContributionStatus  @default(pending)
+  moderationResultId String?             @unique @map("moderation_result_id")
+  moderationResult   ModerationResult?   @relation(fields: [moderationResultId], references: [id])
+  editSuggestion     EditSuggestion?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([targetRestaurantId])
+  @@map("contributions")
+}
+
+// 1:1 detail for Contribution.type = edit_suggestion. `fieldName` is
+// restricted at the application layer (DTO allow-list) to a fixed set of
+// editable fields — not a fully generic path-based patcher — see
+// ContributionService's edit-suggestion handler.
+model EditSuggestion {
+  id             String       @id @default(uuid())
+  contributionId String       @unique @map("contribution_id")
+  contribution   Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  fieldName      String       @map("field_name")
+  oldValue       Json?        @map("old_value")
+  newValue       Json         @map("new_value")
+
+  @@map("edit_suggestions")
+}
+
+enum ReportTargetType {
+  restaurant
+  review
+}
+
+enum ReportReason {
+  spam
+  inappropriate
+  incorrect_info
+  duplicate
+  closed_down
+  other
+}
+
+enum ReportStatus {
+  open
+  escalated
+  resolved
+  dismissed
+}
+
+// Business rule (ERD §7): 3+ independent closed_down reports on the same
+// restaurant within a rolling 14-day window auto-escalates the linked
+// Contribution's ModerationResult to high-priority — it never auto-hides
+// the restaurant, only surfaces it prominently in the moderation queue.
+// See ContributionService.checkClosureEscalation.
+model Report {
+  id          String           @id @default(uuid())
+  reporterId  String           @map("reporter_id")
+  reporter    User             @relation("ReportedBy", fields: [reporterId], references: [id])
+  targetType  ReportTargetType @map("target_type")
+  targetId    String           @map("target_id")
+  reason      ReportReason
+  description String?
+  status      ReportStatus     @default(open)
+  resolvedBy  String?          @map("resolved_by")
+  resolver    User?            @relation("ReportResolvedBy", fields: [resolvedBy], references: [id])
+  createdAt   DateTime         @default(now()) @map("created_at")
+  resolvedAt  DateTime?        @map("resolved_at")
+
+  @@unique([reporterId, targetType, targetId])
+  @@map("reports")
+}
+
+// ---------- AI Summary (docs/06-database-erd.md §8, build-prompts/07) ----------
+//
+// Read-side only this pass — no real Claude `summarize()` call exists yet
+// (see ai-summary-trigger.stub.ts). Rows only ever appear via
+// prisma/seed-ai-summaries.ts until a future module wires up generation.
+
+model AISummary {
+  id                String     @id @default(uuid())
+  restaurantId      String     @unique @map("restaurant_id")
+  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  summaryText       String     @map("summary_text")
+  pros              String[]
+  cons              String[]
+  sourceReviewCount Int        @map("source_review_count")
+  modelVersion      String     @map("model_version")
+  generatedAt       DateTime   @map("generated_at")
+
+  @@map("ai_summaries")
+}
+
+// ---------- Situational / Live-ish Status (docs/06-database-erd.md §9) ----------
+//
+// Community-reported, ephemeral signals — CrowdedStatus/SeatAvailability/
+// PowerOutletStatus are insert-only logs (the "current" value is computed by
+// the reading service from recent rows, not stored); ParkingInformation is
+// the one 1:1, more-static exception. All are created via
+// ContributionModule's status-report endpoint and auto-apply on a clean
+// moderation pass (see build-prompts/07-contribution-media-moderation-ai.md).
+
+enum CrowdedLevel {
+  empty
+  light
+  moderate
+  crowded
+  full
+}
+
+model CrowdedStatus {
+  id           String       @id @default(uuid())
+  restaurantId String       @map("restaurant_id")
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  level        CrowdedLevel
+  reportedBy   String       @map("reported_by")
+  reporter     User         @relation("CrowdedStatusReportedBy", fields: [reportedBy], references: [id])
+  reportedAt   DateTime     @default(now()) @map("reported_at")
+
+  @@index([restaurantId, reportedAt])
+  @@map("crowded_statuses")
+}
+
+enum SeatAvailabilityLevel {
+  plenty
+  limited
+  full
+}
+
+model SeatAvailability {
+  id           String                 @id @default(uuid())
+  restaurantId String                 @map("restaurant_id")
+  restaurant   Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  level        SeatAvailabilityLevel
+  reportedBy   String                 @map("reported_by")
+  reporter     User                   @relation("SeatAvailabilityReportedBy", fields: [reportedBy], references: [id])
+  reportedAt   DateTime               @default(now()) @map("reported_at")
+
+  @@index([restaurantId, reportedAt])
+  @@map("seat_availabilities")
+}
+
+enum PowerOutletLevel {
+  plenty
+  some
+  none
+}
+
+// Primarily relevant to quan_ca_phe per the ERD, but not schema-restricted
+// to that category — the same lax pattern as ReviewCriteria.appliesToCategory.
+model PowerOutletStatus {
+  id           String           @id @default(uuid())
+  restaurantId String           @map("restaurant_id")
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  level        PowerOutletLevel
+  reportedBy   String           @map("reported_by")
+  reporter     User             @relation("PowerOutletReportedBy", fields: [reportedBy], references: [id])
+  reportedAt   DateTime         @default(now()) @map("reported_at")
+
+  @@index([restaurantId, reportedAt])
+  @@map("power_outlet_statuses")
+}
+
+// 1:1 (restaurantId is both PK and FK) — more static than the three logs
+// above, upserted in place rather than appended.
+model ParkingInformation {
+  restaurantId        String     @id @map("restaurant_id")
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  hasCarParking       Boolean    @map("has_car_parking")
+  hasMotorbikeParking Boolean    @map("has_motorbike_parking")
+  isFree              Boolean?   @map("is_free")
+  notes               String?
+  lastUpdatedBy       String?    @map("last_updated_by")
+  updater             User?      @relation("ParkingLastUpdatedBy", fields: [lastUpdatedBy], references: [id])
+  lastUpdatedAt       DateTime?  @map("last_updated_at")
+
+  @@map("parking_information")
 }
 
 // ---------- Favorites & Notifications (docs/06-database-erd.md §6, §8) ----------

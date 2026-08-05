@@ -1,4 +1,5 @@
 // Contract for docs/build-prompts/06-reviews-scoring.md.
+import type { PhotoDto } from './restaurant-detail';
 
 export type ReviewCriteriaCode =
   | 'food_quality'
@@ -29,6 +30,9 @@ export interface CreateReviewRequest {
   visitedAt?: string; // ISO date
   waitTimeMinutes?: number;
   wouldReturn?: boolean;
+  // Ids of photos already uploaded via MediaModule (build-prompts/07) — the
+  // server reparents these onto the created review, enforcing the 6-photo cap.
+  photoIds?: string[];
 }
 
 // Same field set as create, all optional (PATCH semantics) — `ratings`, when
@@ -43,6 +47,7 @@ export interface UpdateReviewRequest {
   visitedAt?: string;
   waitTimeMinutes?: number;
   wouldReturn?: boolean;
+  photoIds?: string[];
 }
 
 export interface ReviewAuthorDto {
@@ -68,6 +73,7 @@ export interface ReviewDto {
   // happens >48h after createdAt — see docs/01-prd-mvp.md §10.5).
   editedAt: string | null;
   createdAt: string;
+  photos: PhotoDto[];
 }
 
 export interface ReviewCriteriaBreakdownDto {

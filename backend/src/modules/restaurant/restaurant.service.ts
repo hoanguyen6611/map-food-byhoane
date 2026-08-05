@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type {
+  AISummaryResponseDto,
   CuisineCode,
   FacilityType,
   OpeningHourDto,
@@ -14,6 +16,7 @@ import type {
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { S3Service } from '../media/s3.service';
 import { isOpenNow, toVnNow, type OpeningHourRow } from './opening-hours.util';
 import { clampRadiusKm } from './restaurant.util';
 
@@ -68,7 +71,43 @@ export class RestaurantService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly config: ConfigService,
+    private readonly s3: S3Service,
   ) {}
+
+  /**
+   * Read-side only (build-prompts/07, US-J1/J2) — no real Claude
+   * summarize() call exists yet (see ai-summary-trigger.stub.ts). `available`
+   * requires BOTH a real AISummary row AND the restaurant's CURRENT review
+   * count meeting the threshold — a stale row surviving after reviews were
+   * later removed/hidden must not be shown just because the row still exists.
+   */
+  async getAiSummary(id: string): Promise<AISummaryResponseDto> {
+    const minReviewThreshold = Number(this.config.get<string>('AI_SUMMARY_MIN_REVIEW_COUNT', '5'));
+
+    const [status, summary] = await Promise.all([
+      this.prisma.restaurantStatus.findUnique({ where: { restaurantId: id } }),
+      this.prisma.aISummary.findUnique({ where: { restaurantId: id } }),
+    ]);
+
+    const currentReviewCount = status?.reviewCount ?? 0;
+    if (!summary || currentReviewCount < minReviewThreshold) {
+      return { available: false, summary: null, minReviewThreshold };
+    }
+
+    return {
+      available: true,
+      summary: {
+        summaryText: summary.summaryText,
+        pros: summary.pros,
+        cons: summary.cons,
+        sourceReviewCount: summary.sourceReviewCount,
+        modelVersion: summary.modelVersion,
+        generatedAt: summary.generatedAt.toISOString(),
+      },
+      minReviewThreshold,
+    };
+  }
 
   /** Public detail — only ever returns a published, non-deleted restaurant. */
   async getDetail(id: string): Promise<RestaurantDetailDto> {
@@ -175,31 +214,43 @@ export class RestaurantService {
           isPopular: item.isPopular,
         })),
       })),
-      photos: photos.map((p) => ({ id: p.id, url: p.storageKey, width: p.width, height: p.height })),
+      photos: photos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey), width: p.width, height: p.height })),
       compositeScore: restaurant.status?.compositeScore ? Number(restaurant.status.compositeScore) : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
-      reviews: reviewRows.map((r) => this.toReviewPreviewDto(r)),
-      aiSummary: null,
+      reviews: await Promise.all(
+        reviewRows.map(async (r) => this.toReviewPreviewDto(r, await this.fetchReviewPhotos(r.id))),
+      ),
     };
   }
 
-  private toReviewPreviewDto(review: {
-    id: string;
-    restaurantId: string;
-    user: { id: string; profile: { displayName: string } | null };
-    ratings: { score: number; criteria: { code: string } }[];
-    overallRating: number;
-    comment: string | null;
-    dishesOrdered: string[];
-    billTotalVnd: number | null;
-    partySize: number | null;
-    visitedAt: Date | null;
-    waitTimeMinutes: number | null;
-    wouldReturn: boolean | null;
-    status: string;
-    editedAt: Date | null;
-    createdAt: Date;
-  }): ReviewDto {
+  private async fetchReviewPhotos(reviewId: string): Promise<{ id: string; url: string; width: number | null; height: number | null }[]> {
+    const photos = await this.prisma.photo.findMany({
+      where: { ownerType: 'review', ownerId: reviewId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    return photos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey), width: p.width, height: p.height }));
+  }
+
+  private toReviewPreviewDto(
+    review: {
+      id: string;
+      restaurantId: string;
+      user: { id: string; profile: { displayName: string } | null };
+      ratings: { score: number; criteria: { code: string } }[];
+      overallRating: number;
+      comment: string | null;
+      dishesOrdered: string[];
+      billTotalVnd: number | null;
+      partySize: number | null;
+      visitedAt: Date | null;
+      waitTimeMinutes: number | null;
+      wouldReturn: boolean | null;
+      status: string;
+      editedAt: Date | null;
+      createdAt: Date;
+    },
+    photos: { id: string; url: string; width: number | null; height: number | null }[],
+  ): ReviewDto {
     return {
       id: review.id,
       restaurantId: review.restaurantId,
@@ -216,6 +267,7 @@ export class RestaurantService {
       status: review.status as ReviewDto['status'],
       editedAt: review.editedAt?.toISOString() ?? null,
       createdAt: review.createdAt.toISOString(),
+      photos,
     };
   }
 
@@ -365,14 +417,28 @@ export class RestaurantService {
   ): Promise<RestaurantSummaryDto[]> {
     if (rows.length === 0) return [];
 
-    const openingHours = await this.prisma.openingHour.findMany({
-      where: { restaurantId: { in: rows.map((r) => r.id) } },
-    });
+    const restaurantIds = rows.map((r) => r.id);
+    const [openingHours, photos] = await Promise.all([
+      this.prisma.openingHour.findMany({ where: { restaurantId: { in: restaurantIds } } }),
+      this.prisma.photo.findMany({
+        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
     const hoursByRestaurant = new Map<string, typeof openingHours>();
     for (const hour of openingHours) {
       const list = hoursByRestaurant.get(hour.restaurantId) ?? [];
       list.push(hour);
       hoursByRestaurant.set(hour.restaurantId, list);
+    }
+    const firstPhotoByRestaurant = new Map<string, string>();
+    for (const photo of photos) {
+      // ownerId is nullable at the schema level (build-prompts/07 — photos
+      // can be "unattached" before their owner exists) but this query
+      // always filters by ownerId IN (restaurant ids), so it's never null here.
+      if (photo.ownerId && !firstPhotoByRestaurant.has(photo.ownerId)) {
+        firstPhotoByRestaurant.set(photo.ownerId, photo.storageKey);
+      }
     }
 
     const vnNow = toVnNow(new Date());
@@ -382,7 +448,7 @@ export class RestaurantService {
       slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
-      thumbnailUrl: null, // honestly null until build-prompts/07's MediaModule exists
+      thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,
       priceRange: row.price_code

@@ -280,6 +280,10 @@ body {
 
 .filter-field input,
 .filter-field select {
+  /* Fixed width so a <select> (sized to its widest option by default)
+     lines up with the text <input>s beside it instead of shrinking to
+     content — same fix applied in web/src/app/globals.css's .filter-field. */
+  width: 200px;
   font: inherit;
   font-size: 13px;
   color: var(--color-text);
@@ -287,6 +291,20 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 8px 10px;
+}
+
+.filter-field select {
+  /* Native select chrome (esp. Safari) reserves its own space for the
+     dropdown arrow on top of `width`, so it can still look narrower than
+     an <input> of the identical CSS width — appearance:none + a hand-drawn
+     arrow removes that browser-specific variance entirely. */
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23666666' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 7px;
+  padding-right: 28px;
 }
 
 .data-table {
@@ -355,6 +373,52 @@ body {
 .status-badge-hidden {
   background: #e0e0e0;
   color: #555555;
+}
+
+.status-badge-approved {
+  background: #d3f5df;
+  color: #106b31;
+}
+
+.status-badge-edit_requested {
+  background: #fde4c8;
+  color: #94480a;
+}
+
+/* ---------- Admin Moderation Queue (screen 31) ---------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--color-border);
+}
+
+.tab-active {
+  color: #fff;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.moderation-labels {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
 .pagination-bar {

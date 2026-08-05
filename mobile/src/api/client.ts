@@ -46,10 +46,16 @@ async function rawFetch(path: string, init: RequestInit & { accessToken?: string
 }
 
 async function parseBody<T>(response: Response): Promise<T> {
-  if (response.status === 204) {
+  // Don't gate this on `response.status === 204` — a void-returning endpoint
+  // that isn't explicitly annotated `@HttpCode(204)` on the backend sends an
+  // empty body with a 200/201 status instead, and `response.json()` throws a
+  // SyntaxError on empty text. Checking the actual body handles both cases
+  // and can't regress if a future endpoint forgets the annotation.
+  const text = await response.text();
+  if (!text) {
     return undefined as T;
   }
-  return (await response.json()) as T;
+  return JSON.parse(text) as T;
 }
 
 // Ensures at most one silent refresh is in flight at a time; concurrent 401s

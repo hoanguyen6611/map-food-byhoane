@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatDistanceMeters, formatPriceRange } from '../../lib/format';
@@ -17,8 +17,8 @@ interface Props {
 
 /**
  * Marker-tap preview card per US-B4 / screen 7's bottom-sheet spec: name,
- * thumbnail placeholder (thumbnailUrl is honestly always null for now — no
- * media pipeline until build-prompts/07), rating placeholder (compositeScore
+ * thumbnail (the restaurant's first real photo when `thumbnailUrl` is set,
+ * else a branded emoji placeholder), rating placeholder (compositeScore
  * is null until build-prompts/06 — never fabricate a score), price range,
  * distance, an open/closed badge, and a favorite heart button
  * (build-prompts/08 — `isFavorited`/`onToggleFavorite` come from MapScreen's
@@ -63,9 +63,13 @@ export function RestaurantPreviewCard({
       ) : null}
 
       <View style={styles.row}>
-        <View style={styles.thumbnailPlaceholder}>
-          <Text style={styles.thumbnailEmoji}>🍽️</Text>
-        </View>
+        {restaurant.thumbnailUrl ? (
+          <Image source={{ uri: restaurant.thumbnailUrl }} style={styles.thumbnailImage} />
+        ) : (
+          <View style={styles.thumbnailPlaceholder}>
+            <Text style={styles.thumbnailEmoji}>🍽️</Text>
+          </View>
+        )}
 
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={2}>
@@ -147,6 +151,12 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
+      marginRight: 12,
+    },
+    thumbnailImage: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
       marginRight: 12,
     },
     thumbnailEmoji: { fontSize: 32 },

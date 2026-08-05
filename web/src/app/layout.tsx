@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import './globals.css';
 
@@ -18,26 +18,34 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#e4572e',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
       <body>
+        <a href="#main-content" className="skip-link">
+          Bỏ qua để đến nội dung chính
+        </a>
         <header className="site-header">
           <div className="container">
-            <Link href="/" className="logo">
+            <Link href="/" className="logo" aria-label={`${SITE_NAME} — về trang chủ`}>
               🍜 {SITE_NAME}
             </Link>
-            <nav>
+            <nav aria-label="Điều hướng chính">
               <Link href="/tim-kiem">Tìm quán ăn</Link>
             </nav>
           </div>
         </header>
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <footer className="site-footer">
           <div className="container">
             <span>
-              © {new Date().getFullYear()} {SITE_NAME} — dự án portfolio, không phải sản phẩm
-              thương mại.
+              © {new Date().getFullYear()} {SITE_NAME}
             </span>
             <span>
               Muốn viết đánh giá hoặc lưu quán yêu thích? Dùng ứng dụng di động The Food Map of

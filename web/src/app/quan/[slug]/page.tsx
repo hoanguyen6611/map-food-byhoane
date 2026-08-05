@@ -1,11 +1,17 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant } from '@/lib/api';
 import { CATEGORY_LABELS, FACILITY_META } from '@/lib/labels';
 import { dayLabel, formatPriceRange, formatVndFull } from '@/lib/format';
 
+const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3001';
+const REVIEWS_PAGE_SIZE = 10;
+
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reviewPage?: string }>;
 }
 
 async function loadRestaurant(slug: string) {
@@ -44,24 +50,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function RestaurantDetailPage({ params }: PageProps) {
+export default async function RestaurantDetailPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const { reviewPage: reviewPageParam } = await searchParams;
   const restaurant = await loadRestaurant(slug);
   if (!restaurant) {
     notFound();
   }
 
+  const reviewPage = Number(reviewPageParam ?? '1') || 1;
   const reviewsResponse =
-    restaurant.reviewCount > 0 ? await getReviewsForRestaurant(restaurant.id, 1) : null;
+    restaurant.reviewCount > 0 ? await getReviewsForRestaurant(restaurant.id, reviewPage) : null;
+  const reviewTotalPages = reviewsResponse
+    ? Math.max(1, Math.ceil(reviewsResponse.total / REVIEWS_PAGE_SIZE))
+    : 1;
 
   const priceLabel = formatPriceRange(restaurant.priceRange);
   const firstMenu = restaurant.menus[0];
+  const categoryLabel = CATEGORY_LABELS[restaurant.categoryCode];
 
   // schema.org/Restaurant structured data — the concrete SEO artifact this
   // module exists to produce (build-prompts/09-public-web.md), not optional
   // polish. Only include fields we actually have real data for — never
   // fabricate a rating (aggregateRating) when reviewCount is 0.
-  const jsonLd = {
+  const restaurantJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
     name: restaurant.name,
@@ -93,16 +105,55 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
       : {}),
   };
 
+  // BreadcrumbList — a second, cheap-but-real SEO/UX win alongside the
+  // Restaurant structured data above (Google surfaces breadcrumb trails
+  // directly in search results).
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Trang chủ', item: SITE_URL },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: categoryLabel,
+        item: `${SITE_URL}/tim-kiem?category=${restaurant.categoryCode}`,
+      },
+      { '@type': 'ListItem', position: 3, name: restaurant.name, item: `${SITE_URL}/quan/${restaurant.slug}` },
+    ],
+  };
+
+  function reviewPageHref(targetPage: number): string {
+    return `/quan/${slug}?reviewPage=${targetPage}`;
+  }
+
   return (
     <div className="container" style={{ paddingTop: 24 }}>
       {/* eslint-disable-next-line react/no-danger -- JSON.stringify'd structured data, not user input */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd) }} />
+      {/* eslint-disable-next-line react/no-danger -- JSON.stringify'd structured data, not user input */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+
+      <nav aria-label="Breadcrumb" className="breadcrumb">
+        <Link href="/">Trang chủ</Link>
+        <span aria-hidden="true"> › </span>
+        <Link href={`/tim-kiem?category=${restaurant.categoryCode}`}>{categoryLabel}</Link>
+        <span aria-hidden="true"> › </span>
+        <span aria-current="page">{restaurant.name}</span>
+      </nav>
 
       {restaurant.photos.length > 0 ? (
         <div className="detail-photos">
-          {restaurant.photos.map((photo) => (
-            // eslint-disable-next-line @next/next/no-img-element -- external picsum.photos URLs, no local optimization pipeline needed for this demo dataset
-            <img key={photo.id} src={photo.url} alt={restaurant.name} loading="lazy" />
+          {restaurant.photos.map((photo, index) => (
+            <Image
+              key={photo.id}
+              src={photo.url}
+              alt={`Ảnh ${index + 1} của ${restaurant.name}`}
+              width={photo.width ?? 400}
+              height={photo.height ?? 300}
+              sizes="(max-width: 640px) 45vw, 200px"
+              priority={index === 0}
+            />
           ))}
         </div>
       ) : (
@@ -115,7 +166,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         <div style={{ flex: 1, minWidth: 260 }}>
           <h1 style={{ margin: '0 0 8px' }}>{restaurant.name}</h1>
           <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
-            {CATEGORY_LABELS[restaurant.categoryCode]}
+            {categoryLabel}
             {priceLabel ? ` · ${priceLabel}đ` : ''}
           </p>
           <p style={{ fontSize: 14 }}>
@@ -152,7 +203,12 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         <div className="info-row">
           <span className="label">Tiện ích</span>
           <span>
-            {restaurant.facilities.map((f) => `${FACILITY_META[f].emoji} ${FACILITY_META[f].label}`).join(' · ')}
+            {restaurant.facilities.map((f) => (
+              <span key={f}>
+                <span aria-hidden="true">{FACILITY_META[f].emoji}</span> {FACILITY_META[f].label}
+                {'  '}
+              </span>
+            ))}
           </span>
         </div>
       ) : null}
@@ -170,12 +226,18 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         <p className="empty-state">Quán này chưa cập nhật thực đơn.</p>
       ) : (
         <table className="menu-table">
+          <caption className="sr-only">Thực đơn của {restaurant.name}</caption>
           <tbody>
             {firstMenu.items.map((item) => (
               <tr key={item.id}>
                 <td>
                   {item.name}
-                  {item.isPopular ? ' 🔥' : ''}
+                  {item.isPopular ? (
+                    <>
+                      {' '}
+                      <span aria-label="Món phổ biến">🔥</span>
+                    </>
+                  ) : null}
                 </td>
                 <td className="price">{formatVndFull(item.priceVnd)}</td>
               </tr>
@@ -207,6 +269,16 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               {review.comment ? <p style={{ margin: 0 }}>{review.comment}</p> : null}
             </div>
           ))}
+
+          {reviewTotalPages > 1 ? (
+            <nav className="pagination" aria-label="Phân trang đánh giá">
+              {reviewPage > 1 ? <Link href={reviewPageHref(reviewPage - 1)}>← Trước</Link> : null}
+              <span>
+                Trang {reviewPage}/{reviewTotalPages}
+              </span>
+              {reviewPage < reviewTotalPages ? <Link href={reviewPageHref(reviewPage + 1)}>Sau →</Link> : null}
+            </nav>
+          ) : null}
         </>
       )}
     </div>

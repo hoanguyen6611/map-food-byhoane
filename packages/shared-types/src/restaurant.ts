@@ -53,7 +53,10 @@ export interface PriceRangeDto {
 }
 
 // Composite score/reviewCount are honestly null/0 until build-prompts/06-reviews-scoring.md
-// computes real values; thumbnailUrl is honestly null until build-prompts/07's MediaModule exists.
+// computes real values. thumbnailUrl is the restaurant's first photo (oldest by createdAt) if
+// one exists in the photos table, else honestly null — a restaurant with zero photos has no
+// thumbnail to show, that's not the same as "media pipeline not built yet" (build-prompts/07
+// is the user-facing upload/moderation flow; reading already-seeded photos doesn't need it).
 export interface RestaurantSummaryDto {
   id: string;
   /** Stable, SEO-friendly identifier — see build-prompts/09-public-web.md's slug-based detail route. */

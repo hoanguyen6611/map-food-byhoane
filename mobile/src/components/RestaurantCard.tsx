@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatDistanceMeters, formatPriceRange } from '../lib/format';
@@ -14,7 +14,7 @@ import { useTheme, type ThemeColors } from '../theme/ThemeContext';
  * for callers that don't have that data.
  */
 interface RestaurantCardData
-  extends Pick<RestaurantSummaryDto, 'id' | 'name' | 'compositeScore' | 'reviewCount' | 'priceRange'> {
+  extends Pick<RestaurantSummaryDto, 'id' | 'name' | 'thumbnailUrl' | 'compositeScore' | 'reviewCount' | 'priceRange'> {
   isOpenNow?: boolean;
   distanceMeters?: number | null;
 }
@@ -34,10 +34,10 @@ interface Props {
  * `src/components/map/RestaurantPreviewCard.tsx`, which stays as the
  * marker-tap bottom-sheet preview and is NOT reused here.
  *
- * Thumbnail is always a branded placeholder (`thumbnailUrl` is honestly null
- * until build-prompts/07's media pipeline exists); rating is never
- * fabricated — a null `compositeScore` renders "Chưa có đánh giá" instead of
- * a synthesized number.
+ * Thumbnail renders the restaurant's first real photo when `thumbnailUrl` is
+ * set, falling back to a branded emoji placeholder for restaurants with no
+ * photos yet; rating is never fabricated — a null `compositeScore` renders
+ * "Chưa có đánh giá" instead of a synthesized number.
  *
  * Favorite heart is a small overlay in the top-right corner — tapping it
  * toggles favorite status without triggering the card's own `onPress` (the
@@ -54,9 +54,13 @@ export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavor
 
   return (
     <Pressable style={styles.container} onPress={onPress}>
-      <View style={styles.thumbnailPlaceholder}>
-        <Text style={styles.thumbnailEmoji}>🍽️</Text>
-      </View>
+      {restaurant.thumbnailUrl ? (
+        <Image source={{ uri: restaurant.thumbnailUrl }} style={styles.thumbnailImage} />
+      ) : (
+        <View style={styles.thumbnailPlaceholder}>
+          <Text style={styles.thumbnailEmoji}>🍽️</Text>
+        </View>
+      )}
 
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
@@ -164,6 +168,12 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
+      marginRight: 12,
+    },
+    thumbnailImage: {
+      width: 64,
+      height: 64,
+      borderRadius: 10,
       marginRight: 12,
     },
     thumbnailEmoji: { fontSize: 28 },

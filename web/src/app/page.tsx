@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { CATEGORY_LABELS } from '@/lib/labels';
+import { DISTRICTS } from '@/lib/districts';
 import type { RestaurantCategoryCode } from '@foodmap/shared-types';
 
 export const metadata: Metadata = {
@@ -11,7 +12,6 @@ export const metadata: Metadata = {
 };
 
 const FEATURED_CATEGORIES: RestaurantCategoryCode[] = ['quan_an', 'quan_ca_phe', 'nha_hang', 'quan_bar'];
-const FEATURED_DISTRICTS = ['Quận 1', 'Quận 3', 'Bình Thạnh', 'Phú Nhuận'];
 
 export default async function HomePage() {
   const featured = await searchRestaurants({ pageSize: 8 });
@@ -24,8 +24,13 @@ export default async function HomePage() {
           Bản đồ ẩm thực Việt Nam — khám phá quán ăn, quán cà phê, nhà hàng và xe đẩy vỉa hè ở TP.
           Hồ Chí Minh qua đánh giá thật từ cộng đồng.
         </p>
-        <form action="/tim-kiem" className="search-form">
-          <input type="text" name="q" placeholder="Tìm theo tên quán, món ăn..." />
+        <form action="/tim-kiem" className="search-form" role="search">
+          <input
+            type="text"
+            name="q"
+            placeholder="Tìm theo tên quán, món ăn..."
+            aria-label="Từ khoá tìm kiếm"
+          />
           <button type="submit">Tìm kiếm</button>
         </form>
       </section>
@@ -42,9 +47,9 @@ export default async function HomePage() {
 
         <h2 className="section-title">Khu vực</h2>
         <div className="chip-row">
-          {FEATURED_DISTRICTS.map((district) => (
-            <Link key={district} href={`/tim-kiem?district=${encodeURIComponent(district)}`} className="chip">
-              {district}
+          {DISTRICTS.map((district) => (
+            <Link key={district.slug} href={`/khu-vuc/${district.slug}`} className="chip">
+              {district.name}
             </Link>
           ))}
         </div>

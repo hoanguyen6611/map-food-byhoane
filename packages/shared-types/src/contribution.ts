@@ -1,0 +1,119 @@
+// Contract for docs/build-prompts/07-contribution-media-moderation-ai.md's
+// ContributionModule — the community submission flow (add restaurant, edit
+// suggestions, status reports). Moderation is the rule-based stand-in
+// (ContributionModerationService), not a real AIGateway call this pass.
+import type { AddressDto, LocationDto, OpeningHourDto } from './restaurant-detail';
+import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from './restaurant';
+
+export type ContributionType = 'new_restaurant' | 'edit_suggestion' | 'status_update' | 'closure_report';
+export type ContributionStatus = 'pending' | 'auto_approved' | 'in_review' | 'approved' | 'rejected' | 'edit_requested';
+
+export interface DuplicateCandidateDto {
+  id: string;
+  name: string;
+  fullAddressText: string;
+  distanceMeters: number;
+  similarity: number;
+}
+
+export interface DuplicateCheckRequest {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
+export interface DuplicateCheckResponse {
+  candidates: DuplicateCandidateDto[];
+}
+
+export interface MenuItemInputDto {
+  name: string;
+  priceVnd: number;
+  category?: string;
+  isPopular?: boolean;
+}
+
+export interface CreateRestaurantContributionRequest {
+  name: string;
+  description?: string;
+  categoryCode: RestaurantCategoryCode;
+  priceRangeCode?: PriceRangeCode;
+  phone?: string;
+  address: Omit<AddressDto, 'fullAddressText'>;
+  location: LocationDto;
+  cuisineCodes?: CuisineCode[];
+  openingHours?: OpeningHourDto[];
+  facilities?: FacilityType[];
+  menuItems?: MenuItemInputDto[];
+  // ≥1 required — enforced server-side, not just by this type.
+  photoIds: string[];
+  // Must be true to proceed past a 409 duplicate-candidates response.
+  duplicateConfirmed?: boolean;
+}
+
+export interface CreateRestaurantContributionResponse {
+  restaurantId: string;
+  contributionId: string;
+  status: ContributionStatus;
+}
+
+// Deliberately a fixed allow-list, not a fully generic path-based patcher —
+// covers every field the admin edit form already exposes.
+export type EditableRestaurantField =
+  | 'name'
+  | 'description'
+  | 'phone'
+  | 'address.line'
+  | 'address.ward'
+  | 'address.district'
+  | 'address.province'
+  | 'openingHours'
+  | 'facilities';
+
+export interface CreateEditSuggestionRequest {
+  fieldName: EditableRestaurantField;
+  newValue: unknown;
+}
+
+export interface CreateEditSuggestionResponse {
+  contributionId: string;
+  status: ContributionStatus;
+}
+
+export type CrowdedLevel = 'empty' | 'light' | 'moderate' | 'crowded' | 'full';
+export type SeatAvailabilityLevel = 'plenty' | 'limited' | 'full';
+export type PowerOutletLevel = 'plenty' | 'some' | 'none';
+
+// Discriminated union — `kind` determines which fields are relevant.
+// hours_change/moved/wrong_info/closure never auto-apply to the live
+// restaurant regardless of moderation outcome (PRD: "does not auto-hide").
+export type StatusReportRequest =
+  | { kind: 'crowded'; level: CrowdedLevel }
+  | { kind: 'seat'; level: SeatAvailabilityLevel }
+  | { kind: 'outlet'; level: PowerOutletLevel }
+  | { kind: 'parking'; hasCarParking: boolean; hasMotorbikeParking: boolean; isFree?: boolean; notes?: string }
+  | { kind: 'hours_change' | 'moved' | 'wrong_info'; description: string }
+  | { kind: 'closure'; description?: string };
+
+export interface CreateStatusReportResponse {
+  contributionId: string;
+  status: ContributionStatus;
+}
+
+export interface ContributionListItemDto {
+  id: string;
+  type: ContributionType;
+  targetRestaurantId: string | null;
+  targetRestaurantName: string | null;
+  status: ContributionStatus;
+  aiReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContributionListResponse {
+  items: ContributionListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

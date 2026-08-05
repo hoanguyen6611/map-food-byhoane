@@ -6,13 +6,17 @@ import type {
   RestaurantCategoryCode,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../media/s3.service';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
 
 @Injectable()
 export class FavoriteService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service,
+  ) {}
 
   // Idempotent per docs/build-prompts/08's spec: favoriting an
   // already-favorited restaurant just succeeds, it never errors.
@@ -63,8 +67,11 @@ export class FavoriteService {
         : [];
     const firstPhotoByRestaurant = new Map<string, string>();
     for (const photo of photos) {
-      if (!firstPhotoByRestaurant.has(photo.ownerId)) {
-        firstPhotoByRestaurant.set(photo.ownerId, photo.storageKey);
+      // ownerId is nullable at the schema level (build-prompts/07) but this
+      // query always filters by ownerId IN (restaurant ids), so it's never
+      // null here.
+      if (photo.ownerId && !firstPhotoByRestaurant.has(photo.ownerId)) {
+        firstPhotoByRestaurant.set(photo.ownerId, this.s3.publicUrl(photo.storageKey));
       }
     }
 

@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import type { RestaurantDetailDto, RestaurantSitemapEntryDto, RestaurantSummaryDto } from '@foodmap/shared-types';
+import type { AISummaryResponseDto, RestaurantDetailDto, RestaurantSitemapEntryDto, RestaurantSummaryDto } from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { BoundsQueryDto } from './dto/bounds-query.dto';
@@ -38,5 +38,13 @@ export class RestaurantController {
   @Get(':id')
   getDetail(@Param('id') id: string): Promise<RestaurantDetailDto> {
     return this.restaurantService.getDetail(id);
+  }
+
+  // US-J1/J2 — read-side only, no real Claude summarize() call (see
+  // ai-summary-trigger.stub.ts). Unambiguous alongside the ':id' route
+  // above regardless of declaration order — different segment count.
+  @Get(':id/ai-summary')
+  getAiSummary(@Param('id') id: string): Promise<AISummaryResponseDto> {
+    return this.restaurantService.getAiSummary(id);
   }
 }

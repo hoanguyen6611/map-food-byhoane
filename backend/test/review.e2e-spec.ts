@@ -341,7 +341,7 @@ describe('Reviews & Composite Scoring (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/reviews/${reviewId}`)
         .set('Authorization', `Bearer ${owner.token}`)
-        .expect(200);
+        .expect(204);
 
       const list = await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}/reviews`).expect(200);
       expect((list.body as ReviewListResponse).total).toBe(0);

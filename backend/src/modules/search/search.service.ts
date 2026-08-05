@@ -7,6 +7,7 @@ import type {
   RestaurantSummaryDto,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../media/s3.service';
 import { isOpenNow, toVnNow } from '../restaurant/opening-hours.util';
 import { clampRadiusKm } from '../restaurant/restaurant.util';
 import type { SearchQueryDto } from './dto/search-query.dto';
@@ -44,7 +45,10 @@ export interface SearchContext {
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service,
+  ) {}
 
   /** `GET /search` (with `q`) and `GET /restaurants` (browse, no `q`) share this. */
   async search(
@@ -208,14 +212,28 @@ export class SearchService {
   private async hydrate(rows: RawRow[]): Promise<RestaurantSummaryDto[]> {
     if (rows.length === 0) return [];
 
-    const openingHours = await this.prisma.openingHour.findMany({
-      where: { restaurantId: { in: rows.map((r) => r.id) } },
-    });
+    const restaurantIds = rows.map((r) => r.id);
+    const [openingHours, photos] = await Promise.all([
+      this.prisma.openingHour.findMany({ where: { restaurantId: { in: restaurantIds } } }),
+      this.prisma.photo.findMany({
+        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
     const hoursByRestaurant = new Map<string, typeof openingHours>();
     for (const hour of openingHours) {
       const list = hoursByRestaurant.get(hour.restaurantId) ?? [];
       list.push(hour);
       hoursByRestaurant.set(hour.restaurantId, list);
+    }
+    const firstPhotoByRestaurant = new Map<string, string>();
+    for (const photo of photos) {
+      // ownerId is nullable at the schema level (build-prompts/07) but this
+      // query always filters by ownerId IN (restaurant ids), so it's never
+      // null here.
+      if (photo.ownerId && !firstPhotoByRestaurant.has(photo.ownerId)) {
+        firstPhotoByRestaurant.set(photo.ownerId, this.s3.publicUrl(photo.storageKey));
+      }
     }
     const vnNow = toVnNow(new Date());
 
@@ -224,7 +242,7 @@ export class SearchService {
       slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
-      thumbnailUrl: null,
+      thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,
       priceRange: row.price_code

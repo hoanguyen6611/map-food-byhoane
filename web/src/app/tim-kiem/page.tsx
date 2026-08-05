@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
+import { SearchFilterForm } from '@/components/SearchFilterForm';
 
 interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -59,6 +60,19 @@ export default async function SearchPage({ searchParams }: PageProps) {
       <h1 className="section-title" style={{ marginTop: 0 }}>
         {buildTitle(params.q, params.category, params.district)} · {result.total} quán
       </h1>
+
+      <SearchFilterForm
+        initial={{
+          q: params.q,
+          category: params.category,
+          district: params.district,
+          cuisine: params.cuisine,
+          facilities: params.facilities,
+          priceMin: params.priceMin,
+          priceMax: params.priceMax,
+          openNow: params.openNow,
+        }}
+      />
 
       {result.items.length === 0 ? (
         <div className="empty-state">

@@ -140,12 +140,13 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       expect(body.openingHours).toHaveLength(7);
       expect(typeof body.isOpenNow).toBe('boolean');
       // Honest empty states — no menus/photos/reviews were ever added, and
-      // no scoring/AI pipeline exists yet (build-prompts/06 and 07).
+      // no scoring pipeline result exists yet (build-prompts/06). AI Summary
+      // (build-prompts/07) is a separate GET /restaurants/:id/ai-summary
+      // endpoint, not inlined on this DTO — see ai-summary.e2e-spec.ts.
       expect(body.menus).toEqual([]);
       expect(body.photos).toEqual([]);
       expect(body.reviewCount).toBe(0);
       expect(body.reviews).toEqual([]);
-      expect(body.aiSummary).toBeNull();
       expect(body.compositeScore).toBeNull();
       // Admin-only lifecycle fields must NOT leak into the public contract.
       expect((body as unknown as Record<string, unknown>).publicationStatus).toBeUndefined();
@@ -160,7 +161,7 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/admin/restaurants/${created.id}/hide`)
         .set('Authorization', `Bearer ${token}`)
-        .expect(201);
+        .expect(204);
 
       await request(app.getHttpServer()).get(`/restaurants/${created.id}`).expect(404);
 
@@ -204,13 +205,13 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         .put(`/admin/restaurants/${created.id}/opening-hours`)
         .set('Authorization', `Bearer ${token}`)
         .send({ days })
-        .expect(200);
+        .expect(204);
 
       await request(app.getHttpServer())
         .put(`/admin/restaurants/${created.id}/facilities`)
         .set('Authorization', `Bearer ${token}`)
         .send({ facilities: ['wifi', 'air_conditioner'] })
-        .expect(200);
+        .expect(204);
 
       const detail = await request(app.getHttpServer())
         .get(`/admin/restaurants/${created.id}`)
@@ -250,7 +251,7 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/admin/restaurants/menu-items/${item.id}`)
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(204);
 
       const detail = await request(app.getHttpServer())
         .get(`/admin/restaurants/${created.id}`)
@@ -276,7 +277,7 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/admin/restaurants/photos/${photo.id}`)
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(204);
 
       const detail = await request(app.getHttpServer())
         .get(`/admin/restaurants/${created.id}`)
@@ -308,13 +309,13 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/admin/restaurants/${created.id}/hide`)
         .set('Authorization', `Bearer ${moderator.token}`)
-        .expect(201);
+        .expect(204);
       expect(await latestAuditAction(created.id)).toBe('restaurant.hide');
 
       await request(app.getHttpServer())
         .post(`/admin/restaurants/${created.id}/restore`)
         .set('Authorization', `Bearer ${moderator.token}`)
-        .expect(201);
+        .expect(204);
       expect(await latestAuditAction(created.id)).toBe('restaurant.restore');
 
       const blocked = await request(app.getHttpServer())
@@ -326,7 +327,7 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       await request(app.getHttpServer())
         .delete(`/admin/restaurants/${created.id}`)
         .set('Authorization', `Bearer ${admin.token}`)
-        .expect(200);
+        .expect(204);
       expect(await latestAuditAction(created.id)).toBe('restaurant.delete');
 
       const stillGettableByAdmin = await request(app.getHttpServer())

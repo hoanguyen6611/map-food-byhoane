@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { NotificationDto, NotificationListResponse, NotificationPayload, NotificationType } from '@foodmap/shared-types';
-import type { Notification } from '@prisma/client';
+import { Prisma, type Notification } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const DEFAULT_PAGE = 1;
@@ -30,6 +30,15 @@ export class NotificationService {
       page,
       pageSize,
     };
+  }
+
+  // First real producer: the Admin Moderation Queue's decision endpoint
+  // (build-prompts/07). Previously only prisma/seed-notifications.ts wrote
+  // rows directly for demo purposes — this is the actual application code path.
+  async create(userId: string, type: NotificationType, payload: NotificationPayload): Promise<void> {
+    await this.prisma.notification.create({
+      data: { userId, type, payload: payload as unknown as Prisma.InputJsonValue },
+    });
   }
 
   async markRead(userId: string, notificationId: string): Promise<NotificationDto> {

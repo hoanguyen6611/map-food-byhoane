@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import type { AdminUserListItemDto, Paginated } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -26,18 +26,21 @@ export class AdminUserController {
 
   @Patch(':id/suspend')
   @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async suspend(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     await this.adminUserService.suspend(id, user.id);
   }
 
   @Patch(':id/reactivate')
   @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async reactivate(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     await this.adminUserService.reactivate(id, user.id);
   }
 
   @Patch(':id/role')
   @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async changeRole(
     @Param('id') id: string,
     @Body() dto: UpdateUserRoleDto,

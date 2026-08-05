@@ -49,8 +49,9 @@ const MANUAL_AREAS: { label: string; center: LatLng }[] = [
 
 /**
  * Screen 7 (Home Map) per docs/04-screen-list.md. Real permission/location
- * check + real bounds-driven map rendering (Module 3 scope) — search bar,
- * filter chips, and the "+" FAB are explicitly out of scope (Modules 4/6/7).
+ * check + real bounds-driven map rendering (Module 3 scope) — search bar
+ * and filter chips are Module 4's scope. The "+" FAB (build-prompts/07)
+ * pushes the real Add Restaurant flow.
  *
  * Note: `PermissionLocationScreen` (boot sequence, see RootNavigator) only
  * *requests* the OS permission once; it doesn't store or expose the result.
@@ -242,6 +243,15 @@ export function MapScreen({ navigation }: Props) {
         </Pressable>
       ) : null}
 
+      <Pressable
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddRestaurant')}
+        accessibilityRole="button"
+        accessibilityLabel="Thêm quán ăn mới"
+      >
+        <Text style={styles.fabText}>+</Text>
+      </Pressable>
+
       {selectedRestaurant ? (
         <RestaurantPreviewCard
           restaurant={selectedRestaurant}
@@ -357,4 +367,20 @@ const createStyles = (colors: ThemeColors) =>
       elevation: 4,
     },
     recenterButtonText: { fontSize: 20, color: colors.primary },
+    fab: {
+      position: 'absolute',
+      left: 16,
+      bottom: 24,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    fabText: { fontSize: 28, color: colors.onPrimary, fontWeight: '400', marginTop: -2 },
   });

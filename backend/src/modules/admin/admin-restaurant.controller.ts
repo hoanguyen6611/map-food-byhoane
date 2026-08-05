@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -68,11 +70,13 @@ export class AdminRestaurantController {
   }
 
   @Post(':id/hide')
+  @HttpCode(HttpStatus.NO_CONTENT)
   hide(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     return this.adminRestaurantService.hide(id, user.id);
   }
 
   @Post(':id/restore')
+  @HttpCode(HttpStatus.NO_CONTENT)
   restore(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     return this.adminRestaurantService.restore(id, user.id);
   }
@@ -81,11 +85,13 @@ export class AdminRestaurantController {
   // a `moderator` account hitting this route gets a 403 from RolesGuard.
   @Delete(':id')
   @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
     return this.adminRestaurantService.remove(id, user.id);
   }
 
   @Put(':id/opening-hours')
+  @HttpCode(HttpStatus.NO_CONTENT)
   replaceOpeningHours(
     @Param('id') id: string,
     @Body() dto: ReplaceOpeningHoursDto,
@@ -95,6 +101,7 @@ export class AdminRestaurantController {
   }
 
   @Put(':id/facilities')
+  @HttpCode(HttpStatus.NO_CONTENT)
   replaceFacilities(
     @Param('id') id: string,
     @Body() dto: ReplaceFacilitiesDto,
@@ -124,6 +131,7 @@ export class AdminRestaurantController {
   }
 
   @Delete('menu-items/:itemId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   removeMenuItem(@Param('itemId') itemId: string, @CurrentUser() user: RequestUser): Promise<void> {
     return this.adminRestaurantService.removeMenuItem(itemId, user.id);
   }
@@ -138,6 +146,7 @@ export class AdminRestaurantController {
   }
 
   @Delete('photos/:photoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: RequestUser): Promise<void> {
     return this.adminRestaurantService.removePhoto(photoId, user.id);
   }

@@ -3,19 +3,22 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, type Review } from '@prisma/client';
 import type {
   CreateReviewRequest,
+  PhotoDto,
   ReviewCriteriaBreakdownDto,
   ReviewCriteriaCode,
   ReviewDto,
   ReviewListResponse,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { CompositeScoreService } from './composite-score.service';
-import { ReviewModerationService } from './review-moderation.service';
+import { ReviewModerationService, type ModerationCheckResult } from './review-moderation.service';
 import type { CreateReviewDto } from './dto/create-review.dto';
 import type { UpdateReviewDto } from './dto/update-review.dto';
 import type { ReviewListQueryDto } from './dto/review-list-query.dto';
@@ -40,14 +43,17 @@ type ReviewPatchInput = Partial<
     CreateReviewRequest,
     'overallRating' | 'ratings' | 'comment' | 'dishesOrdered' | 'billTotalVnd' | 'partySize' | 'visitedAt' | 'waitTimeMinutes' | 'wouldReturn'
   >
->;
+> & { photoIds?: string[] };
 
 @Injectable()
 export class ReviewService {
+  private readonly logger = new Logger(ReviewService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly moderationService: ReviewModerationService,
     private readonly compositeScoreService: CompositeScoreService,
+    private readonly mediaService: MediaService,
   ) {}
 
   async create(dto: CreateReviewDto, userId: string): Promise<ReviewDto> {
@@ -94,6 +100,10 @@ export class ReviewService {
         },
       },
     });
+
+    if (dto.photoIds && dto.photoIds.length > 0) {
+      await this.mediaService.reparent(userId, dto.photoIds, 'review', created.id);
+    }
 
     await this.runModerationAndFinalize(created.id, userId, dto.comment ?? null);
     await this.compositeScoreService.enqueueRecompute(dto.restaurantId);
@@ -153,8 +163,10 @@ export class ReviewService {
       this.prisma.reviewCriteria.findMany(),
     ]);
 
+    const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
+
     return {
-      items: rows.map((r) => this.toDto(r)),
+      items: rows.map((r) => this.toDto(r, photosByReviewId.get(r.id) ?? [])),
       total,
       page,
       pageSize,
@@ -196,14 +208,32 @@ export class ReviewService {
       ]);
     }
 
+    if (patch.photoIds && patch.photoIds.length > 0) {
+      await this.mediaService.reparent(existing.userId, patch.photoIds, 'review', existing.id);
+    }
+
     const commentForModeration = patch.comment !== undefined ? patch.comment : existing.comment;
     await this.runModerationAndFinalize(existing.id, existing.userId, commentForModeration);
     await this.compositeScoreService.enqueueRecompute(existing.restaurantId);
     return this.getByIdOrThrow(existing.id);
   }
 
+  // Fail-safe (build-prompts/07's requirement, reinterpreted for the
+  // rule-based stand-in since there's no real AI API call to simulate an
+  // outage for): if the moderation check itself throws, never let the
+  // review fall through to auto-published — hold it for manual review
+  // instead. `status` defaults to 'pending' at creation anyway, so on
+  // create() a thrown check is a no-op continuation of that default; on
+  // update() it explicitly re-holds a possibly-already-published review.
   private async runModerationAndFinalize(reviewId: string, userId: string, comment: string | null): Promise<void> {
-    const moderation = await this.moderationService.check({ userId, comment });
+    let moderation: ModerationCheckResult;
+    try {
+      moderation = await this.moderationService.check({ userId, comment });
+    } catch (error) {
+      this.logger.error(`Moderation check failed for review ${reviewId}, holding for manual review: ${String(error)}`);
+      await this.prisma.review.update({ where: { id: reviewId }, data: { status: 'pending' } });
+      return;
+    }
     await this.moderationService.recordResult(reviewId, moderation);
     await this.prisma.review.update({
       where: { id: reviewId },
@@ -213,7 +243,24 @@ export class ReviewService {
 
   private async getByIdOrThrow(id: string): Promise<ReviewDto> {
     const review = await this.prisma.review.findUniqueOrThrow({ where: { id }, include: REVIEW_INCLUDE });
-    return this.toDto(review);
+    const photos = await this.prisma.photo.findMany({ where: { ownerType: 'review', ownerId: id, deletedAt: null } });
+    return this.toDto(review, photos.map((p) => ({ id: p.id, url: this.mediaService.resolveUrl(p.storageKey), width: p.width, height: p.height })));
+  }
+
+  private async batchFetchPhotos(reviewIds: string[]): Promise<Map<string, PhotoDto[]>> {
+    if (reviewIds.length === 0) return new Map();
+    const photos = await this.prisma.photo.findMany({
+      where: { ownerType: 'review', ownerId: { in: reviewIds }, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const map = new Map<string, PhotoDto[]>();
+    for (const photo of photos) {
+      if (!photo.ownerId) continue;
+      const list = map.get(photo.ownerId) ?? [];
+      list.push({ id: photo.id, url: this.mediaService.resolveUrl(photo.storageKey), width: photo.width, height: photo.height });
+      map.set(photo.ownerId, list);
+    }
+    return map;
   }
 
   private async buildRatingBreakdown(
@@ -238,7 +285,7 @@ export class ReviewService {
     });
   }
 
-  private toDto(review: ReviewWithRelations): ReviewDto {
+  private toDto(review: ReviewWithRelations, photos: PhotoDto[]): ReviewDto {
     return {
       id: review.id,
       restaurantId: review.restaurantId,
@@ -261,6 +308,7 @@ export class ReviewService {
       status: review.status,
       editedAt: review.editedAt?.toISOString() ?? null,
       createdAt: review.createdAt.toISOString(),
+      photos,
     };
   }
 

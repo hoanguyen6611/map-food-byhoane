@@ -49,11 +49,13 @@ export interface MenuDto {
   items: MenuItemDto[];
 }
 
-// `aiSummary` is always null until build-prompts/07 populates it — the
-// contract is stable now so that module doesn't need to change this shape,
-// only fill in a real value. `reviews` (build-prompts/06) is a small
-// newest-first PREVIEW (not the full list — see GET /restaurants/:id/reviews
-// in review.ts for the paginated view with the full rating breakdown).
+// `reviews` (build-prompts/06) is a small newest-first PREVIEW (not the full
+// list — see GET /restaurants/:id/reviews in review.ts for the paginated
+// view with the full rating breakdown). AI Summary (build-prompts/07,
+// US-J1/J2) deliberately isn't inlined here — it's fetched via the separate
+// `GET /restaurants/:id/ai-summary` endpoint (see AISummaryResponseDto in
+// ai-summary.ts) so a slow/optional AI fetch never blocks the core detail
+// response.
 export interface RestaurantDetailDto {
   id: string;
   name: string;
@@ -73,7 +75,6 @@ export interface RestaurantDetailDto {
   compositeScore: number | null;
   reviewCount: number;
   reviews: ReviewDto[];
-  aiSummary: null;
 }
 
 // Admin/moderator view adds lifecycle fields not exposed publicly.

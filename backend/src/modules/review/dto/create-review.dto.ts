@@ -68,4 +68,12 @@ export class CreateReviewDto {
   @IsOptional()
   @IsBoolean()
   wouldReturn?: boolean;
+
+  // Ids of photos already uploaded via MediaModule (build-prompts/07) —
+  // reparented onto this review, enforcing the 6-photo cap.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsUUID(undefined, { each: true })
+  photoIds?: string[];
 }

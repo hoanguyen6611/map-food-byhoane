@@ -17,9 +17,12 @@ import type { MainStackParamList } from '../../navigation/types';
 import { useCreateReview } from '../../hooks/useReviews';
 import { useAuthStore } from '../../store/authStore';
 import { AuthGateModal } from '../../components/AuthGateModal';
+import { PhotoUploadGrid } from '../../components/media/PhotoUploadGrid';
 import { ApiError } from '../../api/client';
 import { REVIEW_CRITERIA_LABELS, REVIEW_CRITERIA_ORDER } from '../../lib/reviewLabels';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+
+const MAX_REVIEW_PHOTOS = 6;
 
 type Props = NativeStackScreenProps<MainStackParamList, 'WriteReview'>;
 
@@ -77,9 +80,8 @@ function StarPicker({
 
 /**
  * Screen 16 (Write Review), presented as a modal per MainStackNavigator's
- * config. Per docs/build-prompts/06-reviews-scoring.md: no photo picker
- * here (Module 7 owns the upload pipeline) — a static deferral note stands
- * in its place.
+ * config. Photo upload (build-prompts/07) uses the shared PhotoUploadGrid
+ * component — the exact retrofit of Module 6's original static deferral note.
  *
  * Date-picker judgment call: no date-picker library is installed in
  * mobile/ (checked package.json — no `@react-native-community/datetimepicker`
@@ -106,6 +108,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
   const [customDateText, setCustomDateText] = useState('');
   const [waitTimeMinutes, setWaitTimeMinutes] = useState('');
   const [wouldReturn, setWouldReturn] = useState<boolean | null>(null);
+  const [photoIds, setPhotoIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   const ratedCriteriaCount = Object.values(criteriaScores).filter((v) => (v ?? 0) > 0).length;
@@ -156,6 +159,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
       visitedAt: visitedAt ?? undefined,
       waitTimeMinutes: waitTimeMinutes ? Number(waitTimeMinutes) : undefined,
       wouldReturn: wouldReturn ?? undefined,
+      photoIds: photoIds.length > 0 ? photoIds : undefined,
     };
 
     createReview.mutate(body, {
@@ -371,10 +375,8 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        <View style={styles.photoNote}>
-          <Ionicons name="camera-outline" size={16} color={colors.textTertiary} />
-          <Text style={styles.photoNoteText}>Ảnh sẽ sớm được hỗ trợ</Text>
-        </View>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Ảnh</Text>
+        <PhotoUploadGrid ownerType="review" maxPhotos={MAX_REVIEW_PHOTOS} onPhotoIdsChange={setPhotoIds} />
 
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
@@ -479,16 +481,6 @@ const createStyles = (colors: ThemeColors) =>
     chipActive: { backgroundColor: colors.primary },
     chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
     chipTextActive: { color: colors.onPrimary },
-    photoNote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 20,
-      padding: 10,
-      backgroundColor: colors.backgroundAlt,
-      borderRadius: 8,
-    },
-    photoNoteText: { fontSize: 12, color: colors.textTertiary, fontStyle: 'italic' },
     formError: { color: colors.error, fontSize: 13, marginTop: 16, textAlign: 'center' },
     submitButton: {
       backgroundColor: colors.primary,

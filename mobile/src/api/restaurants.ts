@@ -1,4 +1,4 @@
-import type { RestaurantDetailDto, RestaurantSummaryDto } from '@foodmap/shared-types';
+import type { AISummaryResponseDto, RestaurantDetailDto, RestaurantSummaryDto } from '@foodmap/shared-types';
 import { apiClient } from './client';
 import type { BoundsBox } from '../lib/geo';
 
@@ -30,4 +30,10 @@ export const restaurantsApi = {
    * published; `apiClient` surfaces that as a typed `ApiError(404, ...)`.
    */
   detail: (id: string) => apiClient.get<RestaurantDetailDto>(`/restaurants/${id}`),
+
+  /**
+   * US-J1/J2 — read-side only (build-prompts/07); `available: false` is a
+   * normal, honest response (below-threshold or never generated), not an error.
+   */
+  aiSummary: (id: string) => apiClient.get<AISummaryResponseDto>(`/restaurants/${id}/ai-summary`),
 };

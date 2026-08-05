@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
 import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
+import { useAiSummary } from '../../hooks/useAiSummary';
 import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
 import { useAuthStore } from '../../store/authStore';
 import { formatPriceRange } from '../../lib/format';
@@ -35,13 +36,16 @@ const MENU_PREVIEW_COUNT = 3;
  * docs/build-prompts/05-restaurant-detail-admin-seed.md. The rating/reviews
  * section is wired to the real `reviews[]` preview + `compositeScore` per
  * build-prompts/06 (still honestly "Chưa có đánh giá" when `reviewCount` is
- * 0 — some restaurants genuinely have none). AI summary intentionally still
- * renders honest "not available yet" copy — `aiSummary` is always null
- * until build-prompts/07 ships, per the DTO's own contract comment.
+ * 0 — some restaurants genuinely have none). AI summary (US-J1/J2,
+ * build-prompts/07) is read-side only — no real Claude summarize() call
+ * exists yet, so `available: false` is a normal, honest response (no fake
+ * "generating..." state), and whenever a summary IS available it always
+ * renders the "Nội dung do AI tạo" label per the PRD's AI-labeling rule.
  */
 export function RestaurantDetailScreen({ route, navigation }: Props) {
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
+  const aiSummaryQuery = useAiSummary(restaurantId);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const favoriteIdsQuery = useFavoriteIds();
@@ -291,10 +295,42 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
           </Text>
         </Pressable>
 
-        {/* --- AI summary: static pending state, no AI endpoint exists yet --- */}
+        {/* --- AI summary (US-J1/J2) --- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tóm tắt AI</Text>
-          <Text style={styles.emptyInlineText}>AI chưa đủ dữ liệu để tóm tắt quán này</Text>
+          {aiSummaryQuery.data?.available && aiSummaryQuery.data.summary ? (
+            <>
+              <View style={styles.aiLabelBadge}>
+                <Ionicons name="sparkles-outline" size={12} color={colors.primary} />
+                <Text style={styles.aiLabelBadgeText}>Nội dung do AI tạo</Text>
+              </View>
+              <Text style={styles.aiSummaryText}>{aiSummaryQuery.data.summary.summaryText}</Text>
+              {aiSummaryQuery.data.summary.pros.length > 0 ? (
+                <View style={styles.aiProsConsBlock}>
+                  <Text style={styles.aiProsConsLabel}>Ưu điểm</Text>
+                  {aiSummaryQuery.data.summary.pros.map((pro, index) => (
+                    <Text key={index} style={styles.aiProsConsItem}>
+                      • {pro}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {aiSummaryQuery.data.summary.cons.length > 0 ? (
+                <View style={styles.aiProsConsBlock}>
+                  <Text style={styles.aiProsConsLabel}>Nhược điểm</Text>
+                  {aiSummaryQuery.data.summary.cons.map((con, index) => (
+                    <Text key={index} style={styles.aiProsConsItem}>
+                      • {con}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.emptyInlineText}>
+              Chưa có tóm tắt AI cho quán này — sẽ xuất hiện khi có đủ đánh giá.
+            </Text>
+          )}
         </View>
 
         {/* --- Action buttons --- */}
@@ -404,6 +440,22 @@ const createStyles = (colors: ThemeColors) =>
     facilityItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%' },
     facilityLabel: { fontSize: 13, color: colors.textPrimary },
     emptyInlineText: { fontSize: 13, color: colors.textTertiary, fontStyle: 'italic' },
+    aiLabelBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      backgroundColor: colors.primarySurface,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    aiLabelBadgeText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+    aiSummaryText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+    aiProsConsBlock: { marginTop: 10 },
+    aiProsConsLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 4 },
+    aiProsConsItem: { fontSize: 13, color: colors.textPrimary, marginBottom: 2 },
     menuRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

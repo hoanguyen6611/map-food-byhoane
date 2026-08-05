@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { MediaModule } from '../media/media.module';
 import { ReviewController, RestaurantReviewController } from './review.controller';
 import { ReviewService } from './review.service';
 import { ReviewModerationService } from './review-moderation.service';
@@ -7,9 +8,11 @@ import { CompositeScoreService, COMPOSITE_SCORE_QUEUE } from './composite-score.
 import { CompositeScoreProcessor } from './composite-score.processor';
 
 // Implements docs/build-prompts/06-reviews-scoring.md — review CRUD,
-// criteria ratings, composite-score recompute job.
+// criteria ratings, composite-score recompute job. MediaModule (build-prompts/07)
+// is imported for MediaService.reparent — a review's photoIds are
+// reparented onto it after creation/update, same pattern as ContributionModule.
 @Module({
-  imports: [BullModule.registerQueue({ name: COMPOSITE_SCORE_QUEUE })],
+  imports: [BullModule.registerQueue({ name: COMPOSITE_SCORE_QUEUE }), MediaModule],
   controllers: [ReviewController, RestaurantReviewController],
   providers: [ReviewService, ReviewModerationService, CompositeScoreService, CompositeScoreProcessor],
   exports: [CompositeScoreService],

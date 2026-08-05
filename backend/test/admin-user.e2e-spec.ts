@@ -104,7 +104,7 @@ describe('Admin User Management (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/admin/users/${target.userId}/suspend`)
       .set('Authorization', `Bearer ${admin.token}`)
-      .expect(200);
+      .expect(204);
 
     const suspended = await prisma.user.findUniqueOrThrow({ where: { id: target.userId } });
     expect(suspended.status).toBe('suspended');
@@ -118,7 +118,7 @@ describe('Admin User Management (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/admin/users/${target.userId}/reactivate`)
       .set('Authorization', `Bearer ${admin.token}`)
-      .expect(200);
+      .expect(204);
     const reactivated = await prisma.user.findUniqueOrThrow({ where: { id: target.userId } });
     expect(reactivated.status).toBe('active');
 
@@ -138,7 +138,7 @@ describe('Admin User Management (e2e)', () => {
       .patch(`/admin/users/${target.userId}/role`)
       .set('Authorization', `Bearer ${admin.token}`)
       .send({ roleCode: 'moderator' })
-      .expect(200);
+      .expect(204);
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.userId }, include: { role: true } });
     expect(updated.role.code).toBe('moderator');
 

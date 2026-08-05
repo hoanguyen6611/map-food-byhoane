@@ -37,6 +37,28 @@ a {
 a:hover {
   text-decoration: underline;
 }
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-primary-dark);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+  z-index: 100;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 0;
+}
 
 .container {
   max-width: var(--max-width);
@@ -113,14 +135,14 @@ a:hover {
   padding: 12px 22px;
   border: none;
   border-radius: 999px;
-  background: var(--color-primary);
+  background: var(--color-primary-dark);
   color: #fff;
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
 }
 .search-form button:hover {
-  background: var(--color-primary-dark);
+  filter: brightness(0.9);
 }
 
 .section-title {
@@ -148,6 +170,116 @@ a:hover {
 .chip:hover {
   border-color: var(--color-primary);
   text-decoration: none;
+}
+
+.chip-toggle {
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+}
+.chip-toggle.chip-selected {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: #fff;
+}
+
+.filter-form {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 24px 0;
+  background: var(--color-bg-alt);
+}
+.filter-row {
+  margin-bottom: 16px;
+}
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+.filter-row-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+.filter-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.filter-field select,
+.filter-field input[type='text'] {
+  /* Fixed width so a <select> (sized to its widest option by default)
+     lines up with the text <input> beside it instead of shrinking to
+     content — same fix applied in admin-web/src/index.css's .filter-field. */
+  width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.filter-field select {
+  /* Native select chrome (esp. Safari) reserves its own space for the
+     dropdown arrow on top of `width`, so it can still look narrower than
+     an <input> of the identical CSS width — appearance:none + a hand-drawn
+     arrow removes that browser-specific variance entirely. */
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23666666' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 7px;
+  padding-right: 28px;
+}
+.filter-checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.filter-text-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 15px;
+}
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+.filter-submit {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary-dark);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.filter-submit:hover {
+  filter: brightness(0.9);
+}
+.filter-reset {
+  padding: 10px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .card-grid {
@@ -222,6 +354,28 @@ a:hover {
   color: var(--color-text-secondary);
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 20px;
+}
+.breadcrumb [aria-current='page'] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .detail-header {
   display: flex;
   flex-wrap: wrap;
@@ -236,6 +390,14 @@ a:hover {
 }
 .detail-photos img {
   width: 100%;
+  /* Explicit `height: auto` is required here — next/image renders the
+     photo's real width/height as HTML attributes (e.g. 900x700), and a
+     browser only computes height from `aspect-ratio` when no other
+     definite height applies. Without this, the HTML height attribute
+     wins over `aspect-ratio`, stretching every thumbnail to the photo's
+     full native height at grid-column width (a tall, narrow "film strip"
+     instead of a square thumbnail). */
+  height: auto;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
@@ -310,4 +472,36 @@ table.menu-table td.price {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 14px;
+}
+
+.skeleton-block,
+.skeleton-line {
+  background: var(--color-bg-alt);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-block::after,
+.skeleton-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block::after,
+  .skeleton-line::after {
+    animation: none;
+  }
+}
+.skeleton-line {
+  height: 14px;
+  margin: 6px 0;
+}
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
