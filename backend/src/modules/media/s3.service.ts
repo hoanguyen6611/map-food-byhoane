@@ -17,26 +17,45 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 @Injectable()
 export class S3Service {
   private readonly client: S3Client;
+  // Separate client used ONLY for presigning. The host embedded in a
+  // presigned URL is part of its signature — a URL signed with the
+  // Docker-internal endpoint (http://minio:9000) is unreachable by an
+  // external client (mobile app, browser), which is who actually performs
+  // the presigned PUT/GET, not this backend. S3_PUBLIC_ENDPOINT defaults to
+  // S3_ENDPOINT when unset, so single-endpoint local dev (MinIO reachable
+  // at the same address from both the host and the backend) is unaffected;
+  // a real deployment with MinIO's internal Docker hostname != its
+  // publicly-reachable address (docs/deploy-oracle-cloud.md) sets it
+  // explicitly to the public one.
+  private readonly presignClient: S3Client;
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
 
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.get<string>('S3_BUCKET', 'foodmap-media');
     this.publicBaseUrl = this.config.get<string>('S3_PUBLIC_BASE_URL', '').replace(/\/$/, '');
+    const forcePathStyle = this.config.get<string>('S3_FORCE_PATH_STYLE', 'false') === 'true';
+    const credentials = {
+      accessKeyId: this.config.get<string>('S3_ACCESS_KEY_ID', ''),
+      secretAccessKey: this.config.get<string>('S3_SECRET_ACCESS_KEY', ''),
+    };
     this.client = new S3Client({
       endpoint: this.config.get<string>('S3_ENDPOINT'),
       region: 'us-east-1', // MinIO ignores this; required by the SDK client shape.
-      forcePathStyle: this.config.get<string>('S3_FORCE_PATH_STYLE', 'false') === 'true',
-      credentials: {
-        accessKeyId: this.config.get<string>('S3_ACCESS_KEY_ID', ''),
-        secretAccessKey: this.config.get<string>('S3_SECRET_ACCESS_KEY', ''),
-      },
+      forcePathStyle,
+      credentials,
+    });
+    this.presignClient = new S3Client({
+      endpoint: this.config.get<string>('S3_PUBLIC_ENDPOINT') || this.config.get<string>('S3_ENDPOINT'),
+      region: 'us-east-1',
+      forcePathStyle,
+      credentials,
     });
   }
 
   async presignPut(key: string, contentType: string, expiresSeconds: number): Promise<string> {
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType });
-    return getSignedUrl(this.client, command, { expiresIn: expiresSeconds });
+    return getSignedUrl(this.presignClient, command, { expiresIn: expiresSeconds });
   }
 
   /** Returns null if the object doesn't exist (upload never happened / expired). */

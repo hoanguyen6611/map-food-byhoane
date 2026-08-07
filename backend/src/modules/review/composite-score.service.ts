@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Prisma } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AiSummaryService } from '../ai/ai-summary.service';
 import { calculateCompositeScore } from './composite-score.util';
 
 export const COMPOSITE_SCORE_QUEUE = 'composite-score';
@@ -20,6 +21,7 @@ export class CompositeScoreService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(COMPOSITE_SCORE_QUEUE) private readonly queue: Queue,
+    private readonly aiSummaryService: AiSummaryService,
   ) {}
 
   async enqueueRecompute(restaurantId: string): Promise<void> {
@@ -63,5 +65,10 @@ export class CompositeScoreService {
     });
 
     this.logger.debug(`Recomputed composite score for ${restaurantId}: v=${v} R=${R.toFixed(2)} C=${C.toFixed(2)} -> ${compositeScore?.toFixed(2) ?? 'null'}`);
+
+    // Fail-safe internally (AiSummaryService.regenerateIfNeeded never
+    // throws) — a Claude/AI Summary issue must never break composite-score
+    // recomputation itself.
+    await this.aiSummaryService.regenerateIfNeeded(restaurantId);
   }
 }

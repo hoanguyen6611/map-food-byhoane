@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import './globals.css';
 
-const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3001';
+const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const SITE_NAME = 'The Food Map of Vietnam';
 const SITE_DESCRIPTION =
   'Bản đồ ẩm thực Việt Nam — tìm quán ăn, quán cà phê, nhà hàng phù hợp nhất với bạn, không chỉ gần bạn nhất.';
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               🍜 {SITE_NAME}
             </Link>
             <nav aria-label="Điều hướng chính">
-              <Link href="/tim-kiem">Tìm quán ăn</Link>
+              <Link href="/search">Tìm quán ăn</Link>
             </nav>
           </div>
         </header>

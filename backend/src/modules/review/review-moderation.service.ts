@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { buildAiReason, recommendActionForRiskScore, scoreTextContent } from '../moderation/rule-based-moderation.util';
+import { ClaudeGatewayService } from '../ai/claude-gateway.service';
+import { RAPID_FIRE_THRESHOLD, RAPID_FIRE_WINDOW_MS } from '../moderation/rule-based-moderation.util';
 
 export interface ModerationCheckInput {
   userId: string;
@@ -12,34 +13,52 @@ export interface ModerationCheckResult {
   riskScore: number;
   labels: string[];
   aiReason: string;
-  recommendedAction: 'auto_approve' | 'hold_for_review';
+  recommendedAction: 'auto_approve' | 'hold_for_review' | 'reject';
 }
 
-const RAPID_FIRE_WINDOW_MS = 60 * 60 * 1000;
-const RAPID_FIRE_THRESHOLD = 5;
-
 /**
- * Rule-based stand-in for docs/build-prompts/06-reviews-scoring.md — the
- * real AIGateway.moderate() call arrives in Module 7
- * (docs/build-prompts/07-contribution-media-moderation.md); this module only
- * needs the ModerationResult table + status state-machine wired correctly
- * so Module 7 can swap the scoring implementation without touching callers.
- * The text-heuristic scoring itself now lives in
- * ../moderation/rule-based-moderation.util.ts, shared with
- * ContributionModerationService — this class's own behavior/signature is
- * unchanged by that extraction.
+ * Review moderation, backed by the real Claude adapter (ClaudeGatewayService,
+ * see ai-gateway.interface.ts). `check()` calls Claude for the text-content
+ * risk signal, then layers the rapid-fire posting signal on top (a
+ * structural DB signal Claude can't see from one piece of text alone) — a
+ * structural signal can escalate auto_approve → hold_for_review but never
+ * downgrades a Claude-flagged 'reject'.
  *
- * // TODO Module 7: replace this method's body with a real AIGateway.moderate() call.
+ * Fail-safe lives HERE, not in the caller: if the Claude call throws
+ * (network, timeout, refusal, bad API key), check() catches it and returns
+ * a synthetic hold_for_review result instead of throwing — this keeps
+ * recordResult() running unconditionally, so a Claude outage still produces
+ * a real, queue-visible ModerationResult row instead of a review that's
+ * silently held with no moderation record at all.
  */
 @Injectable()
 export class ReviewModerationService {
-  readonly modelVersion = 'rule-based-v1';
+  private readonly logger = new Logger(ReviewModerationService.name);
+  readonly modelVersion = 'claude-haiku-4-5-v1';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly claudeGateway: ClaudeGatewayService,
+  ) {}
 
   async check(input: ModerationCheckInput): Promise<ModerationCheckResult> {
-    const { riskScore: textRiskScore, labels } = scoreTextContent(input.comment);
-    let riskScore = textRiskScore;
+    let base: ModerationCheckResult;
+    try {
+      base = await this.claudeGateway.moderate({ text: input.comment });
+    } catch (error) {
+      this.logger.error(`Claude moderation call failed for a review, holding for manual review: ${String(error)}`);
+      return {
+        riskScore: 1,
+        labels: ['ai_check_failed'],
+        aiReason: 'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
+        recommendedAction: 'hold_for_review',
+      };
+    }
+
+    const labels = [...base.labels];
+    let riskScore = base.riskScore;
+    let aiReason = base.aiReason;
+    let recommendedAction = base.recommendedAction;
 
     const recentCount = await this.prisma.review.count({
       where: {
@@ -49,12 +68,12 @@ export class ReviewModerationService {
     });
     if (recentCount >= RAPID_FIRE_THRESHOLD) {
       labels.push('rapid_fire');
-      riskScore += 0.5;
+      riskScore = Math.min(1, riskScore + 0.5);
+      aiReason += ' Ngoài ra, tài khoản đang gửi đánh giá với tần suất bất thường.';
+      if (recommendedAction === 'auto_approve') {
+        recommendedAction = 'hold_for_review';
+      }
     }
-
-    riskScore = Math.min(1, riskScore);
-    const recommendedAction = recommendActionForRiskScore(riskScore);
-    const aiReason = buildAiReason(labels);
 
     return { riskScore, labels, aiReason, recommendedAction };
   }
@@ -72,11 +91,10 @@ export class ReviewModerationService {
         aiReason: result.aiReason,
         recommendedAction: result.recommendedAction,
         modelVersion: this.modelVersion,
-        // recommendedAction is never 'reject' in this stand-in (see check()) —
-        // decision stays 'pending' until Module 7's queue lets a moderator
-        // act, or is auto-'approved' here when risk is low. Never
-        // self-approves above the hold threshold (docs/06-database-erd.md §7
-        // hard constraint: decidedBy stays null either way at this stage).
+        // Never self-approves 'reject' or high-risk content — decidedBy
+        // stays null here either way (docs/06-database-erd.md §7 hard
+        // constraint, enforced independently by moderation-decision.util.ts
+        // + the DB CHECK constraint).
         decision: result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
       },
     });

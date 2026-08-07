@@ -6,7 +6,7 @@ import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant } from '
 import { CATEGORY_LABELS, FACILITY_META } from '@/lib/labels';
 import { dayLabel, formatPriceRange, formatVndFull } from '@/lib/format';
 
-const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3001';
+const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const REVIEWS_PAGE_SIZE = 10;
 
 interface PageProps {
@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${restaurant.name} — ${restaurant.address.district}`,
     description,
-    alternates: { canonical: `/quan/${restaurant.slug}` },
+    alternates: { canonical: `/restaurant/${restaurant.slug}` },
     openGraph: {
       title: restaurant.name,
       description,
@@ -117,14 +117,14 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
         '@type': 'ListItem',
         position: 2,
         name: categoryLabel,
-        item: `${SITE_URL}/tim-kiem?category=${restaurant.categoryCode}`,
+        item: `${SITE_URL}/search?category=${restaurant.categoryCode}`,
       },
-      { '@type': 'ListItem', position: 3, name: restaurant.name, item: `${SITE_URL}/quan/${restaurant.slug}` },
+      { '@type': 'ListItem', position: 3, name: restaurant.name, item: `${SITE_URL}/restaurant/${restaurant.slug}` },
     ],
   };
 
   function reviewPageHref(targetPage: number): string {
-    return `/quan/${slug}?reviewPage=${targetPage}`;
+    return `/restaurant/${slug}?reviewPage=${targetPage}`;
   }
 
   return (
@@ -137,7 +137,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link href="/">Trang chủ</Link>
         <span aria-hidden="true"> › </span>
-        <Link href={`/tim-kiem?category=${restaurant.categoryCode}`}>{categoryLabel}</Link>
+        <Link href={`/search?category=${restaurant.categoryCode}`}>{categoryLabel}</Link>
         <span aria-hidden="true"> › </span>
         <span aria-current="page">{restaurant.name}</span>
       </nav>

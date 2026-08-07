@@ -68,11 +68,11 @@ export function SearchFilterForm({ initial }: Props) {
       if (bucket.max !== undefined) params.set('priceMax', String(bucket.max));
     }
     if (openNow) params.set('openNow', 'true');
-    router.push(`/tim-kiem?${params.toString()}`);
+    router.push(`/search?${params.toString()}`);
   }
 
   function handleClear() {
-    router.push('/tim-kiem');
+    router.push('/search');
   }
 
   return (

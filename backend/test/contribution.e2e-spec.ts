@@ -11,19 +11,27 @@ import type {
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ClaudeGatewayService } from '../src/modules/ai/claude-gateway.service';
+import { buildMockClaudeGateway } from './helpers/mock-claude-gateway';
 
 // Covers docs/02-user-stories.md Epic F (US-F1-F4) and the ContributionModule
 // half of build-prompts/07-contribution-media-moderation-ai.md's Definition
-// of Done — moderation itself is the rule-based stand-in
-// (ContributionModerationService), not real AI, per this pass's scope
-// exclusion. Runs against a real MinIO instance for the photo-upload steps.
+// of Done. Moderation now runs through the real Claude adapter
+// (ContributionModerationService -> ClaudeGatewayService), but this sandbox
+// has no real ANTHROPIC_API_KEY — ClaudeGatewayService is overridden with a
+// deterministic test double (see helpers/mock-claude-gateway.ts) so the
+// auto_approved/in_review assertions below stay meaningful without one.
+// Runs against a real MinIO instance for the photo-upload steps.
 describe('Contribution (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let realJpeg: Buffer;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(ClaudeGatewayService)
+      .useValue(buildMockClaudeGateway())
+      .compile();
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();

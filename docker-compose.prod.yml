@@ -1,0 +1,78 @@
+# Production override — apply alongside the base file, never alone:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Adds the backend service and sets real credentials for postgres/minio via
+# the repo-root .env (see .env.production.example) — the base
+# docker-compose.yml already binds postgres/redis/MinIO's admin console to
+# 127.0.0.1 only (loopback), so they're never reachable from outside the VM
+# regardless of this override; that's handled in the base file itself, not
+# here, because Compose's multi-file merge does NOT replace list-type keys
+# like `ports` (confirmed via `docker compose config` — it merges/appends
+# instead), so a `ports: []` override here would silently do nothing.
+#
+# MinIO's S3 API port (9000) stays published in the base file: mobile
+# clients PUT directly to a presigned URL (never through this backend), so
+# MinIO must be reachable from the public internet for uploads to work at
+# all — see S3Service's presignClient (backend/src/modules/media/s3.service.ts)
+# and S3_PUBLIC_ENDPOINT in backend/env.production.example.
+#
+# See docs/deploy-oracle-cloud.md for the full deploy runbook, including
+# the Oracle Cloud firewall rules that must also allow ports 3000 and 9000.
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foodmap}
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-foodmap}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-foodmap12345}
+
+  minio-init:
+    # The base file's entrypoint hardcodes the dev-default MinIO
+    # credentials to create/configure the bucket — override it here so
+    # bucket setup still works against the real credentials above. Kept as
+    # a full entrypoint replacement (not a merge) since Compose replaces
+    # scalar/string values like `entrypoint` normally — only sequences
+    # merge unexpectedly.
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-foodmap} ${MINIO_ROOT_PASSWORD:-foodmap12345} &&
+      mc mb --ignore-existing local/foodmap-media &&
+      mc anonymous set download local/foodmap-media
+      "
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: foodmap-backend
+    restart: unless-stopped
+    env_file:
+      - backend/.env
+    environment:
+      # DATABASE_URL/REDIS_URL always point at the compose service names —
+      # only the backend talks to these, purely internal, so this override
+      # always wins regardless of what backend/.env has. S3_ACCESS_KEY_ID/
+      # S3_SECRET_ACCESS_KEY are pinned to the SAME root-.env vars that
+      # configure the minio service above, so the two can never drift out
+      # of sync — backend/.env's own copies of these three are ignored.
+      # S3_ENDPOINT is NOT overridden here (internal server-side S3 calls —
+      # `http://minio:9000` is simplest and recommended, see
+      # backend/env.production.example); S3_PUBLIC_ENDPOINT (presigned
+      # URLs, which an external client hits directly) must always be the
+      # VM's public IP and is only set in backend/.env, since it has no
+      # compose-level equivalent to derive from.
+      DATABASE_URL: postgresql://foodmap:${POSTGRES_PASSWORD:-foodmap}@postgres:5432/foodmap?schema=public
+      REDIS_URL: redis://redis:6379
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-foodmap}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-foodmap12345}
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy

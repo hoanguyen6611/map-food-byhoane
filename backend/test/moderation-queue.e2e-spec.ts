@@ -14,14 +14,19 @@ import type {
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ClaudeGatewayService } from '../src/modules/ai/claude-gateway.service';
+import { buildMockClaudeGateway } from './helpers/mock-claude-gateway';
 
 // Covers US-I2/I3 and the Admin Moderation Queue half of
 // build-prompts/07-contribution-media-moderation-ai.md's Definition of
-// Done — the "AI risk score/reason" comes from the rule-based stand-in,
-// not real AI, per this pass's scope exclusion (see docs/build-prompts/07's
-// note). The hard-rule invariant itself is proven at the unit level
-// (moderation-decision.util.spec.ts); this file proves the legitimate
-// human-decision path works end-to-end through the real HTTP API.
+// Done — the "AI risk score/reason" now comes from the real Claude adapter
+// (ReviewModerationService -> ClaudeGatewayService), but this sandbox has no
+// real ANTHROPIC_API_KEY, so ClaudeGatewayService is overridden with a
+// deterministic test double (see helpers/mock-claude-gateway.ts) that
+// reproduces the exact spam-signal labels submitSpammyReview()'s fixture
+// text is designed to trigger. The hard-rule invariant itself is proven at
+// the unit level (moderation-decision.util.spec.ts); this file proves the
+// legitimate human-decision path works end-to-end through the real HTTP API.
 describe('Admin Moderation Queue (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -29,7 +34,10 @@ describe('Admin Moderation Queue (e2e)', () => {
   let seededRestaurantId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(ClaudeGatewayService)
+      .useValue(buildMockClaudeGateway())
+      .compile();
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();

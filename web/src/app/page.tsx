@@ -24,7 +24,7 @@ export default async function HomePage() {
           Bản đồ ẩm thực Việt Nam — khám phá quán ăn, quán cà phê, nhà hàng và xe đẩy vỉa hè ở TP.
           Hồ Chí Minh qua đánh giá thật từ cộng đồng.
         </p>
-        <form action="/tim-kiem" className="search-form" role="search">
+        <form action="/search" className="search-form" role="search">
           <input
             type="text"
             name="q"
@@ -39,7 +39,7 @@ export default async function HomePage() {
         <h2 className="section-title">Danh mục</h2>
         <div className="chip-row">
           {FEATURED_CATEGORIES.map((code) => (
-            <Link key={code} href={`/tim-kiem?category=${code}`} className="chip">
+            <Link key={code} href={`/search?category=${code}`} className="chip">
               {CATEGORY_LABELS[code]}
             </Link>
           ))}
@@ -48,7 +48,7 @@ export default async function HomePage() {
         <h2 className="section-title">Khu vực</h2>
         <div className="chip-row">
           {DISTRICTS.map((district) => (
-            <Link key={district.slug} href={`/khu-vuc/${district.slug}`} className="chip">
+            <Link key={district.slug} href={`/district/${district.slug}`} className="chip">
               {district.name}
             </Link>
           ))}

@@ -1,0 +1,21 @@
+# Critical: node_modules must NEVER be copied into the build context.
+# sharp (image processing, backend/src/modules/media) ships native
+# platform-specific bindings — copying a host-installed node_modules (e.g.
+# macOS arm64 binaries) into the Linux container would silently break at
+# runtime. Always let `npm ci` install fresh inside the container.
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/build
+
+.git
+.gitignore
+*.log
+.DS_Store
+
+# Never send local env files into a build context/image.
+.env
+.env.*
+!env.example
+!env.*.example

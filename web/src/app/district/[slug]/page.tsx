@@ -5,7 +5,7 @@ import { searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { DISTRICTS, findDistrictBySlug } from '@/lib/districts';
 
-const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3001';
+const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const PAGE_SIZE = 20;
 
 interface PageProps {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `Quán ăn ở ${district.name}`,
     description: `Danh sách quán ăn, quán cà phê, nhà hàng ở ${district.name} — đánh giá thật từ cộng đồng The Food Map of Vietnam.`,
-    alternates: { canonical: `/khu-vuc/${district.slug}` },
+    alternates: { canonical: `/district/${district.slug}` },
     openGraph: { title: `Quán ăn ở ${district.name}`, type: 'website' },
   };
 }
@@ -52,7 +52,7 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Trang chủ', item: SITE_URL },
-      { '@type': 'ListItem', position: 2, name: district.name, item: `${SITE_URL}/khu-vuc/${district.slug}` },
+      { '@type': 'ListItem', position: 2, name: district.name, item: `${SITE_URL}/district/${district.slug}` },
     ],
   };
 
@@ -64,13 +64,13 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
     itemListElement: result.items.map((restaurant, index) => ({
       '@type': 'ListItem',
       position: (page - 1) * PAGE_SIZE + index + 1,
-      url: `${SITE_URL}/quan/${restaurant.slug}`,
+      url: `${SITE_URL}/restaurant/${restaurant.slug}`,
       name: restaurant.name,
     })),
   };
 
   function pageHref(targetPage: number): string {
-    return `/khu-vuc/${slug}?page=${targetPage}`;
+    return `/district/${slug}?page=${targetPage}`;
   }
 
   return (
@@ -95,7 +95,7 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
       {result.items.length === 0 ? (
         <div className="empty-state">
           <p>Chưa có quán nào được đăng ở {district.name}.</p>
-          <Link href="/tim-kiem">Xem tất cả quán ăn</Link>
+          <Link href="/search">Xem tất cả quán ăn</Link>
         </div>
       ) : (
         <>
@@ -116,7 +116,7 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
           ) : null}
 
           <p style={{ marginTop: 24 }}>
-            <Link href={`/tim-kiem?district=${encodeURIComponent(district.name)}`}>
+            <Link href={`/search?district=${encodeURIComponent(district.name)}`}>
               Lọc thêm theo món ăn, giá, tiện ích…
             </Link>
           </p>

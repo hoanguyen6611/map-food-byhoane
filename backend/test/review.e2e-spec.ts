@@ -13,10 +13,17 @@ import type {
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ClaudeGatewayService } from '../src/modules/ai/claude-gateway.service';
+import { buildMockClaudeGateway } from './helpers/mock-claude-gateway';
 
 // Covers docs/02-user-stories.md Epic E (US-E1, E2, E3, E5 — E4 "report a
 // review" is Module 7's scope, not implemented here) and the Definition of
-// Done in docs/build-prompts/06-reviews-scoring.md.
+// Done in docs/build-prompts/06-reviews-scoring.md. Moderation now runs
+// through the real Claude adapter (ReviewModerationService ->
+// ClaudeGatewayService), but this sandbox has no real ANTHROPIC_API_KEY —
+// ClaudeGatewayService is overridden with a deterministic test double (see
+// helpers/mock-claude-gateway.ts) so the auto-approve/hold-for-review
+// assertions below stay meaningful without one.
 describe('Reviews & Composite Scoring (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -24,7 +31,10 @@ describe('Reviews & Composite Scoring (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(ClaudeGatewayService)
+      .useValue(buildMockClaudeGateway())
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(

@@ -1,11 +1,23 @@
-// Pure heuristics shared by ReviewModerationService (Module 6) and
-// ContributionModerationService (Module 7) — both are rule-based stand-ins
-// for the real AIGateway.moderate() (see ai-gateway.interface.ts), which is
-// out of scope for this pass. Extracted here so contributions don't
-// duplicate review's text-screening logic; review's own behavior/signature
-// is unchanged by this extraction (see review-moderation.service.ts).
+// Shared moderation constants/heuristics used by both ReviewModerationService
+// and ContributionModerationService (via ClaudeGatewayService).
+// MEDIUM_RISK_THRESHOLD/recommendActionForRiskScore are the single source of
+// truth for the auto_approve/hold_for_review boundary — both the real Claude
+// path and the rule-based fallback below derive recommendedAction from this,
+// not from Claude's own judgment, so the boundary always matches the
+// hard-rule DB constraint's math exactly (see moderation-decision.util.ts).
 
 export const MEDIUM_RISK_THRESHOLD = 0.5;
+
+// Rapid-fire posting window/threshold — identical in both services; a
+// purely structural signal no text-scoring method (Claude or rule-based)
+// can see, since it only scores one piece of text at a time. Layered on
+// top of the text-content score in each service's check().
+export const RAPID_FIRE_WINDOW_MS = 60 * 60 * 1000;
+export const RAPID_FIRE_THRESHOLD = 5;
+
+export function recommendActionForRiskScore(riskScore: number): 'auto_approve' | 'hold_for_review' {
+  return riskScore >= MEDIUM_RISK_THRESHOLD ? 'hold_for_review' : 'auto_approve';
+}
 
 const URL_PATTERN = /https?:\/\/|www\./i;
 // Spam-indicator phrases (advertising/scam patterns), not a profanity
@@ -17,10 +29,19 @@ const REPEATED_CHAR_PATTERN = /(.)\1{4,}/; // same char 5+ times in a row, e.g. 
 export interface TextHeuristicResult {
   riskScore: number;
   labels: string[];
+  reason: string;
 }
 
-/** Text-only heuristics — callers add their own target-specific signals (e.g. rapid-fire posting count) on top. */
-export function scoreTextContent(text: string | null): TextHeuristicResult {
+/**
+ * Free, zero-network fallback for ClaudeGatewayService.moderate() when no
+ * ANTHROPIC_API_KEY is configured — the same pattern-matching heuristic
+ * this project used before the real Claude adapter existed. Deliberately
+ * simple/deterministic (URL/spam-phrase/all-caps/repeated-char patterns),
+ * not a substitute for real content understanding — ClaudeGatewayService
+ * labels its `reason` output so this path is distinguishable from a real
+ * Claude judgment in the Admin Moderation Queue.
+ */
+export function scoreTextContentRuleBased(text: string | null): TextHeuristicResult {
   const labels: string[] = [];
   let riskScore = 0;
   const content = text ?? '';
@@ -45,15 +66,11 @@ export function scoreTextContent(text: string | null): TextHeuristicResult {
     riskScore += 0.2;
   }
 
-  return { riskScore, labels };
-}
+  riskScore = Math.min(1, riskScore);
+  const reason =
+    labels.length === 0
+      ? 'Không phát hiện dấu hiệu bất thường (kiểm tra rule-based — chưa cấu hình Claude API).'
+      : `Phát hiện dấu hiệu: ${labels.join(', ')} (kiểm tra rule-based — chưa cấu hình Claude API).`;
 
-export function recommendActionForRiskScore(riskScore: number): 'auto_approve' | 'hold_for_review' {
-  return riskScore >= MEDIUM_RISK_THRESHOLD ? 'hold_for_review' : 'auto_approve';
-}
-
-export function buildAiReason(labels: string[]): string {
-  return labels.length === 0
-    ? 'Không phát hiện dấu hiệu bất thường (kiểm tra rule-based).'
-    : `Phát hiện dấu hiệu: ${labels.join(', ')} (kiểm tra rule-based).`;
+  return { riskScore, labels, reason };
 }

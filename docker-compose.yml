@@ -8,7 +8,15 @@ services:
       POSTGRES_PASSWORD: foodmap
       POSTGRES_DB: foodmap
     ports:
-      - '5432:5432'
+      # Loopback-only, not '5432:5432' — reachable at localhost:5432 for
+      # local dev exactly as before, but never from a VM's public
+      # interface in production (docs/deploy-oracle-cloud.md). Compose
+      # override files do NOT replace list-type keys like `ports` across
+      # -f files (they merge/append instead, confirmed via `docker compose
+      # config`), so this can't be flipped per-environment via an override
+      # — binding to loopback in the base file is what actually works in
+      # both environments with zero duplication.
+      - '127.0.0.1:5432:5432'
     volumes:
       - foodmap-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +30,7 @@ services:
     container_name: foodmap-redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379' # loopback-only — see postgres's port comment above
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -43,8 +51,11 @@ services:
       MINIO_ROOT_PASSWORD: foodmap12345
     command: server /data --console-address ":9001"
     ports:
-      - '9000:9000' # S3 API
-      - '9001:9001' # web console
+      - '9000:9000' # S3 API — deliberately public (see docs/deploy-oracle-cloud.md):
+      # mobile clients PUT/GET directly against presigned URLs, so this
+      # must be reachable from outside in production, not just by the
+      # backend container.
+      - '127.0.0.1:9001:9001' # web console — admin-only, loopback-only (see postgres's port comment above)
     volumes:
       - foodmap-minio-data:/data
     healthcheck:

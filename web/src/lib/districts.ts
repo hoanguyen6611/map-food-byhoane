@@ -1,5 +1,5 @@
 /**
- * District landing pages (`/khu-vuc/[slug]`, docs/08-roadmap-sprint.md's
+ * District landing pages (`/district/[slug]`, docs/08-roadmap-sprint.md's
  * Phase 1.5 "city/district landing pages" item). A small, static list rather
  * than a generic unaccent-slugify function — matches the handful of
  * districts actually present in the seed data (see backend's

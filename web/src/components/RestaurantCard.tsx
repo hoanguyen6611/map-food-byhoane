@@ -11,7 +11,7 @@ export function RestaurantCard({ restaurant }: Props) {
   const priceLabel = formatPriceRange(restaurant.priceRange);
 
   return (
-    <Link href={`/quan/${restaurant.slug}`} className="restaurant-card">
+    <Link href={`/restaurant/${restaurant.slug}`} className="restaurant-card">
       <div className="thumb">
         {restaurant.thumbnailUrl ? (
           <Image

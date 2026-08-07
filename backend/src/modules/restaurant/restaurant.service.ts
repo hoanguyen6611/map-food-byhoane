@@ -124,8 +124,8 @@ export class RestaurantService {
   /**
    * Same contract as `getDetail`, keyed by the restaurant's unique `slug`
    * instead of its uuid — added for build-prompts/09-public-web.md, whose
-   * whole point is clean indexable URLs (`/quan/pho-hoa-pasteur`, not
-   * `/quan/3fa85f64-...`). The mobile app keeps using id-based lookups
+   * whole point is clean indexable URLs (`/restaurant/pho-hoa-pasteur`, not
+   * `/restaurant/3fa85f64-...`). The mobile app keeps using id-based lookups
    * unchanged; this is purely an additional lookup path onto the same
    * public-only (published, non-deleted) query.
    */

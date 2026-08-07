@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { buildAiReason, recommendActionForRiskScore, scoreTextContent } from './rule-based-moderation.util';
+import { ClaudeGatewayService } from '../ai/claude-gateway.service';
+import { RAPID_FIRE_THRESHOLD, RAPID_FIRE_WINDOW_MS } from './rule-based-moderation.util';
 import type { ModerationCheckResult } from '../review/review-moderation.service';
 
 export interface ContributionModerationInput {
@@ -16,31 +17,61 @@ export interface ContributionModerationInput {
   menuItemPricesVnd?: number[];
 }
 
-const RAPID_FIRE_WINDOW_MS = 60 * 60 * 1000;
-const RAPID_FIRE_THRESHOLD = 5;
 const ABNORMAL_PRICE_THRESHOLD_VND = 10_000_000;
 
 /**
- * Rule-based stand-in for community Contribution moderation — the
- * Contribution-side twin of ReviewModerationService, same shape
- * (check()/recordResult(), modelVersion) and same "never returns 'reject',
- * never self-approves above the medium-risk threshold" behavior. No real
- * AIGateway call here either (excluded from this pass — see
- * ai-gateway.interface.ts).
+ * Contribution moderation, backed by the real Claude adapter
+ * (ClaudeGatewayService) — the Contribution-side twin of
+ * ReviewModerationService. `check()` calls Claude for the text-content risk
+ * signal, then layers abnormal-pricing and rapid-fire (both structural
+ * signals Claude can't see from text alone) on top — a structural signal
+ * can escalate auto_approve → hold_for_review but never downgrades a
+ * Claude-flagged 'reject'.
+ *
+ * Fail-safe lives HERE (same reasoning as ReviewModerationService): a
+ * thrown Claude call is caught internally and turned into a synthetic
+ * hold_for_review result, so recordResult() always runs and the item is
+ * never invisible in the Admin Moderation Queue during a Claude outage.
+ * This is also why none of contribution.service.ts's 3 call sites need
+ * their own try/catch — check() itself never throws for Claude-related
+ * reasons.
  */
 @Injectable()
 export class ContributionModerationService {
-  readonly modelVersion = 'rule-based-v1';
+  private readonly logger = new Logger(ContributionModerationService.name);
+  readonly modelVersion = 'claude-haiku-4-5-v1';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly claudeGateway: ClaudeGatewayService,
+  ) {}
 
   async check(input: ContributionModerationInput): Promise<ModerationCheckResult> {
-    const { riskScore: textRiskScore, labels } = scoreTextContent(input.textContent);
-    let riskScore = textRiskScore;
+    let base: ModerationCheckResult;
+    try {
+      base = await this.claudeGateway.moderate({ text: input.textContent });
+    } catch (error) {
+      this.logger.error(`Claude moderation call failed for a contribution, holding for manual review: ${String(error)}`);
+      return {
+        riskScore: 1,
+        labels: ['ai_check_failed'],
+        aiReason: 'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
+        recommendedAction: 'hold_for_review',
+      };
+    }
+
+    const labels = [...base.labels];
+    let riskScore = base.riskScore;
+    let aiReason = base.aiReason;
+    let recommendedAction = base.recommendedAction;
 
     if (input.menuItemPricesVnd?.some((price) => price >= ABNORMAL_PRICE_THRESHOLD_VND)) {
       labels.push('abnormal_price');
-      riskScore += 0.3;
+      riskScore = Math.min(1, riskScore + 0.3);
+      aiReason += ' Phát hiện mức giá bất thường trong thực đơn.';
+      if (recommendedAction === 'auto_approve') {
+        recommendedAction = 'hold_for_review';
+      }
     }
 
     const recentCount = await this.prisma.contribution.count({
@@ -51,12 +82,12 @@ export class ContributionModerationService {
     });
     if (recentCount >= RAPID_FIRE_THRESHOLD) {
       labels.push('rapid_fire');
-      riskScore += 0.5;
+      riskScore = Math.min(1, riskScore + 0.5);
+      aiReason += ' Ngoài ra, tài khoản đang gửi đóng góp với tần suất bất thường.';
+      if (recommendedAction === 'auto_approve') {
+        recommendedAction = 'hold_for_review';
+      }
     }
-
-    riskScore = Math.min(1, riskScore);
-    const recommendedAction = recommendActionForRiskScore(riskScore);
-    const aiReason = buildAiReason(labels);
 
     return { riskScore, labels, aiReason, recommendedAction };
   }

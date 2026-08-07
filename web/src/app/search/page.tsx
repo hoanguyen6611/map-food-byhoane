@@ -52,7 +52,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       if (value && key !== 'page') usp.set(key, value);
     }
     usp.set('page', String(targetPage));
-    return `/tim-kiem?${usp.toString()}`;
+    return `/search?${usp.toString()}`;
   }
 
   return (
@@ -77,7 +77,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       {result.items.length === 0 ? (
         <div className="empty-state">
           <p>Không tìm thấy quán nào phù hợp.</p>
-          <Link href="/tim-kiem">Xem tất cả quán ăn</Link>
+          <Link href="/search">Xem tất cả quán ăn</Link>
         </div>
       ) : (
         <>
