@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type Region } from 'react-native-maps';
 // react-native-map-clustering wraps `react-native-maps`' MapView with
 // client-side clustering (via `supercluster`) — see docs/07-tech-stack.md's
@@ -7,11 +8,11 @@ import MapView, { Marker, type Region } from 'react-native-maps';
 // and still calls a passed `onRegionChangeComplete` through with the
 // (region, details, markers) signature, which is all this screen needs.
 import ClusteredMapView from 'react-native-map-clustering';
-import type { CompositeScreenProps } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
-import type { MainStackParamList, MainTabParamList } from '../../navigation/types';
+import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantsInBounds } from '../../hooks/useRestaurantsInBounds';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
 import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
@@ -26,11 +27,13 @@ import {
 } from '../../lib/geo';
 import { RestaurantPreviewCard } from '../../components/map/RestaurantPreviewCard';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { getFilterValues, useFilterStore } from '../../store/filterStore';
+import { PRICE_BUCKETS } from '../../lib/priceBuckets';
+import { FONT_FAMILY } from '../../theme/fonts';
 
-type Props = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'Map'>,
-  NativeStackScreenProps<MainStackParamList>
->;
+const RATING_QUICK_OPTIONS = [4, 4.5];
+
+type Props = NativeStackScreenProps<MainStackParamList, 'Map'>;
 
 // Debounce viewport-change events at least 500ms before refetching, per
 // build-prompts/03 task 3 / the PRD's debounce requirement — a pan/zoom
@@ -48,10 +51,19 @@ const MANUAL_AREAS: { label: string; center: LatLng }[] = [
 ];
 
 /**
- * Screen 7 (Home Map) per docs/04-screen-list.md. Real permission/location
- * check + real bounds-driven map rendering (Module 3 scope) — search bar
- * and filter chips are Module 4's scope. The "+" FAB (build-prompts/07)
- * pushes the real Add Restaurant flow.
+ * Map screen ("Ngon v3" reskin — moved off the tab bar, now reached via
+ * Explore's "Mở bản đồ" button; see MainStackNavigator). Real
+ * permission/location check + real bounds-driven map rendering (Module 3
+ * scope) — none of that changed, only how this screen is reached. The
+ * floating search bar navigates to the real Search screen (Module 4); the
+ * quick filter chips (Mở cửa/Giá/Đánh giá) write into the same
+ * `useFilterStore` that FilterScreen/SearchResultScreen read, then filter
+ * the already-fetched bounds results CLIENT-SIDE — `/restaurants/bounds`
+ * itself has no filter query params (only Search's `/search` endpoint does),
+ * so this is the pragmatic way to make the map respect quick filters without
+ * a backend change, consistent with `MANUAL_AREAS` below being an
+ * intentionally lightweight MVP picker rather than a full geocoder. The "+"
+ * FAB (build-prompts/07) pushes the real Add Restaurant flow.
  *
  * Note: `PermissionLocationScreen` (boot sequence, see RootNavigator) only
  * *requests* the OS permission once; it doesn't store or expose the result.
@@ -60,7 +72,13 @@ const MANUAL_AREAS: { label: string; center: LatLng }[] = [
  */
 export function MapScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
+  const insets = useSafeAreaInsets();
+  // A plain safe-area clearance, not FLOATING_TAB_BAR_CLEARANCE — as a pushed
+  // stack screen (not a tab), the floating tab bar is never visible behind
+  // this screen, so there's nothing to clear.
+  const floatingButtonBottom = insets.bottom + 16;
   const mapRef = useRef<MapView | null>(null);
   const regionChangeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -120,12 +138,42 @@ export function MapScreen({ navigation }: Props) {
   const favoriteIdsQuery = useFavoriteIds();
   const toggleFavorite = useToggleFavorite();
 
+  const openNow = useFilterStore((state) => state.openNow);
+  const priceMin = useFilterStore((state) => state.priceMin);
+  const priceMax = useFilterStore((state) => state.priceMax);
+  const minRating = useFilterStore((state) => state.minRating);
+  const setFilters = useFilterStore((state) => state.setFilters);
+  // getFilterValues builds a fresh object every call — without useShallow,
+  // useSyncExternalStore sees a "new" snapshot on every render (never
+  // reference-equal to the last one) and warns/can loop, since Zustand v5's
+  // useStore no longer applies shallow-equality to object selectors itself.
+  const filterValues = useFilterStore(useShallow(getFilterValues));
+
+  const filteredRestaurants = restaurants.filter((restaurant) => {
+    if (openNow && !restaurant.isOpenNow) return false;
+    if (minRating !== undefined && (restaurant.compositeScore === null || restaurant.compositeScore < minRating)) {
+      return false;
+    }
+    if (priceMin !== undefined || priceMax !== undefined) {
+      if (!restaurant.priceRange) return false;
+      const rangeMin = restaurant.priceRange.minVnd;
+      const rangeMax = restaurant.priceRange.maxVnd ?? Infinity;
+      const filterMin = priceMin ?? 0;
+      const filterMax = priceMax ?? Infinity;
+      if (!(rangeMin < filterMax && rangeMax > filterMin)) return false;
+    }
+    return true;
+  });
+
   const hasCachedData = restaurantsQuery.data !== undefined;
   const showInitialLoading = initialRegion === null || (restaurantsQuery.isLoading && !hasCachedData);
   const showOfflineBanner = restaurantsQuery.isError && hasCachedData;
   const showFullError = restaurantsQuery.isError && !hasCachedData;
   const showEmptyState =
-    !showFullError && restaurantsQuery.isSuccess && !restaurantsQuery.isLoading && restaurants.length === 0;
+    !showFullError &&
+    restaurantsQuery.isSuccess &&
+    !restaurantsQuery.isLoading &&
+    (restaurants.length === 0 || filteredRestaurants.length === 0);
 
   function handleRecenter() {
     if (!deviceLocation || !mapRef.current) return;
@@ -141,11 +189,50 @@ export function MapScreen({ navigation }: Props) {
     // Trivial MVP placeholder per build-prompts/03 scope note — a real
     // geocoding search/city-district picker is Module 4/5's job.
     Alert.alert(
-      'Chọn khu vực',
+      t('map.chooseAreaDialogTitle'),
       undefined,
       [
         ...MANUAL_AREAS.map((area) => ({ text: area.label, onPress: () => handleManualAreaPicked(area.center) })),
-        { text: 'Huỷ', style: 'cancel' as const },
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  }
+
+  function toggleOpenNowChip() {
+    setFilters({ ...filterValues, openNow: !openNow });
+  }
+
+  function openPriceQuickPicker() {
+    Alert.alert(
+      t('map.priceDialogTitle'),
+      undefined,
+      [
+        ...PRICE_BUCKETS.map((bucket) => ({
+          text: bucket.label,
+          onPress: () => setFilters({ ...filterValues, priceMin: bucket.min, priceMax: bucket.max }),
+        })),
+        {
+          text: t('map.priceDialogAll'),
+          onPress: () => setFilters({ ...filterValues, priceMin: undefined, priceMax: undefined }),
+        },
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  }
+
+  function openRatingQuickPicker() {
+    Alert.alert(
+      t('map.ratingDialogTitle'),
+      undefined,
+      [
+        ...RATING_QUICK_OPTIONS.map((rating) => ({
+          text: t('map.ratingDialogOption', { rating }),
+          onPress: () => setFilters({ ...filterValues, minRating: rating }),
+        })),
+        { text: t('map.ratingDialogAll'), onPress: () => setFilters({ ...filterValues, minRating: undefined }) },
+        { text: t('common.cancel'), style: 'cancel' as const },
       ],
       { cancelable: true },
     );
@@ -155,7 +242,7 @@ export function MapScreen({ navigation }: Props) {
     return (
       <View style={styles.centeredContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Đang tải bản đồ...</Text>
+        <Text style={styles.loadingText}>{t('map.loading')}</Text>
       </View>
     );
   }
@@ -163,10 +250,10 @@ export function MapScreen({ navigation }: Props) {
   if (showFullError) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorTitle}>Không có kết nối</Text>
-        <Text style={styles.errorBody}>Không thể tải danh sách quán ăn. Vui lòng thử lại.</Text>
+        <Text style={styles.errorTitle}>{t('common.noConnectionTitle')}</Text>
+        <Text style={styles.errorBody}>{t('map.errorBody')}</Text>
         <Pressable style={styles.retryButton} onPress={() => restaurantsQuery.refetch()}>
-          <Text style={styles.retryButtonText}>Thử lại</Text>
+          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -180,17 +267,56 @@ export function MapScreen({ navigation }: Props) {
         initialRegion={initialRegion ?? undefined}
         onRegionChangeComplete={handleRegionChangeComplete}
         clusteringEnabled
+        clusterColor={colors.primary}
+        clusterTextColor={colors.onPrimary}
         showsUserLocation={deviceLocation !== null}
         showsMyLocationButton={false}
       >
-        {restaurants.map((restaurant) => (
+        {filteredRestaurants.map((restaurant) => (
           <Marker
             key={restaurant.id}
             coordinate={{ latitude: restaurant.lat, longitude: restaurant.lng }}
             onPress={() => setSelectedRestaurant(restaurant)}
+            pinColor={colors.primary}
           />
         ))}
       </ClusteredMapView>
+
+      <View style={styles.topBar} pointerEvents="box-none">
+        <Pressable
+          style={styles.searchBar}
+          onPress={() => navigation.navigate('Search')}
+          accessibilityRole="search"
+          accessibilityLabel={t('map.searchPlaceholder')}
+        >
+          <Text style={styles.searchBarText}>{t('map.searchPlaceholder')}</Text>
+        </Pressable>
+        <View style={styles.quickChipRow}>
+          <Pressable
+            style={[styles.quickChip, openNow && styles.quickChipActive]}
+            onPress={toggleOpenNowChip}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.quickChipText, openNow && styles.quickChipTextActive]}>{t('map.chipOpenNow')}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.quickChip, (priceMin !== undefined || priceMax !== undefined) && styles.quickChipActive]}
+            onPress={openPriceQuickPicker}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.quickChipText, (priceMin !== undefined || priceMax !== undefined) && styles.quickChipTextActive]}>
+              {t('map.chipPrice')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.quickChip, minRating !== undefined && styles.quickChipActive]}
+            onPress={openRatingQuickPicker}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.quickChipText, minRating !== undefined && styles.quickChipTextActive]}>{t('map.chipRating')}</Text>
+          </Pressable>
+        </View>
+      </View>
 
       {restaurantsQuery.isFetching && hasCachedData ? (
         <View style={styles.refetchIndicator}>
@@ -200,18 +326,16 @@ export function MapScreen({ navigation }: Props) {
 
       {locationBannerVisible ? (
         <View style={styles.banner}>
-          <Text style={styles.bannerText}>
-            Không thể xác định vị trí của bạn — hiển thị khu vực TP. Hồ Chí Minh.
-          </Text>
+          <Text style={styles.bannerText}>{t('map.locationUnavailable')}</Text>
           <View style={styles.bannerActions}>
             <Pressable onPress={openManualAreaPicker}>
-              <Text style={styles.bannerLink}>Chọn khu vực thủ công</Text>
+              <Text style={styles.bannerLink}>{t('map.chooseAreaManually')}</Text>
             </Pressable>
             <Pressable
               onPress={() => setLocationBannerVisible(false)}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Đóng thông báo"
+              accessibilityLabel={t('map.dismissNotification')}
             >
               <Text style={styles.bannerDismiss}>✕</Text>
             </Pressable>
@@ -221,33 +345,35 @@ export function MapScreen({ navigation }: Props) {
 
       {showOfflineBanner ? (
         <View style={[styles.banner, locationBannerVisible && styles.bannerStacked]}>
-          <Text style={styles.bannerText}>Không có kết nối — hiển thị dữ liệu đã lưu</Text>
+          <Text style={styles.bannerText}>{t('map.offlineBanner')}</Text>
         </View>
       ) : null}
 
       {showEmptyState ? (
         <View style={styles.emptyState} pointerEvents="none">
-          <Text style={styles.emptyStateTitle}>Không có quán nào trong khu vực này</Text>
-          <Text style={styles.emptyStateHint}>Thử thu nhỏ hoặc di chuyển bản đồ để xem khu vực khác</Text>
+          <Text style={styles.emptyStateTitle}>{t('map.emptyTitle')}</Text>
+          <Text style={styles.emptyStateHint}>
+            {restaurants.length > 0 ? t('map.emptyHintFiltered') : t('map.emptyHintNoData')}
+          </Text>
         </View>
       ) : null}
 
       {deviceLocation ? (
         <Pressable
-          style={styles.recenterButton}
+          style={[styles.recenterButton, { bottom: floatingButtonBottom }]}
           onPress={handleRecenter}
           accessibilityRole="button"
-          accessibilityLabel="Về vị trí của tôi"
+          accessibilityLabel={t('map.recenter')}
         >
           <Text style={styles.recenterButtonText}>◎</Text>
         </Pressable>
       ) : null}
 
       <Pressable
-        style={styles.fab}
+        style={[styles.fab, { bottom: floatingButtonBottom }]}
         onPress={() => navigation.navigate('AddRestaurant')}
         accessibilityRole="button"
-        accessibilityLabel="Thêm quán ăn mới"
+        accessibilityLabel={t('map.addRestaurant')}
       >
         <Text style={styles.fabText}>+</Text>
       </Pressable>
@@ -283,21 +409,61 @@ export function MapScreen({ navigation }: Props) {
   );
 }
 
+// Height reserved by `topBar` (search pill + quick-chip row) below the safe
+// area — banners/refetch-indicator are pushed below this so they never
+// overlap the floating search bar.
+const TOP_BAR_OFFSET = (Platform.OS === 'ios' ? 56 : 16) + 96;
+
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
     loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 14 },
-    errorTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+    errorTitle: { fontSize: 18, fontFamily: FONT_FAMILY.bodyBold, color: colors.error, marginBottom: 8 },
     errorBody: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32, marginBottom: 20 },
-    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
-    refetchIndicator: {
+    retryButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold },
+    topBar: {
       position: 'absolute',
       top: Platform.OS === 'ios' ? 56 : 16,
+      left: 16,
+      right: 16,
+    },
+    searchBar: {
+      backgroundColor: colors.surface,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 13,
+      paddingHorizontal: 18,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    searchBarText: { color: colors.textTertiary, fontSize: 14, fontFamily: FONT_FAMILY.body },
+    quickChipRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    quickChip: {
+      backgroundColor: colors.surface,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    quickChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    quickChipText: { color: colors.textPrimary, fontSize: 13, fontFamily: FONT_FAMILY.bodySemiBold },
+    quickChipTextActive: { color: colors.onPrimary },
+    refetchIndicator: {
+      position: 'absolute',
+      top: TOP_BAR_OFFSET,
       right: 16,
       backgroundColor: colors.surface,
-      borderRadius: 16,
+      borderRadius: 20,
       padding: 6,
       shadowColor: colors.shadow,
       shadowOpacity: 0.15,
@@ -306,14 +472,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     banner: {
       position: 'absolute',
-      top: Platform.OS === 'ios' ? 56 : 16,
+      top: TOP_BAR_OFFSET,
       left: 16,
       right: 16,
       backgroundColor: colors.overlayBanner,
-      borderRadius: 10,
+      borderRadius: 14,
       padding: 12,
     },
-    bannerStacked: { top: (Platform.OS === 'ios' ? 56 : 16) + 68 },
+    bannerStacked: { top: TOP_BAR_OFFSET + 68 },
     bannerText: { color: colors.overlayBannerText, fontSize: 13 },
     bannerActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
     bannerLink: { color: colors.overlayBannerLink, fontWeight: '700', fontSize: 13 },
@@ -331,13 +497,13 @@ const createStyles = (colors: ThemeColors) =>
     // reading surface — flipping it dark would fight the light map beneath it.
     emptyStateTitle: {
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: FONT_FAMILY.bodyBold,
       color: '#333',
       textAlign: 'center',
       backgroundColor: 'rgba(255,255,255,0.9)',
       paddingHorizontal: 16,
       paddingVertical: 10,
-      borderRadius: 10,
+      borderRadius: 14,
       overflow: 'hidden',
     },
     emptyStateHint: {
@@ -348,13 +514,13 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: 'rgba(255,255,255,0.9)',
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 8,
+      borderRadius: 12,
       overflow: 'hidden',
     },
     recenterButton: {
+      // `bottom` is overridden inline with the floating-tab-bar clearance.
       position: 'absolute',
       right: 16,
-      bottom: 24,
       width: 44,
       height: 44,
       borderRadius: 22,
@@ -368,9 +534,9 @@ const createStyles = (colors: ThemeColors) =>
     },
     recenterButtonText: { fontSize: 20, color: colors.primary },
     fab: {
+      // `bottom` is overridden inline with the floating-tab-bar clearance.
       position: 'absolute',
       left: 16,
-      bottom: 24,
       width: 52,
       height: 52,
       borderRadius: 26,

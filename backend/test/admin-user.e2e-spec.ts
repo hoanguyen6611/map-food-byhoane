@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import type { AdminUserListItemDto, ApiErrorResponse, AuthResponse, Paginated } from '@foodmap/shared-types';
+import type { AdminUserDetailDto, AdminUserListItemDto, ApiErrorResponse, AuthResponse, Paginated } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -148,6 +148,102 @@ describe('Admin User Management (e2e)', () => {
       .send({ roleCode: 'user' })
       .expect(400);
     expect(errorBody(selfChange).message).toContain('tự thay đổi');
+  });
+
+  it('blocks an admin from suspending themselves', async () => {
+    const admin = await registerAs('admin');
+    const res = await request(app.getHttpServer())
+      .patch(`/admin/users/${admin.userId}/suspend`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(400);
+    expect(errorBody(res).message).toContain('tự khoá');
+
+    const stillActive = await prisma.user.findUniqueOrThrow({ where: { id: admin.userId } });
+    expect(stillActive.status).toBe('active');
+  });
+
+  it('searches by display name as well as email', async () => {
+    const admin = await registerAs('admin');
+    const target = await registerAs('user');
+    // registerAs doesn't set a displayName explicitly — set one directly so
+    // the search-by-name assertion has a deterministic, unique value to
+    // match on (avoids relying on the email-derived default).
+    const uniqueName = `SearchName-${Date.now()}`;
+    await prisma.userProfile.update({ where: { userId: target.userId }, data: { displayName: uniqueName } });
+
+    const res = await request(app.getHttpServer())
+      .get('/admin/users')
+      .query({ search: uniqueName })
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(200);
+    const body = res.body as Paginated<AdminUserListItemDto>;
+    expect(body.items.some((u) => u.id === target.userId)).toBe(true);
+  });
+
+  it('returns user detail with review count and reports-received count', async () => {
+    const admin = await registerAs('admin');
+    const target = await registerAs('user');
+    const reporter = await registerAs('user');
+
+    const restaurantRes = await request(app.getHttpServer())
+      .post('/admin/restaurants')
+      .set('Authorization', `Bearer ${admin.token}`)
+      .send({
+        name: `Detail Test Restaurant ${Date.now()}`,
+        categoryCode: 'quan_an',
+        priceRangeCode: '50_100k',
+        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
+        location: { lat: 10.7769, lng: 106.7009 },
+      })
+      .expect(201);
+    const restaurantId = (restaurantRes.body as { id: string }).id;
+
+    const reviewRes = await request(app.getHttpServer())
+      .post('/reviews')
+      .set('Authorization', `Bearer ${target.token}`)
+      .send({
+        restaurantId,
+        overallRating: 4,
+        ratings: [{ criteriaCode: 'food_quality', score: 4 }],
+        comment: 'Bình thường.',
+      })
+      .expect(201);
+    const reviewId = (reviewRes.body as { id: string }).id;
+
+    await request(app.getHttpServer())
+      .post('/reports')
+      .set('Authorization', `Bearer ${reporter.token}`)
+      .send({ targetType: 'review', targetId: reviewId, reason: 'spam' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/admin/users/${target.userId}`)
+      .set('Authorization', `Bearer ${admin.token}`)
+      .expect(200);
+    const detail = res.body as AdminUserDetailDto;
+    expect(detail.id).toBe(target.userId);
+    expect(detail.reviewCount).toBe(1);
+    expect(detail.reportsReceivedCount).toBe(1);
+
+    // This spec runs against the real shared dev DB (not an ephemeral test
+    // DB) — clean up the restaurant/review/report/moderation rows this test
+    // created rather than leaving them behind permanently (a prior run of
+    // this exact test left a real "Detail Test Restaurant ..." row in the
+    // dev DB before this cleanup existed).
+    await prisma.report.deleteMany({ where: { targetType: 'review', targetId: reviewId } });
+    await prisma.moderationResult.deleteMany({ where: { targetType: 'review', targetId: reviewId } });
+    await prisma.reviewRating.deleteMany({ where: { reviewId } });
+    await prisma.review.delete({ where: { id: reviewId } });
+    await prisma.restaurantStatus.deleteMany({ where: { restaurantId } });
+    await prisma.restaurantCuisine.deleteMany({ where: { restaurantId } });
+    await prisma.openingHour.deleteMany({ where: { restaurantId } });
+    await prisma.restaurantFacility.deleteMany({ where: { restaurantId } });
+    const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    await prisma.restaurant.delete({ where: { id: restaurantId } });
+    if (restaurant) {
+      await prisma.address.delete({ where: { id: restaurant.addressId } });
+      await prisma.location.delete({ where: { id: restaurant.locationId } });
+    }
   });
 
   it('404s suspending/role-changing a nonexistent user', async () => {

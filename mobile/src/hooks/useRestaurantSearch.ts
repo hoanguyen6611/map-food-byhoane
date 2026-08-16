@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { SearchResultsResponse } from '@foodmap/shared-types';
+import type { RestaurantCategoryCode, SearchResultsResponse } from '@foodmap/shared-types';
 import { searchApi } from '../api/search';
 import type { FilterValues } from '../store/filterStore';
 import type { LatLng } from '../lib/geo';
@@ -12,6 +12,13 @@ interface UseRestaurantSearchParams {
   filters: FilterValues;
   location: LatLng | null;
   enabled?: boolean;
+  /**
+   * Quick top-level category toggle (Home's chip row / Explore's category
+   * grid) — deliberately NOT part of `FilterValues`/`useFilterStore`, since
+   * it's a fast single-tap switch rather than a criterion set via the Filter
+   * modal's "Áp dụng" flow.
+   */
+  category?: RestaurantCategoryCode;
 }
 
 /**
@@ -20,9 +27,9 @@ interface UseRestaurantSearchParams {
  * filter surface (build-prompts/04), so one `useInfiniteQuery` covers both
  * with a manual "load more on scroll end" pagination model.
  */
-export function useRestaurantSearch({ query, filters, location, enabled = true }: UseRestaurantSearchParams) {
+export function useRestaurantSearch({ query, filters, location, enabled = true, category }: UseRestaurantSearchParams) {
   return useInfiniteQuery<SearchResultsResponse>({
-    queryKey: ['restaurantSearch', query ?? null, filters, location?.latitude, location?.longitude],
+    queryKey: ['restaurantSearch', query ?? null, filters, location?.latitude, location?.longitude, category ?? null],
     queryFn: ({ pageParam }) => {
       const base = {
         lat: location?.latitude,
@@ -34,6 +41,9 @@ export function useRestaurantSearch({ query, filters, location, enabled = true }
         openNow: filters.openNow,
         facilities: filters.facilities,
         cuisine: filters.cuisine,
+        category,
+        province: filters.province,
+        ward: filters.ward,
         page: pageParam as number,
         pageSize: PAGE_SIZE,
       };

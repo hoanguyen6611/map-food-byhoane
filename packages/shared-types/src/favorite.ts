@@ -3,6 +3,7 @@ import type { PriceRangeDto, RestaurantCategoryCode } from './restaurant';
 
 export interface FavoriteRestaurantSummaryDto {
   id: string;
+  slug: string;
   name: string;
   categoryCode: RestaurantCategoryCode;
   thumbnailUrl: string | null;

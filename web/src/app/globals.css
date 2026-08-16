@@ -1,14 +1,21 @@
 :root {
-  --color-primary: #e4572e;
-  --color-primary-dark: #c24a27;
+  /* Warm, cheerful orange + soft dark-gray text + larger radius — a
+     ShopeeFood/Baemin-adjacent refresh (kept the same brand hue family for
+     continuity). A first pass tried a colder near-black/hot-red TikTok/
+     Instagram look; this lands warmer/friendlier instead. Contrast-checked
+     against WCAG AA: --color-primary-dark clears 5.60:1 on white / 4.50:1 on
+     the tinted thumbnail background used in .restaurant-card .thumb. */
+  --color-primary: #f4511e;
+  --color-primary-dark: #bf360c;
+  --color-primary-surface: #ffe0d6;
   --color-bg: #ffffff;
   --color-bg-alt: #f7f7f7;
   --color-surface: #ffffff;
   --color-border: #e0e0e0;
-  --color-text: #222222;
-  --color-text-secondary: #666666;
-  --color-text-tertiary: #808080;
-  --radius: 12px;
+  --color-text: #2b2b2b;
+  --color-text-secondary: #5f5b57;
+  --color-text-tertiary: #8a857e;
+  --radius: 18px;
   --max-width: 1080px;
 }
 
@@ -83,9 +90,32 @@ select:focus-visible {
 }
 .site-header nav {
   display: flex;
+  align-items: center;
   gap: 20px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.lang-switcher {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px;
+}
+.lang-switcher button {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.lang-switcher button.lang-active {
+  background: var(--color-primary);
+  color: #fff;
 }
 
 .site-footer {
@@ -107,8 +137,9 @@ select:focus-visible {
   text-align: center;
 }
 .hero h1 {
-  font-size: 34px;
-  font-weight: 800;
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   margin: 0 0 12px;
 }
 .hero p {
@@ -302,14 +333,47 @@ select:focus-visible {
   text-decoration: none;
 }
 .restaurant-card .thumb {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
-  background: #fde8e0;
+  background: var(--color-primary-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40px;
   overflow: hidden;
+}
+
+.favorite-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.favorite-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.favorite-button-active {
+  color: var(--color-primary);
+}
+.detail-header .favorite-button {
+  position: static;
+  width: 40px;
+  height: 40px;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
 }
 .restaurant-card .thumb img {
   width: 100%;
@@ -504,4 +568,70 @@ table.menu-table td.price {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* ---------- Auth (login) ---------- */
+
+.page-login {
+  max-width: 360px;
+  margin: 15vh auto 0;
+  text-align: center;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+  text-align: left;
+}
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.login-field input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.login-error {
+  margin: 12px 0 0;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+}
+.login-submit {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-primary);
+  cursor: pointer;
+}
+.login-submit:hover {
+  filter: brightness(0.95);
+}
+
+.auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.auth-signout-button {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+  cursor: pointer;
 }

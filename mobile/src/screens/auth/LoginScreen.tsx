@@ -11,19 +11,15 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
-
-// TODO(later module): Google / Apple native sign-in buttons per screen spec
-// (docs/04-screen-list.md #4) — out of scope for Module 2, backend OAuth
-// endpoints already exist (`/auth/oauth/google`, `/auth/oauth/apple`).
+import { SocialLoginButtons } from '../../components/SocialLoginButtons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
-
-const GENERIC_LOGIN_ERROR = 'Email hoặc mật khẩu không đúng.';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -36,6 +32,7 @@ export function LoginScreen({ navigation }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   const canSubmit = isValidEmail(email) && password.length > 0 && !isSubmitting;
@@ -56,9 +53,9 @@ export function LoginScreen({ navigation }: Props) {
       if (error instanceof ApiError && error.status === 401) {
         // Never distinguish "no such user" vs "wrong password" per the API
         // contract — always show the same generic message.
-        setErrorMessage(GENERIC_LOGIN_ERROR);
+        setErrorMessage(t('auth.genericLoginError'));
       } else {
-        setErrorMessage('Lỗi mạng, vui lòng thử lại.');
+        setErrorMessage(t('auth.networkError'));
       }
     } finally {
       setIsSubmitting(false);
@@ -71,7 +68,7 @@ export function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Đăng nhập</Text>
+        <Text style={styles.title}>{t('auth.loginTitle')}</Text>
 
         {errorMessage ? (
           <View style={styles.errorBanner} accessibilityRole="alert">
@@ -79,7 +76,7 @@ export function LoginScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('auth.email')}</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -90,10 +87,10 @@ export function LoginScreen({ navigation }: Props) {
           textContentType="emailAddress"
           placeholder="ban@example.com"
           placeholderTextColor={colors.textTertiary}
-          accessibilityLabel="Email"
+          accessibilityLabel={t('auth.email')}
         />
 
-        <Text style={styles.label}>Mật khẩu</Text>
+        <Text style={styles.label}>{t('auth.password')}</Text>
         <TextInput
           style={styles.input}
           value={password}
@@ -102,7 +99,7 @@ export function LoginScreen({ navigation }: Props) {
           textContentType="password"
           placeholder="••••••••"
           placeholderTextColor={colors.textTertiary}
-          accessibilityLabel="Mật khẩu"
+          accessibilityLabel={t('auth.password')}
         />
 
         <Pressable
@@ -113,16 +110,21 @@ export function LoginScreen({ navigation }: Props) {
           {isSubmitting ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
-            <Text style={styles.buttonText}>Đăng nhập</Text>
+            <Text style={styles.buttonText}>{t('auth.loginTitle')}</Text>
           )}
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.linkRow}>
-          <Text style={styles.link}>Quên mật khẩu?</Text>
+          <Text style={styles.link}>{t('auth.forgotPasswordLink')}</Text>
         </Pressable>
 
+        <SocialLoginButtons
+          onSuccess={(response) => setSession(response.user, response.accessToken, response.refreshToken)}
+          onError={setErrorMessage}
+        />
+
         <Pressable onPress={() => navigation.navigate('Register')} style={styles.linkRow}>
-          <Text style={styles.link}>Chưa có tài khoản? Đăng ký</Text>
+          <Text style={styles.link}>{t('auth.noAccountLink')}</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -138,7 +140,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginBottom: 16,
@@ -148,7 +150,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 8,
@@ -161,7 +163,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.errorBg,
       borderColor: colors.errorBorder,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 12,
       marginBottom: 16,
     },

@@ -24,6 +24,12 @@ describe('Report (e2e)', () => {
   });
 
   afterAll(async () => {
+    // ReportService.create() now routes reports into the moderation queue
+    // (ModerationResult rows) — this spec runs against the real shared dev
+    // DB (not an ephemeral test DB) and reuses one real seeded restaurant
+    // across every test case, so clean up whatever got created against it
+    // rather than leaving stray pending queue entries behind permanently.
+    await prisma.moderationResult.deleteMany({ where: { targetType: 'restaurant', targetId: seededRestaurantId } });
     await app.close();
   });
 
@@ -107,6 +113,41 @@ describe('Report (e2e)', () => {
     expect(resolved.status).toBe('resolved');
     expect(resolved.resolvedBy).not.toBeNull();
     expect(resolved.resolvedAt).not.toBeNull();
+  });
+
+  it('routes a report into the moderation queue (creates a pending ModerationResult), and a second report reuses it instead of duplicating', async () => {
+    const { token: reporterA } = await registerUser('report-queue-a');
+    const { token: reporterB } = await registerUser('report-queue-b');
+    const { token: moderatorToken } = await registerModerator('report-queue-mod');
+
+    await request(app.getHttpServer())
+      .post('/reports')
+      .set('Authorization', `Bearer ${reporterA}`)
+      .send({ targetType: 'restaurant', targetId: seededRestaurantId, reason: 'inappropriate' })
+      .expect(201);
+
+    const queueRes = await request(app.getHttpServer())
+      .get('/admin/moderation-queue')
+      .query({ targetType: 'restaurant', decision: 'pending' })
+      .set('Authorization', `Bearer ${moderatorToken}`)
+      .expect(200);
+    const queueItems = (queueRes.body as { items: { targetId: string; relatedReports: unknown[] }[] }).items;
+    const queueItem = queueItems.find((item) => item.targetId === seededRestaurantId);
+    expect(queueItem).toBeDefined();
+    expect(queueItem!.relatedReports.length).toBeGreaterThanOrEqual(1);
+
+    // A second report against the same still-pending target must not create
+    // a duplicate ModerationResult — it should surface via the existing
+    // entry's relatedReports instead.
+    await request(app.getHttpServer())
+      .post('/reports')
+      .set('Authorization', `Bearer ${reporterB}`)
+      .send({ targetType: 'restaurant', targetId: seededRestaurantId, reason: 'spam' })
+      .expect(201);
+    const resultCount = await prisma.moderationResult.count({
+      where: { targetType: 'restaurant', targetId: seededRestaurantId, decision: 'pending' },
+    });
+    expect(resultCount).toBe(1);
   });
 
   it('blocks a plain user from resolving a report', async () => {

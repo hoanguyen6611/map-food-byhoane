@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CreateReviewRequest, ReviewCriteriaCode } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
@@ -21,6 +22,7 @@ import { PhotoUploadGrid } from '../../components/media/PhotoUploadGrid';
 import { ApiError } from '../../api/client';
 import { REVIEW_CRITERIA_LABELS, REVIEW_CRITERIA_ORDER } from '../../lib/reviewLabels';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 const MAX_REVIEW_PHOTOS = 6;
 
@@ -59,6 +61,7 @@ function StarPicker({
   /** e.g. "Đánh giá chung" / "Chất lượng món ăn" — announced as part of each star's label. */
   accessibilityLabelPrefix: string;
 }) {
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   return (
     <View style={styles.starPickerRow} accessibilityRole="adjustable" accessibilityValue={{ min: 0, max: 5, now: value }}>
@@ -68,10 +71,10 @@ function StarPicker({
           onPress={() => onChange(n)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`${accessibilityLabelPrefix}: ${n} sao`}
+          accessibilityLabel={t('writeReview.starAccessibilityLabel', { prefix: accessibilityLabelPrefix, n })}
           accessibilityState={{ selected: n <= value }}
         >
-          <Ionicons name={n <= value ? 'star' : 'star-outline'} size={size} color={colors.primary} />
+          <Ionicons name={n <= value ? 'star' : 'star-outline'} size={size} color={colors.star} />
         </Pressable>
       ))}
     </View>
@@ -90,6 +93,7 @@ function StarPicker({
  * plain "chọn ngày khác" YYYY-MM-DD text input fallback instead.
  */
 export function WriteReviewScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { restaurantId } = route.params;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const createReview = useCreateReview(restaurantId);
@@ -165,26 +169,24 @@ export function WriteReviewScreen({ route, navigation }: Props) {
     createReview.mutate(body, {
       onSuccess: (dto) => {
         Alert.alert(
-          dto.status === 'published' ? 'Đã đăng' : 'Đang chờ duyệt',
-          dto.status === 'published'
-            ? 'Đánh giá của bạn đã được đăng.'
-            : 'Đánh giá của bạn đang chờ duyệt trước khi hiển thị công khai.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }],
+          dto.status === 'published' ? t('writeReview.publishedTitle') : t('writeReview.pendingTitle'),
+          dto.status === 'published' ? t('writeReview.publishedBody') : t('writeReview.pendingBody'),
+          [{ text: t('common.ok'), onPress: () => navigation.goBack() }],
         );
       },
       onError: (error) => {
         if (error instanceof ApiError && error.status === 409) {
-          Alert.alert('Không thể gửi đánh giá', 'Bạn đã đánh giá quán này gần đây');
+          Alert.alert(t('writeReview.duplicateTitle'), t('writeReview.duplicateBody'));
           return;
         }
         if (error instanceof ApiError && error.status === 400) {
           const message = Array.isArray(error.body?.message)
             ? error.body!.message.join('\n')
-            : error.body?.message ?? 'Dữ liệu không hợp lệ.';
+            : error.body?.message ?? t('writeReview.invalidData');
           setFormError(message);
           return;
         }
-        setFormError('Không thể gửi đánh giá. Vui lòng thử lại.');
+        setFormError(t('writeReview.submitError'));
       },
     });
   }
@@ -198,7 +200,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
     return (
       <AuthGateModal
         visible
-        message="Đăng nhập để viết đánh giá."
+        message={t('reviews.authGateMessage')}
         onDismiss={() => navigation.goBack()}
         onLoginPress={() => navigation.goBack()}
         onRegisterPress={() => navigation.goBack()}
@@ -212,16 +214,16 @@ export function WriteReviewScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Đánh giá chung *</Text>
+        <Text style={styles.sectionTitle}>{t('writeReview.overallRatingLabel')}</Text>
         <StarPicker
           value={overallRating}
           onChange={setOverallRating}
           colors={colors}
-          accessibilityLabelPrefix="Đánh giá chung"
+          accessibilityLabelPrefix={t('writeReview.overallRatingPrefix')}
         />
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Đánh giá theo tiêu chí *</Text>
-        <Text style={styles.hint}>Chọn ít nhất 1 tiêu chí. Nhấn lại vào sao đã chọn để bỏ qua.</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.criteriaLabel')}</Text>
+        <Text style={styles.hint}>{t('writeReview.criteriaHint')}</Text>
         {REVIEW_CRITERIA_ORDER.map((code) => (
           <View key={code} style={styles.criteriaRow}>
             <Text style={styles.criteriaLabel}>{REVIEW_CRITERIA_LABELS[code]}</Text>
@@ -235,12 +237,12 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           </View>
         ))}
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Nhận xét</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.commentLabel')}</Text>
         <TextInput
           style={styles.textarea}
           multiline
           maxLength={COMMENT_MAX_LENGTH}
-          placeholder="Chia sẻ trải nghiệm của bạn..."
+          placeholder={t('writeReview.commentPlaceholder')}
           placeholderTextColor={colors.textTertiary}
           value={comment}
           onChangeText={setComment}
@@ -249,11 +251,11 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           {comment.length}/{COMMENT_MAX_LENGTH}
         </Text>
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Món đã gọi</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.dishesLabel')}</Text>
         <View style={styles.dishInputRow}>
           <TextInput
             style={styles.dishInput}
-            placeholder="Tên món..."
+            placeholder={t('writeReview.dishPlaceholder')}
             placeholderTextColor={colors.textTertiary}
             value={dishInput}
             onChangeText={setDishInput}
@@ -261,7 +263,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
             returnKeyType="done"
           />
           <Pressable style={styles.addDishButton} onPress={handleAddDish}>
-            <Text style={styles.addDishButtonText}>Thêm</Text>
+            <Text style={styles.addDishButtonText}>{t('writeReview.addButton')}</Text>
           </Pressable>
         </View>
         {dishesOrdered.length > 0 ? (
@@ -272,7 +274,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
                 style={styles.tag}
                 onPress={() => handleRemoveDish(dish)}
                 accessibilityRole="button"
-                accessibilityLabel={`Xoá món ${dish}`}
+                accessibilityLabel={t('writeReview.removeDishAccessibilityLabel', { dish })}
               >
                 <Text style={styles.tagText}>{dish}</Text>
                 <Ionicons name="close" size={12} color={colors.textSecondary} />
@@ -281,7 +283,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Tổng hóa đơn (₫)</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.billLabel')}</Text>
         <TextInput
           style={styles.input}
           keyboardType="number-pad"
@@ -291,7 +293,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           onChangeText={handleBillChange}
         />
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Số người</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.partySizeLabel')}</Text>
         <View style={styles.stepperRow}>
           <Pressable
             style={styles.stepperButton}
@@ -305,7 +307,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Ngày ghé quán</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.visitedAtLabel')}</Text>
         <View style={styles.chipsRow}>
           <Pressable
             style={[styles.chip, visitedAt === todayIso() ? styles.chipActive : null]}
@@ -315,7 +317,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
             }}
           >
             <Text style={[styles.chipText, visitedAt === todayIso() ? styles.chipTextActive : null]}>
-              Hôm nay
+              {t('writeReview.today')}
             </Text>
           </Pressable>
           <Pressable
@@ -326,14 +328,14 @@ export function WriteReviewScreen({ route, navigation }: Props) {
             }}
           >
             <Text style={[styles.chipText, visitedAt === yesterdayIso() ? styles.chipTextActive : null]}>
-              Hôm qua
+              {t('writeReview.yesterday')}
             </Text>
           </Pressable>
           <Pressable
             style={[styles.chip, showCustomDate ? styles.chipActive : null]}
             onPress={() => setShowCustomDate(true)}
           >
-            <Text style={[styles.chipText, showCustomDate ? styles.chipTextActive : null]}>Chọn ngày khác</Text>
+            <Text style={[styles.chipText, showCustomDate ? styles.chipTextActive : null]}>{t('writeReview.chooseOtherDate')}</Text>
           </Pressable>
         </View>
         {showCustomDate ? (
@@ -349,7 +351,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           />
         ) : null}
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Thời gian chờ (phút)</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.waitTimeLabel')}</Text>
         <TextInput
           style={styles.input}
           keyboardType="number-pad"
@@ -359,23 +361,23 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           onChangeText={(text) => setWaitTimeMinutes(text.replace(/[^0-9]/g, ''))}
         />
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Bạn có quay lại không?</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.wouldReturnLabel')}</Text>
         <View style={styles.chipsRow}>
           <Pressable
             style={[styles.chip, wouldReturn === true ? styles.chipActive : null]}
             onPress={() => setWouldReturn((prev) => (prev === true ? null : true))}
           >
-            <Text style={[styles.chipText, wouldReturn === true ? styles.chipTextActive : null]}>Có</Text>
+            <Text style={[styles.chipText, wouldReturn === true ? styles.chipTextActive : null]}>{t('writeReview.yes')}</Text>
           </Pressable>
           <Pressable
             style={[styles.chip, wouldReturn === false ? styles.chipActive : null]}
             onPress={() => setWouldReturn((prev) => (prev === false ? null : false))}
           >
-            <Text style={[styles.chipText, wouldReturn === false ? styles.chipTextActive : null]}>Không</Text>
+            <Text style={[styles.chipText, wouldReturn === false ? styles.chipTextActive : null]}>{t('writeReview.no')}</Text>
           </Pressable>
         </View>
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Ảnh</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('writeReview.photosLabel')}</Text>
         <PhotoUploadGrid ownerType="review" maxPhotos={MAX_REVIEW_PHOTOS} onPhotoIdsChange={setPhotoIds} />
 
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
@@ -386,7 +388,7 @@ export function WriteReviewScreen({ route, navigation }: Props) {
           disabled={!canSubmit}
         >
           <Text style={styles.submitButtonText}>
-            {createReview.isPending ? 'Đang gửi...' : 'Gửi đánh giá'}
+            {createReview.isPending ? t('addRestaurant.submitting') : t('writeReview.submitButton')}
           </Text>
         </Pressable>
       </ScrollView>
@@ -399,9 +401,9 @@ const createStyles = (colors: ThemeColors) =>
     flex: { flex: 1 },
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, paddingBottom: 48 },
-    sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+    sectionTitle: { fontSize: 15, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary },
     sectionTitleSpaced: { marginTop: 20, marginBottom: 4 },
-    hint: { fontSize: 12, color: colors.textTertiary, marginBottom: 8 },
+    hint: { fontSize: 12, color: colors.textTertiary, marginBottom: 8, fontFamily: FONT_FAMILY.meta },
     starPickerRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
     criteriaRow: {
       flexDirection: 'row',
@@ -411,80 +413,87 @@ const createStyles = (colors: ThemeColors) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.divider,
     },
-    criteriaLabel: { fontSize: 13, color: colors.textPrimary },
+    criteriaLabel: { fontSize: 13, color: colors.textPrimary, fontFamily: FONT_FAMILY.body },
     textarea: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 16,
       padding: 10,
       minHeight: 90,
       textAlignVertical: 'top',
       fontSize: 14,
       color: colors.textPrimary,
       backgroundColor: colors.surface,
+      fontFamily: FONT_FAMILY.body,
     },
-    counterText: { fontSize: 11, color: colors.textTertiary, textAlign: 'right', marginTop: 4 },
+    counterText: { fontSize: 11, color: colors.textTertiary, textAlign: 'right', marginTop: 4, fontFamily: FONT_FAMILY.meta },
     dishInputRow: { flexDirection: 'row', gap: 8 },
     dishInput: {
       flex: 1,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 16,
       paddingHorizontal: 10,
       paddingVertical: 8,
       fontSize: 14,
       color: colors.textPrimary,
       backgroundColor: colors.surface,
+      fontFamily: FONT_FAMILY.body,
     },
     addDishButton: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 999,
       paddingHorizontal: 16,
       justifyContent: 'center',
     },
-    // 14pt, not 13 — see RestaurantDetailScreen's actionButtonText for why
-    // onPrimary-on-primary needs the 14pt-bold WCAG AA large-text threshold.
-    addDishButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
+    addDishButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 14 },
     tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
     tag: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       backgroundColor: colors.surfaceAlt,
-      borderRadius: 6,
+      borderRadius: 999,
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
-    tagText: { fontSize: 12, color: colors.textSecondary },
+    tagText: { fontSize: 12, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 16,
       paddingHorizontal: 10,
       paddingVertical: 8,
       fontSize: 14,
       color: colors.textPrimary,
       backgroundColor: colors.surface,
+      fontFamily: FONT_FAMILY.body,
     },
     stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     stepperButton: {
       width: 34,
       height: 34,
-      borderRadius: 17,
+      borderRadius: 999,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    stepperValue: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, minWidth: 24, textAlign: 'center' },
+    stepperValue: {
+      fontSize: 16,
+      fontFamily: FONT_FAMILY.bodyBold,
+      color: colors.textPrimary,
+      minWidth: 24,
+      textAlign: 'center',
+    },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.surfaceAlt },
+    chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.surfaceAlt },
     chipActive: { backgroundColor: colors.primary },
-    chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+    chipText: { fontSize: 12, color: colors.textSecondary, fontFamily: FONT_FAMILY.bodySemiBold },
     chipTextActive: { color: colors.onPrimary },
-    formError: { color: colors.error, fontSize: 13, marginTop: 16, textAlign: 'center' },
+    formError: { color: colors.error, fontSize: 13, marginTop: 16, textAlign: 'center', fontFamily: FONT_FAMILY.body },
     submitButton: {
       backgroundColor: colors.primary,
-      borderRadius: 10,
+      borderRadius: 999,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 20,
@@ -493,5 +502,5 @@ const createStyles = (colors: ThemeColors) =>
     // (Login/Register/EditProfile's `buttonDisabled`) rather than a
     // hand-picked lighter hex, so it stays correct in both themes for free.
     submitButtonDisabled: { opacity: 0.5 },
-    submitButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+    submitButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 15 },
   });

@@ -1,16 +1,11 @@
 import type { ModerationCheckResult } from '../review/review-moderation.service';
 
 /**
- * Provider-agnostic AI Gateway contract (docs/05-system-architecture.md §4).
- * NO IMPLEMENTATION OF THIS INTERFACE EXISTS YET — the real Claude adapter
- * is out of scope for this pass (see docs/build-prompts/07's exclusion
- * note). `ReviewModerationService` and `ContributionModerationService` are
- * rule-based stand-ins that satisfy only the *shape* of `moderate()`'s
- * return type (`ModerationCheckResult`), not this `AIGateway` contract
- * itself — they don't implement this interface, and nothing in the app
- * currently depends on it. This file exists so the intended real contract
- * is documented and reviewable now, and so a future Claude adapter has an
- * exact shape to implement against without redesigning callers.
+ * Provider-agnostic AI Gateway contract (docs/05-system-architecture.md §4),
+ * implemented by `ClaudeGatewayService`. `ReviewModerationService`,
+ * `ContributionModerationService`, and `PhotoModerationService` each call
+ * `moderate()` and layer their own structural signals (rapid-fire posting,
+ * abnormal pricing) on top of Claude's text/image risk signal.
  */
 export interface ModerateContentInput {
   text: string | null;
@@ -35,13 +30,12 @@ export interface AISummaryResult {
 export interface AIGateway {
   /**
    * Real content screening (profanity/hate/harassment, disguised ads,
-   * malicious links, duplicate/copied content, bot-like patterns,
-   * irrelevant/violating images, abnormal pricing, fake-restaurant-info
-   * signals — docs/01-prd-mvp.md §7). The rule-based stand-ins only cover a
-   * small text-heuristic subset of this (URL/spam-phrase/all-caps/repeated-
-   * char patterns, rapid-fire posting, abnormal menu pricing) — image
-   * content screening in particular has NO stand-in and is the largest gap
-   * versus this method's intended scope.
+   * malicious links, irrelevant/violating images, abnormal pricing,
+   * fake-restaurant-info signals — docs/01-prd-mvp.md §7). `imageUrls`, when
+   * present, are fetched and sent as real vision input to Claude (see
+   * ClaudeGatewayService.moderate's doc comment) — when no `ANTHROPIC_API_KEY`
+   * is configured, text falls back to a rule-based heuristic but images have
+   * no equivalent and are held for manual review instead.
    */
   moderate(content: ModerateContentInput): Promise<ModerationCheckResult>;
 

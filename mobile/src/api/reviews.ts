@@ -1,4 +1,11 @@
-import type { CreateReviewRequest, ReviewDto, ReviewListResponse, ReviewSort, UpdateReviewRequest } from '@foodmap/shared-types';
+import type {
+  CreateReviewRequest,
+  MyReviewListResponse,
+  ReviewDto,
+  ReviewListResponse,
+  ReviewSort,
+  UpdateReviewRequest,
+} from '@foodmap/shared-types';
 import { apiClient } from './client';
 
 export interface ReviewListParams {
@@ -32,4 +39,12 @@ export const reviewsApi = {
   update: (id: string, body: UpdateReviewRequest) => apiClient.patch<ReviewDto>(`/reviews/${id}`, body),
 
   remove: (id: string) => apiClient.delete<void>(`/reviews/${id}`),
+
+  listMine: (params: { page?: number; pageSize?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.set('page', String(params.page));
+    if (params.pageSize !== undefined) query.set('pageSize', String(params.pageSize));
+    const qs = query.toString();
+    return apiClient.get<MyReviewListResponse>(`/me/reviews${qs ? `?${qs}` : ''}`);
+  },
 };

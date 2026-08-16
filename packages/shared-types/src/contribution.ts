@@ -2,7 +2,7 @@
 // ContributionModule — the community submission flow (add restaurant, edit
 // suggestions, status reports). Moderation is the rule-based stand-in
 // (ContributionModerationService), not a real AIGateway call this pass.
-import type { AddressDto, LocationDto, OpeningHourDto } from './restaurant-detail';
+import type { LocationDto, OpeningHourDto } from './restaurant-detail';
 import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from './restaurant';
 
 export type ContributionType = 'new_restaurant' | 'edit_suggestion' | 'status_update' | 'closure_report';
@@ -33,13 +33,24 @@ export interface MenuItemInputDto {
   isPopular?: boolean;
 }
 
+// District was dropped from Vietnam's administrative hierarchy in 2025 —
+// new address submissions only collect line/ward/province (ward is now
+// mandatory, unlike the legacy AddressDto's nullable `ward`). This is
+// intentionally its own type rather than `Omit<AddressDto, ...>` since the
+// request/response shapes have diverged (no district, ward required).
+export interface CreateRestaurantAddressInput {
+  line: string;
+  ward: string;
+  province: string;
+}
+
 export interface CreateRestaurantContributionRequest {
   name: string;
   description?: string;
   categoryCode: RestaurantCategoryCode;
   priceRangeCode?: PriceRangeCode;
   phone?: string;
-  address: Omit<AddressDto, 'fullAddressText'>;
+  address: CreateRestaurantAddressInput;
   location: LocationDto;
   cuisineCodes?: CuisineCode[];
   openingHours?: OpeningHourDto[];

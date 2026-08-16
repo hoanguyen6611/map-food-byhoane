@@ -38,6 +38,7 @@ datasource db {
 enum OAuthProvider {
   google
   apple
+  facebook
   none
 }
 
@@ -111,6 +112,7 @@ model User {
   moderationDecisions  ModerationResult[] @relation("ModerationDecidedBy")
   favorites            Favorite[]
   notifications        Notification[]
+  pushTokens           PushToken[]
   contributions        Contribution[]
   reportsFiled         Report[]             @relation("ReportedBy")
   reportsResolved      Report[]             @relation("ReportResolvedBy")
@@ -238,6 +240,10 @@ model Dish {
   aliasKeywords String[]    @map("alias_keywords")
   menuItems     MenuItem[]
 
+  // Dish is a curated/admin-managed catalog (not user-creatable, per
+  // docs/06-database-erd.md) — a unique name enables find-or-create
+  // (upsert) seeding/linking instead of accumulating accidental duplicates.
+  @@unique([name])
   @@map("dishes")
 }
 
@@ -434,6 +440,12 @@ enum PhotoOwnerType {
 // re-parented by the owning create-endpoint via a `photoIds` field once the
 // parent is created (see MediaService.reparent). Unattached photos older
 // than 24h are swept by a background job (MediaService.sweepOrphans).
+enum PhotoStatus {
+  pending
+  approved
+  rejected
+}
+
 model Photo {
   id                 String            @id @default(uuid())
   ownerType          PhotoOwnerType    @map("owner_type")
@@ -446,6 +458,13 @@ model Photo {
   height             Int?
   mimeType           String?           @map("mime_type")
   fileSizeBytes      Int?              @map("file_size_bytes")
+  // Gates PUBLIC visibility (see restaurant/review photo queries, which
+  // filter `status: approved`) — admin-attached photos (admin/photo.service.ts)
+  // set this to `approved` directly at creation (admin-curated, never run
+  // through user moderation); user-uploaded photos (MediaService.confirm)
+  // default to `pending` and get moderated synchronously before the caller
+  // ever sees the response, same pattern as Review.status.
+  status             PhotoStatus       @default(pending)
   moderationResultId String?           @map("moderation_result_id")
   moderationResult   ModerationResult? @relation(fields: [moderationResultId], references: [id])
   createdAt          DateTime          @default(now()) @map("created_at")
@@ -528,6 +547,11 @@ enum ModerationTargetType {
   contribution
   photo
   video
+  // Reports against an already-published restaurant have nowhere else to
+  // route (ReportTargetType includes 'restaurant' but this enum originally
+  // didn't) — added as a gap-fix so ReportService can create a queue-visible
+  // ModerationResult for restaurant reports the same way it does for reviews.
+  restaurant
 }
 
 enum ModerationRecommendedAction {
@@ -822,6 +846,27 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+enum PushPlatform {
+  ios
+  android
+}
+
+// One row per registered device, not a single column on User — a user can
+// be signed in on more than one device, and each needs its own Expo push
+// token that outlives/independent of the others (e.g. one device logs out
+// without affecting push delivery to the rest).
+model PushToken {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String       @unique
+  platform  PushPlatform
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 // ---------- System (docs/06-database-erd.md §10) ----------

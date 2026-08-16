@@ -15,6 +15,10 @@ export interface FilterValues {
   openNow?: boolean;
   facilities: FacilityType[];
   cuisine: CuisineCode[];
+  /** Official province/ward name (see vn-address.ts) — exact-matched server-side. */
+  province?: string;
+  /** Only meaningful alongside `province`; cleared whenever `province` changes. */
+  ward?: string;
 }
 
 const DEFAULT_FILTERS: FilterValues = {
@@ -25,6 +29,8 @@ const DEFAULT_FILTERS: FilterValues = {
   openNow: undefined,
   facilities: [],
   cuisine: [],
+  province: undefined,
+  ward: undefined,
 };
 
 interface FilterState extends FilterValues {
@@ -59,6 +65,8 @@ export function getFilterValues(state: FilterState): FilterValues {
     openNow: state.openNow,
     facilities: state.facilities,
     cuisine: state.cuisine,
+    province: state.province,
+    ward: state.ward,
   };
 }
 
@@ -71,5 +79,6 @@ export function countActiveFilters(filters: FilterValues): number {
   if (filters.openNow) count += 1;
   if (filters.facilities.length > 0) count += 1;
   if (filters.cuisine.length > 0) count += 1;
+  if (filters.province) count += 1;
   return count;
 }

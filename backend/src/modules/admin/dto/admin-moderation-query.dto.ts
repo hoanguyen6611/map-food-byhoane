@@ -2,7 +2,7 @@ import { Type } from 'class-transformer';
 import { IsIn, IsOptional, Max, Min } from 'class-validator';
 import type { ModerationDecision, ModerationTargetType } from '@foodmap/shared-types';
 
-const TARGET_TYPES: ModerationTargetType[] = ['review', 'contribution', 'photo', 'video'];
+const TARGET_TYPES: ModerationTargetType[] = ['review', 'contribution', 'photo', 'video', 'restaurant'];
 const DECISIONS: ModerationDecision[] = ['pending', 'approved', 'rejected', 'edit_requested'];
 
 export class AdminModerationQueryDto {

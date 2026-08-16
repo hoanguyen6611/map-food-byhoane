@@ -10,6 +10,7 @@ import type {
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { NotificationService } from '../src/modules/notification/notification.service';
 
 // Covers docs/02-user-stories.md Epic H (US-H1-H2) and the Notification half
 // of the Definition of Done in
@@ -19,6 +20,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Favorites & Notifications (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+  let notificationService: NotificationService;
   let seededRestaurantId: string;
 
   beforeAll(async () => {
@@ -36,6 +38,7 @@ describe('Favorites & Notifications (e2e)', () => {
     );
     await app.init();
     prisma = moduleFixture.get(PrismaService);
+    notificationService = moduleFixture.get(NotificationService);
 
     const restaurant = await prisma.restaurant.findFirst({
       where: { deletedAt: null, status: { publicationStatus: 'published' } },
@@ -210,6 +213,118 @@ describe('Favorites & Notifications (e2e)', () => {
       expect((listAfter.body as NotificationListResponse).unreadCount).toBe(0);
 
       await prisma.notification.delete({ where: { id: notification.id } });
+    });
+  });
+
+  describe('Push tokens', () => {
+    const fakeToken = (label: string) => `ExponentPushToken[${label}-${Date.now()}-${Math.random().toString(36).slice(2)}]`;
+
+    it('rejects unauthenticated requests', async () => {
+      await request(app.getHttpServer()).post('/me/push-tokens').send({ token: 'x', platform: 'ios' }).expect(401);
+      await request(app.getHttpServer()).delete('/me/push-tokens/x').expect(401);
+    });
+
+    it('registers a token, and re-registering it is idempotent (no duplicate rows)', async () => {
+      const { token: authToken, userId } = await registerUser('push-register');
+      const pushToken = fakeToken('reg');
+
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ token: pushToken, platform: 'ios' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ token: pushToken, platform: 'ios' })
+        .expect(201);
+
+      const count = await prisma.pushToken.count({ where: { userId, token: pushToken } });
+      expect(count).toBe(1);
+
+      await prisma.pushToken.deleteMany({ where: { userId } });
+    });
+
+    it('re-registering an existing token under a different user re-points it, not duplicates it', async () => {
+      const userA = await registerUser('push-repoint-a');
+      const userB = await registerUser('push-repoint-b');
+      const pushToken = fakeToken('repoint');
+
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .set('Authorization', `Bearer ${userA.token}`)
+        .send({ token: pushToken, platform: 'ios' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .set('Authorization', `Bearer ${userB.token}`)
+        .send({ token: pushToken, platform: 'android' })
+        .expect(201);
+
+      const rows = await prisma.pushToken.findMany({ where: { token: pushToken } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].userId).toBe(userB.userId);
+      expect(rows[0].platform).toBe('android');
+
+      await prisma.pushToken.deleteMany({ where: { token: pushToken } });
+    });
+
+    it('unregisters idempotently and only removes the caller-owned token', async () => {
+      const owner = await registerUser('push-unreg-owner');
+      const stranger = await registerUser('push-unreg-stranger');
+      const pushToken = fakeToken('unreg');
+
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .set('Authorization', `Bearer ${owner.token}`)
+        .send({ token: pushToken, platform: 'ios' })
+        .expect(201);
+
+      // A stranger deleting someone else's token is a no-op, not an error —
+      // and must not actually remove it.
+      await request(app.getHttpServer())
+        .delete(`/me/push-tokens/${encodeURIComponent(pushToken)}`)
+        .set('Authorization', `Bearer ${stranger.token}`)
+        .expect(200);
+      expect(await prisma.pushToken.count({ where: { token: pushToken } })).toBe(1);
+
+      await request(app.getHttpServer())
+        .delete(`/me/push-tokens/${encodeURIComponent(pushToken)}`)
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200);
+      expect(await prisma.pushToken.count({ where: { token: pushToken } })).toBe(0);
+
+      // Unregistering again (already gone) must not error either.
+      await request(app.getHttpServer())
+        .delete(`/me/push-tokens/${encodeURIComponent(pushToken)}`)
+        .set('Authorization', `Bearer ${owner.token}`)
+        .expect(200);
+    });
+
+    // Exercises NotificationService.create()'s resilience contract: a
+    // malformed/unrecognized token (something that slipped into the table
+    // without going through Expo's own format) must never make notification
+    // creation throw — PushDeliveryService filters it out via
+    // Expo.isExpoPushToken() before ever attempting a network call.
+    it('creating a notification for a user with a malformed push token still succeeds', async () => {
+      const { userId } = await registerUser('push-resilience');
+      await prisma.pushToken.create({
+        data: { userId, token: 'not-a-real-expo-token', platform: 'ios' },
+      });
+
+      await expect(
+        notificationService.create(userId, 'moderation_result', {
+          title: 'Test',
+          body: 'Test body',
+          deepLink: { screen: 'Reviews', restaurantId: seededRestaurantId },
+        }),
+      ).resolves.toBeUndefined();
+
+      const count = await prisma.notification.count({ where: { userId } });
+      expect(count).toBe(1);
+
+      await prisma.pushToken.deleteMany({ where: { userId } });
+      await prisma.notification.deleteMany({ where: { userId } });
     });
   });
 });

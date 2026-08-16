@@ -26,6 +26,10 @@ export class AdminRestaurantQueryDto {
 
   @IsOptional()
   @IsString()
+  ward?: string;
+
+  @IsOptional()
+  @IsString()
   search?: string;
 
   @IsOptional()

@@ -8,10 +8,11 @@
  * of the way until an admin actually opens a restaurant.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { RestaurantPublicationStatus } from '@foodmap/shared-types'
+import { VN_PROVINCES } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminRestaurantsApi } from '../api/admin-restaurants'
 import { useAuth } from '../auth/AuthContext'
@@ -28,6 +29,13 @@ export function AdminRestaurantManagementPage() {
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState<RestaurantPublicationStatus | ''>('')
   const [district, setDistrict] = useState('')
+  // Province/Ward select the dataset's `code`, resolved to `.name` (the
+  // format actually stored on Address.province/Address.ward) before being
+  // sent to the API — same code/name split as RestaurantCoreForm.tsx.
+  // Kept independent of the legacy free-text District filter above, which
+  // still works for pre-restructuring data.
+  const [provinceCode, setProvinceCode] = useState('')
+  const [wardCode, setWardCode] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -35,13 +43,20 @@ export function AdminRestaurantManagementPage() {
   const debouncedSearch = useDebouncedValue(searchInput, 400)
   const debouncedDistrict = useDebouncedValue(district, 400)
 
+  const selectedProvince = useMemo(() => VN_PROVINCES.find((p) => p.code === provinceCode), [provinceCode])
+  const wardOptions = selectedProvince?.wards ?? []
+  const province = selectedProvince?.name
+  const ward = selectedProvince?.wards.find((w) => w.code === wardCode)?.name
+
   const listQuery = useQuery({
-    queryKey: ['admin-restaurants', debouncedSearch, status, debouncedDistrict, page, pageSize],
+    queryKey: ['admin-restaurants', debouncedSearch, status, debouncedDistrict, province, ward, page, pageSize],
     queryFn: () =>
       adminRestaurantsApi.list({
         search: debouncedSearch || undefined,
         status: status || undefined,
         district: debouncedDistrict || undefined,
+        province,
+        ward,
         page,
         pageSize,
       }),
@@ -64,6 +79,17 @@ export function AdminRestaurantManagementPage() {
 
   function handleDistrictChange(event: ChangeEvent<HTMLInputElement>) {
     setDistrict(event.target.value)
+    resetToFirstPage()
+  }
+
+  function handleProvinceChange(event: ChangeEvent<HTMLSelectElement>) {
+    setProvinceCode(event.target.value)
+    setWardCode('') // previous ward belongs to the old province
+    resetToFirstPage()
+  }
+
+  function handleWardChange(event: ChangeEvent<HTMLSelectElement>) {
+    setWardCode(event.target.value)
     resetToFirstPage()
   }
 
@@ -147,7 +173,31 @@ export function AdminRestaurantManagementPage() {
         </label>
 
         <label className="filter-field">
-          <span>Quận/Huyện</span>
+          <span>Tỉnh/Thành</span>
+          <select value={provinceCode} onChange={handleProvinceChange}>
+            <option value="">Tất cả</option>
+            {VN_PROVINCES.map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.shortName}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="filter-field">
+          <span>Phường/Xã</span>
+          <select value={wardCode} onChange={handleWardChange} disabled={!provinceCode}>
+            <option value="">{provinceCode ? 'Tất cả' : '— Chọn tỉnh/thành trước —'}</option>
+            {wardOptions.map((w) => (
+              <option key={w.code} value={w.code}>
+                {w.shortName}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="filter-field">
+          <span>Quận/Huyện (dữ liệu cũ)</span>
           <input
             type="text"
             placeholder="Quận 1…"
@@ -191,6 +241,7 @@ export function AdminRestaurantManagementPage() {
                 <th>Tên</th>
                 <th>Danh mục</th>
                 <th>Tỉnh/Thành</th>
+                <th>Phường/Xã</th>
                 <th>Quận/Huyện</th>
                 <th>Trạng thái</th>
                 <th>Ngày tạo</th>
@@ -200,7 +251,7 @@ export function AdminRestaurantManagementPage() {
             <tbody>
               {data.items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="data-table-empty">
+                  <td colSpan={8} className="data-table-empty">
                     Không tìm thấy nhà hàng nào.
                   </td>
                 </tr>
@@ -210,6 +261,7 @@ export function AdminRestaurantManagementPage() {
                   <td>{item.name}</td>
                   <td>{categoryLabel(item.categoryCode)}</td>
                   <td>{item.province}</td>
+                  <td>{item.ward ?? '—'}</td>
                   <td>{item.district}</td>
                   <td>
                     <span className={`status-badge status-badge-${item.publicationStatus}`}>

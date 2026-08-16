@@ -79,7 +79,7 @@ describe('Contribution (e2e)', () => {
     return {
       name: `E2E Test Restaurant ${Date.now()}-${Math.random().toString(36).slice(2)}`,
       categoryCode: 'quan_an',
-      address: { line: '1 Test St', district: 'Quận Test', province: 'TP. Test' },
+      address: { line: '1 Test St', ward: 'Phường Test', province: 'TP. Test' },
       location: { lat: 10.9 + Math.random() * 0.05, lng: 106.9 + Math.random() * 0.05 },
       photoIds,
       ...overrides,

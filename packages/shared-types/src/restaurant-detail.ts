@@ -90,6 +90,7 @@ export interface AdminRestaurantListItemDto {
   name: string;
   categoryCode: RestaurantCategoryCode;
   province: string;
+  ward: string | null;
   district: string;
   publicationStatus: RestaurantPublicationStatus;
   createdAt: string;

@@ -24,6 +24,10 @@ function toQueryString(filters: SearchFilters): string {
   if (filters.openNow) params.set('openNow', 'true');
   if (filters.facilities && filters.facilities.length > 0) params.set('facilities', filters.facilities.join(','));
   if (filters.cuisine && filters.cuisine.length > 0) params.set('cuisine', filters.cuisine.join(','));
+  if (filters.category) params.set('category', filters.category);
+  if (filters.district) params.set('district', filters.district);
+  if (filters.province) params.set('province', filters.province);
+  if (filters.ward) params.set('ward', filters.ward);
   if (filters.page !== undefined) params.set('page', String(filters.page));
   if (filters.pageSize !== undefined) params.set('pageSize', String(filters.pageSize));
 

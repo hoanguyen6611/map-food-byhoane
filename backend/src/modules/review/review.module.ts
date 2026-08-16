@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { MediaModule } from '../media/media.module';
 import { AiModule } from '../ai/ai.module';
-import { ReviewController, RestaurantReviewController } from './review.controller';
+import { ReviewController, RestaurantReviewController, MyReviewController } from './review.controller';
 import { ReviewService } from './review.service';
 import { ReviewModerationService } from './review-moderation.service';
 import { CompositeScoreService, COMPOSITE_SCORE_QUEUE } from './composite-score.service';
@@ -16,7 +16,7 @@ import { CompositeScoreProcessor } from './composite-score.processor';
 // and AiSummaryService (CompositeScoreService's regenerate-on-recompute hook).
 @Module({
   imports: [BullModule.registerQueue({ name: COMPOSITE_SCORE_QUEUE }), MediaModule, AiModule],
-  controllers: [ReviewController, RestaurantReviewController],
+  controllers: [ReviewController, RestaurantReviewController, MyReviewController],
   providers: [ReviewService, ReviewModerationService, CompositeScoreService, CompositeScoreProcessor],
   exports: [CompositeScoreService],
 })

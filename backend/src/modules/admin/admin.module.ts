@@ -4,12 +4,17 @@ import { RestaurantModule } from '../restaurant/restaurant.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { ContributionModule } from '../contribution/contribution.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ReviewModule } from '../review/review.module';
 import { AdminRestaurantController } from './admin-restaurant.controller';
 import { AdminRestaurantService } from './admin-restaurant.service';
 import { AdminUserController } from './admin-user.controller';
 import { AdminUserService } from './admin-user.service';
 import { AdminModerationController } from './admin-moderation.controller';
 import { AdminModerationService } from './admin-moderation.service';
+import { AdminReviewController } from './admin-review.controller';
+import { AdminReviewService } from './admin-review.service';
+import { AdminDashboardController } from './admin-dashboard.controller';
+import { AdminDashboardService } from './admin-dashboard.service';
 import { AuditLogService } from './audit-log.service';
 import { PhotoService } from './photo.service';
 
@@ -22,9 +27,17 @@ import { PhotoService } from './photo.service';
 // "what does approving X actually do" lives in one place), and
 // NotificationModule (first real producer of Notification rows).
 @Module({
-  imports: [AuthModule, RestaurantModule, ModerationModule, ContributionModule, NotificationModule],
-  controllers: [AdminRestaurantController, AdminUserController, AdminModerationController],
-  providers: [AdminRestaurantService, AdminUserService, AdminModerationService, AuditLogService, PhotoService],
+  imports: [AuthModule, RestaurantModule, ModerationModule, ContributionModule, NotificationModule, ReviewModule],
+  controllers: [AdminRestaurantController, AdminUserController, AdminModerationController, AdminReviewController, AdminDashboardController],
+  providers: [
+    AdminRestaurantService,
+    AdminUserService,
+    AdminModerationService,
+    AdminReviewService,
+    AdminDashboardService,
+    AuditLogService,
+    PhotoService,
+  ],
   exports: [AuditLogService, PhotoService],
 })
 export class AdminModule {}

@@ -354,5 +354,29 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
 
       await cleanupRestaurant(created.id);
     });
+
+    it('lists restaurants filterable by ward (contains, case-insensitive), and exposes ward on each item', async () => {
+      const { token } = await registerAs('admin');
+      const created = await createDraftRestaurant(token, 'ward-filter-xyz789');
+
+      const res = await request(app.getHttpServer())
+        .get('/admin/restaurants')
+        .query({ ward: 'phường 1' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      const body = res.body as Paginated<{ id: string; ward: string | null }>;
+      const match = body.items.find((r) => r.id === created.id);
+      expect(match).toBeDefined();
+      expect(match?.ward).toBe('Phường 1');
+
+      const noMatchRes = await request(app.getHttpServer())
+        .get('/admin/restaurants')
+        .query({ ward: 'zzz-no-such-ward', search: 'ward-filter-xyz789' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect((noMatchRes.body as Paginated<{ id: string }>).items).toEqual([]);
+
+      await cleanupRestaurant(created.id);
+    });
   });
 });

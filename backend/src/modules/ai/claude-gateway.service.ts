@@ -110,10 +110,6 @@ export class ClaudeGatewayService implements AIGateway {
   }
 
   /**
-   * Text-only this pass — `content.imageUrls` is accepted by the interface
-   * but not sent to Claude yet (real photo content screening is a deferred,
-   * separately-scoped gap — see ai-gateway.interface.ts's doc comment).
-   *
    * `recommendedAction` is derived here via `recommendActionForRiskScore()`
    * — the same threshold constant the hard rule (moderation-decision.util.ts)
    * uses — rather than trusted directly from Claude, so the
@@ -122,16 +118,47 @@ export class ClaudeGatewayService implements AIGateway {
    * forces `'reject'` for clear-cut egregious content (the rule-based
    * fallback below never produces 'reject' — it has no way to judge
    * severity, only pattern-match).
+   *
+   * Images (`content.imageUrls`) are fetched and sent as base64 vision
+   * input, not passed as a `type: 'url'` source — Anthropic's servers can't
+   * be assumed to reach an internal/LAN-only storage endpoint (same
+   * internal-vs-public reachability concern as S3Service's presignClient),
+   * so fetching the bytes ourselves (the backend already has network access
+   * to its own storage) works identically in local dev and production. A
+   * URL that fails to fetch is logged and skipped rather than failing the
+   * whole call — one bad photo shouldn't block moderation of the rest.
    */
   async moderate(content: ModerateContentInput): Promise<ModerationCheckResult> {
-    const text = content.text?.trim();
-    if (!text) {
-      return { riskScore: 0, labels: [], aiReason: 'Không có nội dung văn bản để kiểm duyệt.', recommendedAction: 'auto_approve' };
+    const text = content.text?.trim() || null;
+    const imageUrls = content.imageUrls?.filter(Boolean) ?? [];
+    if (!text && imageUrls.length === 0) {
+      return { riskScore: 0, labels: [], aiReason: 'Không có nội dung để kiểm duyệt.', recommendedAction: 'auto_approve' };
     }
 
     if (!this.hasApiKey) {
-      const { riskScore, labels, reason } = scoreTextContentRuleBased(text);
+      if (imageUrls.length > 0) {
+        // The rule-based fallback can only pattern-match TEXT — it has no
+        // way to screen pixel content, so an unscreenable image is held for
+        // manual review rather than silently waved through (same fail-safe
+        // philosophy as a Claude outage, just triggered by missing config
+        // instead of a network error).
+        return {
+          riskScore: 0.5,
+          labels: ['image_unscreened_no_api_key'],
+          aiReason: 'Chưa cấu hình Claude API — không thể tự động kiểm tra nội dung ảnh, cần người kiểm duyệt xem xét.',
+          recommendedAction: 'hold_for_review',
+        };
+      }
+      const { riskScore, labels, reason } = scoreTextContentRuleBased(text!);
       return { riskScore, labels, aiReason: reason, recommendedAction: recommendActionForRiskScore(riskScore) };
+    }
+
+    const imageBlocks = await this.fetchImageBlocks(imageUrls);
+    const contentBlocks: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
+    if (text) contentBlocks.push({ type: 'text', text });
+    contentBlocks.push(...imageBlocks);
+    if (contentBlocks.length === 0) {
+      throw new Error('Không thể tải ảnh để kiểm duyệt và không có nội dung văn bản đi kèm.');
     }
 
     const response = await this.client.messages.create(
@@ -139,10 +166,13 @@ export class ClaudeGatewayService implements AIGateway {
         model: this.moderationModel,
         max_tokens: 1024,
         system:
-          'Bạn là bộ lọc kiểm duyệt nội dung cho một nền tảng đánh giá quán ăn Việt Nam (đánh giá, đề xuất quán mới, báo cáo cập nhật). ' +
-          'Nhiệm vụ: chấm điểm rủi ro cho MỘT đoạn văn bản do người dùng gửi — phát hiện spam, quảng cáo trá hình, link độc hại, ngôn ngữ thù ghét/quấy rối, thông tin cá nhân, nội dung hoàn toàn không liên quan đến quán ăn. ' +
-          'Không tự chế ra vi phạm không có thật. Nội dung bình thường (khen/chê quán ăn thật) phải có riskScore thấp.',
-        messages: [{ role: 'user', content: text }],
+          'Bạn là bộ lọc kiểm duyệt nội dung cho một nền tảng đánh giá quán ăn Việt Nam (đánh giá, đề xuất quán mới, báo cáo cập nhật, ảnh đính kèm). ' +
+          'Nhiệm vụ: chấm điểm rủi ro cho nội dung do người dùng gửi — phát hiện spam, quảng cáo trá hình, link độc hại, ngôn ngữ thù ghét/quấy rối, thông tin cá nhân, nội dung hoàn toàn không liên quan đến quán ăn. ' +
+          (imageBlocks.length > 0
+            ? 'Nếu có ảnh đính kèm, hãy đánh giá luôn nội dung ảnh: ảnh phản cảm/bạo lực/khiêu dâm, ảnh không liên quan gì tới quán ăn/đồ ăn, ảnh chỉ chứa quảng cáo hoặc số điện thoại, ảnh mờ/đen hoàn toàn (spam). '
+            : '') +
+          'Không tự chế ra vi phạm không có thật. Nội dung bình thường (khen/chê quán ăn thật, ảnh món ăn/không gian quán thật) phải có riskScore thấp.',
+        messages: [{ role: 'user', content: contentBlocks }],
         output_config: { format: { type: 'json_schema', schema: MODERATION_SCHEMA } },
       },
       { timeout: this.moderationTimeoutMs },
@@ -171,6 +201,43 @@ export class ClaudeGatewayService implements AIGateway {
       aiReason: parsed.reason,
       recommendedAction,
     };
+  }
+
+  /** Fetches each URL and base64-encodes it for Claude vision input; a failed fetch is logged and skipped, not thrown. */
+  private async fetchImageBlocks(urls: string[]): Promise<Anthropic.ImageBlockParam[]> {
+    const results = await Promise.all(
+      urls.map(async (url): Promise<Anthropic.ImageBlockParam | null> => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const mediaType = this.imageMediaTypeFromContentType(response.headers.get('content-type'));
+          return { type: 'image', source: { type: 'base64', media_type: mediaType, data: buffer.toString('base64') } };
+        } catch (error) {
+          this.logger.warn(`Failed to fetch image for moderation (${url}): ${String(error)}`);
+          return null;
+        }
+      }),
+    );
+    return results.filter((block): block is Anthropic.ImageBlockParam => block !== null);
+  }
+
+  private imageMediaTypeFromContentType(contentType: string | null): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' {
+    switch (contentType) {
+      case 'image/png':
+        return 'image/png';
+      case 'image/gif':
+        return 'image/gif';
+      case 'image/webp':
+        return 'image/webp';
+      default:
+        // MediaService.confirm() always re-encodes to image/jpeg before
+        // storing, so this is the correct default even when a proxy/CDN
+        // strips or mangles the content-type header.
+        return 'image/jpeg';
+    }
   }
 
   async summarize(restaurantId: string): Promise<AISummaryResult> {

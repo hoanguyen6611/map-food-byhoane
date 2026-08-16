@@ -1,8 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { ReviewDto } from '@foodmap/shared-types';
 import { formatReviewDate, formatVndFull } from '../lib/reviewLabels';
 import { useTheme, type ThemeColors } from '../theme/ThemeContext';
+import { FONT_FAMILY } from '../theme/fonts';
 
 interface ReviewCardProps {
   review: ReviewDto;
@@ -27,6 +29,7 @@ function Stars({ rating, size = 14, color, styles }: { rating: number; size?: nu
  */
 export function ReviewCard({ review, compact = false }: ReviewCardProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   return (
@@ -39,14 +42,14 @@ export function ReviewCard({ review, compact = false }: ReviewCardProps) {
       </View>
 
       <View style={styles.ratingRow}>
-        <Stars rating={review.overallRating} color={colors.primary} styles={styles} />
+        <Stars rating={review.overallRating} color={colors.star} styles={styles} />
         {review.status === 'pending' ? (
           <View style={[styles.badge, styles.badgePending]}>
-            <Text style={styles.badgeText}>Đang chờ duyệt</Text>
+            <Text style={styles.badgeText}>{t('review.pending')}</Text>
           </View>
         ) : null}
         {review.editedAt ? (
-          <Text style={styles.editedText}>Đã chỉnh sửa</Text>
+          <Text style={styles.editedText}>{t('review.edited')}</Text>
         ) : null}
       </View>
 
@@ -70,13 +73,13 @@ export function ReviewCard({ review, compact = false }: ReviewCardProps) {
 
           <View style={styles.metaRow}>
             {review.billTotalVnd !== null ? (
-              <Text style={styles.metaText}>Hóa đơn: {formatVndFull(review.billTotalVnd)}</Text>
+              <Text style={styles.metaText}>{t('review.bill', { amount: formatVndFull(review.billTotalVnd) })}</Text>
             ) : null}
             {review.partySize !== null ? (
-              <Text style={styles.metaText}>{review.partySize} người</Text>
+              <Text style={styles.metaText}>{t('review.partySize', { count: review.partySize })}</Text>
             ) : null}
             {review.waitTimeMinutes !== null ? (
-              <Text style={styles.metaText}>Chờ {review.waitTimeMinutes} phút</Text>
+              <Text style={styles.metaText}>{t('review.waitTime', { minutes: review.waitTimeMinutes })}</Text>
             ) : null}
           </View>
 
@@ -88,7 +91,7 @@ export function ReviewCard({ review, compact = false }: ReviewCardProps) {
                 color={review.wouldReturn ? colors.success : colors.error}
               />
               <Text style={[styles.returnText, { color: review.wouldReturn ? colors.success : colors.error }]}>
-                {review.wouldReturn ? 'Sẽ quay lại' : 'Sẽ không quay lại'}
+                {review.wouldReturn ? t('review.wouldReturn') : t('review.wouldNotReturn')}
               </Text>
             </View>
           ) : null}
@@ -107,20 +110,20 @@ const createStyles = (colors: ThemeColors) =>
     },
     cardCompact: { paddingVertical: 8 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    author: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, flexShrink: 1, marginRight: 8 },
-    date: { fontSize: 12, color: colors.textTertiary },
+    author: { fontSize: 14, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary, flexShrink: 1, marginRight: 8 },
+    date: { fontSize: 12, color: colors.textTertiary, fontFamily: FONT_FAMILY.meta },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
     starsRow: { flexDirection: 'row', gap: 1 },
-    badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
     badgePending: { backgroundColor: colors.warningBg },
-    badgeText: { fontSize: 10, fontWeight: '700', color: colors.warning },
-    editedText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic' },
-    comment: { fontSize: 13, color: colors.textPrimary, marginTop: 6, lineHeight: 19 },
+    badgeText: { fontSize: 10, fontFamily: FONT_FAMILY.bodyBold, color: colors.warning },
+    editedText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', fontFamily: FONT_FAMILY.meta },
+    comment: { fontSize: 13, color: colors.textPrimary, marginTop: 6, lineHeight: 19, fontFamily: FONT_FAMILY.body },
     tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-    tag: { backgroundColor: colors.surfaceAlt, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-    tagText: { fontSize: 11, color: colors.textSecondary },
+    tag: { backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+    tagText: { fontSize: 11, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
     metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-    metaText: { fontSize: 12, color: colors.textSecondary },
+    metaText: { fontSize: 12, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
     rowStart: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-    returnText: { fontSize: 12, fontWeight: '600' },
+    returnText: { fontSize: 12, fontFamily: FONT_FAMILY.bodySemiBold },
   });

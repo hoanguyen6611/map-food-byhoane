@@ -164,7 +164,7 @@ export class RestaurantService {
   async buildDetailDto(restaurant: RestaurantWithDetailRelations): Promise<RestaurantDetailDto> {
     const [photos, reviewRows] = await Promise.all([
       this.prisma.photo.findMany({
-        where: { ownerType: 'restaurant', ownerId: restaurant.id, deletedAt: null },
+        where: { ownerType: 'restaurant', ownerId: restaurant.id, deletedAt: null, status: 'approved' },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.review.findMany({
@@ -225,7 +225,7 @@ export class RestaurantService {
 
   private async fetchReviewPhotos(reviewId: string): Promise<{ id: string; url: string; width: number | null; height: number | null }[]> {
     const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'review', ownerId: reviewId, deletedAt: null },
+      where: { ownerType: 'review', ownerId: reviewId, deletedAt: null, status: 'approved' },
       orderBy: { createdAt: 'asc' },
     });
     return photos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey), width: p.width, height: p.height }));
@@ -421,7 +421,7 @@ export class RestaurantService {
     const [openingHours, photos] = await Promise.all([
       this.prisma.openingHour.findMany({ where: { restaurantId: { in: restaurantIds } } }),
       this.prisma.photo.findMany({
-        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null, status: 'approved' },
         orderBy: { createdAt: 'asc' },
       }),
     ]);

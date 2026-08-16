@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { PhotoDto } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
@@ -32,6 +33,7 @@ const THUMB_SIZE = (SCREEN_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS
  * flat grid instead of fabricating tabs the backend can't support.
  */
 export function PhotoGalleryScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -50,10 +52,10 @@ export function PhotoGalleryScreen({ route }: Props) {
     const isNotFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404;
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorTitle}>{isNotFound ? 'Không tìm thấy quán' : 'Không có kết nối'}</Text>
+        <Text style={styles.errorTitle}>{isNotFound ? t('restaurantDetail.notFoundTitle') : t('common.noConnectionTitle')}</Text>
         {!isNotFound ? (
           <Pressable style={styles.retryButton} onPress={() => detailQuery.refetch()}>
-            <Text style={styles.retryButtonText}>Thử lại</Text>
+            <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -66,7 +68,7 @@ export function PhotoGalleryScreen({ route }: Props) {
     return (
       <View style={styles.centeredContainer}>
         <Ionicons name="image-outline" size={40} color={colors.textTertiary} />
-        <Text style={styles.emptyText}>Chưa có ảnh nào</Text>
+        <Text style={styles.emptyText}>{t('photoGallery.emptyText')}</Text>
       </View>
     );
   }
@@ -129,7 +131,7 @@ const createStyles = (colors: ThemeColors) =>
       gap: 10,
     },
     errorTitle: { fontSize: 16, fontWeight: '700', color: colors.error, textAlign: 'center' },
-    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
     retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
     emptyText: { fontSize: 15, color: colors.textTertiary, fontWeight: '600' },
     row: { gap: GRID_GAP },

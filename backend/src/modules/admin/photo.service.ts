@@ -34,6 +34,11 @@ export class PhotoService {
         width: input.width,
         height: input.height,
         uploadedBy: input.uploadedBy,
+        // Admin-curated content — bypasses user moderation entirely (this
+        // endpoint is admin/moderator-only, see PhotoController's guards),
+        // so it must be `approved` immediately rather than defaulting to
+        // `pending` like MediaService.confirm()'s user-upload flow.
+        status: 'approved',
       },
     });
   }

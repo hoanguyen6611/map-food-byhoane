@@ -1,10 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { ReportDto } from '@foodmap/shared-types';
+import type { ReportDto, ReportReason } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateReportDto } from './dto/create-report.dto';
 
 const UNIQUE_CONSTRAINT_ERROR_CODE = 'P2002';
+const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  spam: 'Spam/quảng cáo',
+  inappropriate: 'Nội dung không phù hợp',
+  incorrect_info: 'Thông tin sai',
+  duplicate: 'Trùng lặp',
+  closed_down: 'Quán đã đóng cửa',
+  other: 'Khác',
+};
 
 @Injectable()
 export class ReportService {
@@ -21,6 +29,12 @@ export class ReportService {
           description: dto.description,
         },
       });
+      // "Reports should route into moderation" (build-prompts/07) — a report
+      // against content that has no PENDING ModerationResult (the common
+      // case: reporting something already published/approved) would
+      // otherwise never surface in AdminModerationService's queue, which
+      // only lists rows with decision: 'pending'.
+      await this.ensureQueueVisible(dto.targetType, dto.targetId, dto.reason);
       return this.toDto(report);
     } catch (error) {
       // Surfaces the (reporterId, targetType, targetId) unique constraint
@@ -31,6 +45,33 @@ export class ReportService {
       }
       throw error;
     }
+  }
+
+  private async ensureQueueVisible(
+    targetType: 'review' | 'restaurant',
+    targetId: string,
+    reason: ReportReason,
+  ): Promise<void> {
+    const existingPending = await this.prisma.moderationResult.findFirst({
+      where: { targetType, targetId, decision: 'pending' },
+    });
+    if (existingPending) {
+      // Already queue-visible — the new report will show up via this
+      // existing entry's `relatedReports` (AdminModerationService.buildQueueItem).
+      return;
+    }
+    await this.prisma.moderationResult.create({
+      data: {
+        targetType,
+        targetId,
+        riskScore: new Prisma.Decimal('0.50'),
+        labels: ['user_reported', reason],
+        aiReason: `Bị người dùng báo cáo: ${REPORT_REASON_LABELS[reason]}.`,
+        recommendedAction: 'hold_for_review',
+        modelVersion: 'user_report_v1',
+        decision: 'pending',
+      },
+    });
   }
 
   async findByTarget(targetType: 'restaurant' | 'review', targetId: string): Promise<ReportDto[]> {

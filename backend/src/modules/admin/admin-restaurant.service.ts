@@ -36,10 +36,18 @@ export class AdminRestaurantService {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 
+    // All three address filters must merge into a SINGLE `address` key —
+    // spreading `{address: {province: ...}}` and `{address: {district: ...}}`
+    // separately would have the second spread silently clobber the first
+    // (both use the key "address"), so combine them into one nested object.
+    const addressFilter: Record<string, { contains: string; mode: 'insensitive' }> = {};
+    if (query.province) addressFilter.province = { contains: query.province, mode: 'insensitive' };
+    if (query.district) addressFilter.district = { contains: query.district, mode: 'insensitive' };
+    if (query.ward) addressFilter.ward = { contains: query.ward, mode: 'insensitive' };
+
     const where = {
       ...(query.status ? { status: { publicationStatus: query.status } } : {}),
-      ...(query.province ? { address: { province: { contains: query.province, mode: 'insensitive' as const } } } : {}),
-      ...(query.district ? { address: { district: { contains: query.district, mode: 'insensitive' as const } } } : {}),
+      ...(Object.keys(addressFilter).length > 0 ? { address: addressFilter } : {}),
       ...(query.search ? { name: { contains: query.search, mode: 'insensitive' as const } } : {}),
     };
 
@@ -59,6 +67,7 @@ export class AdminRestaurantService {
       name: r.name,
       categoryCode: r.category.code as AdminRestaurantListItemDto['categoryCode'],
       province: r.address.province,
+      ward: r.address.ward,
       district: r.address.district,
       publicationStatus: r.status?.publicationStatus ?? 'pending',
       createdAt: r.createdAt.toISOString(),
@@ -100,7 +109,9 @@ export class AdminRestaurantService {
       data: {
         line: dto.address.line,
         ward: dto.address.ward,
-        district: dto.address.district,
+        // District no longer collected from any client — defaulted to ''
+        // to satisfy the still-non-null DB column without a migration.
+        district: dto.address.district ?? '',
         province: dto.address.province,
         fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
           .filter(Boolean)
@@ -180,7 +191,10 @@ export class AdminRestaurantService {
         data: {
           line: dto.address.line,
           ward: dto.address.ward,
-          district: dto.address.district,
+          // See create(): district is no longer collected — editing an
+          // address through the new form intentionally clears any legacy
+          // district text going forward.
+          district: dto.address.district ?? '',
           province: dto.address.province,
           fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
             .filter(Boolean)
@@ -293,9 +307,17 @@ export class AdminRestaurantService {
     if (!menu) {
       menu = await this.prisma.menu.create({ data: { restaurantId, isActive: true } });
     }
+    // Best-effort link to the curated Dish catalog (docs/06-database-erd.md:
+    // "not user-creatable in MVP") — never creates a new Dish from
+    // free-text input, only links when the name happens to match an
+    // existing catalog entry exactly. Powers search's dish-name matching
+    // (search.service.ts) for whatever menu items do match; anything else
+    // stays dishId: null, same as before this existed.
+    const dish = await this.prisma.dish.findFirst({ where: { name: { equals: dto.name, mode: 'insensitive' } } });
     const item = await this.prisma.menuItem.create({
       data: {
         menuId: menu.id,
+        dishId: dish?.id ?? null,
         name: dto.name,
         priceVnd: dto.priceVnd,
         category: dto.category,
@@ -352,6 +374,11 @@ export class AdminRestaurantService {
       targetId: restaurantId,
       afterState: { photoId: photo.id, url: dto.url },
     });
+    // Gap-fix: unlike every other mutation in this service, this never
+    // invalidated the viewport cache — a map marker's thumbnailUrl (derived
+    // from the restaurant's first photo, see RestaurantService.hydrateOpenNow)
+    // could stay stale for up to VIEWPORT_CACHE_TTL_SECONDS after attach/remove.
+    await this.restaurantService.invalidateViewportCache();
     return { id: photo.id, url: photo.storageKey, width: photo.width, height: photo.height };
   }
 
@@ -363,6 +390,7 @@ export class AdminRestaurantService {
       targetType: 'photo',
       targetId: photoId,
     });
+    await this.restaurantService.invalidateViewportCache();
   }
 
   private async setCuisines(restaurantId: string, cuisineCodes: CuisineCode[]): Promise<void> {

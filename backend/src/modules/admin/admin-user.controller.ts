@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
-import type { AdminUserListItemDto, Paginated } from '@foodmap/shared-types';
+import type { AdminUserDetailDto, AdminUserListItemDto, Paginated } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -22,6 +22,11 @@ export class AdminUserController {
   @Get()
   list(@Query() query: AdminUserQueryDto): Promise<Paginated<AdminUserListItemDto>> {
     return this.adminUserService.list(query);
+  }
+
+  @Get(':id')
+  detail(@Param('id') id: string): Promise<AdminUserDetailDto> {
+    return this.adminUserService.detail(id);
   }
 
   @Patch(':id/suspend')

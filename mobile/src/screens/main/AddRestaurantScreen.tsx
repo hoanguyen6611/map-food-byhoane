@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   CreateRestaurantContributionRequest,
@@ -8,11 +9,15 @@ import type {
   DuplicateCandidateDto,
   PriceRangeCode,
   RestaurantCategoryCode,
+  VnProvince,
+  VnWard,
 } from '@foodmap/shared-types';
+import { VN_PROVINCES } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useAddRestaurantDraftStore } from '../../store/addRestaurantDraftStore';
 import { useCreateRestaurantContribution } from '../../hooks/useContributions';
 import { PhotoUploadGrid } from '../../components/media/PhotoUploadGrid';
+import { SearchableSelectModal } from '../../components/SearchableSelectModal';
 import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 import { ApiError } from '../../api/client';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
@@ -21,18 +26,19 @@ type Props = NativeStackScreenProps<MainStackParamList, 'AddRestaurant'>;
 
 const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as RestaurantCategoryCode[];
 
-// Duplicates FilterScreen's local label maps on purpose — same
+// Duplicates FilterScreen's local label-key maps on purpose — same
 // self-contained-per-screen convention already established there rather
-// than reaching into another screen's private module.
-const CUISINE_LABELS: Record<CuisineCode, string> = {
-  mon_viet: 'Món Việt',
-  mon_han: 'Món Hàn',
-  mon_nhat: 'Món Nhật',
-  mon_chay: 'Món chay',
-  mon_thai: 'Món Thái',
-  mon_au: 'Món Âu',
+// than reaching into another screen's private module. Maps to translation
+// KEYS (not literal text), same as FilterScreen's CUISINE_LABEL_KEYS.
+const CUISINE_LABEL_KEYS: Record<CuisineCode, string> = {
+  mon_viet: 'filter.cuisineMonViet',
+  mon_han: 'filter.cuisineMonHan',
+  mon_nhat: 'filter.cuisineMonNhat',
+  mon_chay: 'filter.cuisineMonChay',
+  mon_thai: 'filter.cuisineMonThai',
+  mon_au: 'filter.cuisineMonAu',
 };
-const CUISINE_OPTIONS = Object.keys(CUISINE_LABELS) as CuisineCode[];
+const CUISINE_OPTIONS = Object.keys(CUISINE_LABEL_KEYS) as CuisineCode[];
 
 const PRICE_LABELS: Record<PriceRangeCode, string> = {
   under_50k: 'Dưới 50k',
@@ -43,7 +49,7 @@ const PRICE_LABELS: Record<PriceRangeCode, string> = {
 };
 const PRICE_OPTIONS = Object.keys(PRICE_LABELS) as PriceRangeCode[];
 
-const STEP_LABELS = ['Vị trí', 'Thông tin', 'Ảnh', 'Xác nhận'];
+const STEP_LABEL_KEYS = ['addRestaurant.stepLocation', 'addRestaurant.stepInfo', 'addRestaurant.stepPhotos', 'addRestaurant.stepConfirm'];
 const MAX_PHOTOS = 10;
 
 /**
@@ -62,6 +68,7 @@ const MAX_PHOTOS = 10;
  * exists to prove out end-to-end.
  */
 export function AddRestaurantScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [step, setStep] = useState(0);
@@ -70,9 +77,10 @@ export function AddRestaurantScreen({ navigation }: Props) {
   const clearDraftLocation = useAddRestaurantDraftStore((s) => s.clear);
 
   const [line, setLine] = useState('');
-  const [ward, setWard] = useState('');
-  const [district, setDistrict] = useState('');
-  const [province, setProvince] = useState('');
+  const [province, setProvince] = useState<VnProvince | null>(null);
+  const [ward, setWard] = useState<VnWard | null>(null);
+  const [isProvincePickerOpen, setProvincePickerOpen] = useState(false);
+  const [isWardPickerOpen, setWardPickerOpen] = useState(false);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -91,9 +99,16 @@ export function AddRestaurantScreen({ navigation }: Props) {
     setCuisineCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   }
 
-  const canProceedFromLocation = draftLocation !== null && line.trim().length > 0 && district.trim().length > 0 && province.trim().length > 0;
+  const canProceedFromLocation = draftLocation !== null && line.trim().length > 0 && province !== null && ward !== null;
   const canProceedFromInfo = name.trim().length >= 2 && categoryCode !== null;
   const canSubmit = photoIds.length > 0 && canProceedFromLocation && canProceedFromInfo && !createContribution.isPending;
+
+  function handleProvinceSelected(selected: VnProvince) {
+    setProvince(selected);
+    // The previously chosen ward belongs to the old province — clear it
+    // rather than leaving a stale, no-longer-valid ward selected.
+    setWard(null);
+  }
 
   function buildRequestBody(duplicateConfirmed?: boolean): CreateRestaurantContributionRequest {
     return {
@@ -104,9 +119,8 @@ export function AddRestaurantScreen({ navigation }: Props) {
       phone: phone.trim() ? phone.trim() : undefined,
       address: {
         line: line.trim(),
-        ward: ward.trim() ? ward.trim() : null,
-        district: district.trim(),
-        province: province.trim(),
+        ward: ward!.name,
+        province: province!.name,
       },
       location: { lat: draftLocation!.lat, lng: draftLocation!.lng },
       cuisineCodes: cuisineCodes.length > 0 ? cuisineCodes : undefined,
@@ -129,7 +143,7 @@ export function AddRestaurantScreen({ navigation }: Props) {
           setDuplicateCandidates(candidates);
           return;
         }
-        setFormError('Không thể gửi thông tin quán. Vui lòng thử lại.');
+        setFormError(t('addRestaurant.submitError'));
       },
     });
   }
@@ -137,13 +151,13 @@ export function AddRestaurantScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.stepper}>
-        {STEP_LABELS.map((label, index) => (
-          <View key={label} style={styles.stepperItem}>
+        {STEP_LABEL_KEYS.map((labelKey, index) => (
+          <View key={labelKey} style={styles.stepperItem}>
             <View style={[styles.stepDot, index <= step ? styles.stepDotActive : null]}>
               <Text style={[styles.stepDotText, index <= step ? styles.stepDotTextActive : null]}>{index + 1}</Text>
             </View>
             <Text style={[styles.stepLabel, index === step ? styles.stepLabelActive : null]} numberOfLines={1}>
-              {label}
+              {t(labelKey)}
             </Text>
           </View>
         ))}
@@ -152,38 +166,77 @@ export function AddRestaurantScreen({ navigation }: Props) {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
         {step === 0 ? (
           <View>
-            <Text style={styles.sectionTitle}>Vị trí quán</Text>
+            <Text style={styles.sectionTitle}>{t('addRestaurant.locationSectionTitle')}</Text>
             <Pressable style={styles.locationButton} onPress={() => navigation.navigate('SelectLocation')}>
               <Ionicons name="location-outline" size={18} color={colors.primary} />
               <Text style={styles.locationButtonText}>
-                {draftLocation ? `${draftLocation.lat.toFixed(6)}, ${draftLocation.lng.toFixed(6)}` : 'Chọn vị trí trên bản đồ'}
+                {draftLocation ? `${draftLocation.lat.toFixed(6)}, ${draftLocation.lng.toFixed(6)}` : t('addRestaurant.chooseLocationOnMap')}
               </Text>
             </Pressable>
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Địa chỉ *</Text>
-            <TextInput style={styles.input} placeholder="Số nhà, tên đường" placeholderTextColor={colors.textTertiary} value={line} onChangeText={setLine} />
-            <TextInput style={styles.input} placeholder="Phường/Xã (tùy chọn)" placeholderTextColor={colors.textTertiary} value={ward} onChangeText={setWard} />
-            <TextInput style={styles.input} placeholder="Quận/Huyện" placeholderTextColor={colors.textTertiary} value={district} onChangeText={setDistrict} />
-            <TextInput style={styles.input} placeholder="Tỉnh/Thành phố" placeholderTextColor={colors.textTertiary} value={province} onChangeText={setProvince} />
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.addressLabel')}</Text>
+            <TextInput style={styles.input} placeholder={t('addRestaurant.addressPlaceholder')} placeholderTextColor={colors.textTertiary} value={line} onChangeText={setLine} />
+
+            <Pressable style={styles.selectField} onPress={() => setProvincePickerOpen(true)}>
+              <Text style={[styles.selectFieldText, !province ? styles.selectFieldPlaceholder : null]}>
+                {province ? province.shortName : t('filter.chooseProvince')}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textTertiary} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.selectField, !province ? styles.selectFieldDisabled : null]}
+              disabled={!province}
+              onPress={() => setWardPickerOpen(true)}
+            >
+              <Text style={[styles.selectFieldText, !ward ? styles.selectFieldPlaceholder : null]}>
+                {ward ? ward.shortName : province ? t('filter.chooseWard') : t('filter.chooseProvinceFirst')}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textTertiary} />
+            </Pressable>
+
+            <SearchableSelectModal
+              visible={isProvincePickerOpen}
+              title={t('filter.chooseProvince')}
+              options={VN_PROVINCES.map((p) => ({ code: p.code, label: p.shortName }))}
+              selectedCode={province?.code}
+              onSelect={(option) => {
+                const selected = VN_PROVINCES.find((p) => p.code === option.code);
+                if (selected) handleProvinceSelected(selected);
+              }}
+              onClose={() => setProvincePickerOpen(false)}
+            />
+
+            <SearchableSelectModal
+              visible={isWardPickerOpen}
+              title={t('filter.chooseWard')}
+              options={(province?.wards ?? []).map((w) => ({ code: w.code, label: w.shortName }))}
+              selectedCode={ward?.code}
+              onSelect={(option) => {
+                const selected = province?.wards.find((w) => w.code === option.code);
+                if (selected) setWard(selected);
+              }}
+              onClose={() => setWardPickerOpen(false)}
+            />
           </View>
         ) : null}
 
         {step === 1 ? (
           <View>
-            <Text style={styles.sectionTitle}>Tên quán *</Text>
-            <TextInput style={styles.input} placeholder="Tên quán ăn" placeholderTextColor={colors.textTertiary} value={name} onChangeText={setName} />
+            <Text style={styles.sectionTitle}>{t('addRestaurant.nameLabel')}</Text>
+            <TextInput style={styles.input} placeholder={t('addRestaurant.namePlaceholder')} placeholderTextColor={colors.textTertiary} value={name} onChangeText={setName} />
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Mô tả</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.descriptionLabel')}</Text>
             <TextInput
               style={styles.textarea}
               multiline
-              placeholder="Giới thiệu ngắn về quán..."
+              placeholder={t('addRestaurant.descriptionPlaceholder')}
               placeholderTextColor={colors.textTertiary}
               value={description}
               onChangeText={setDescription}
             />
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Loại hình *</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.categoryLabel')}</Text>
             <View style={styles.chipsRow}>
               {CATEGORY_OPTIONS.map((code) => (
                 <Pressable
@@ -196,7 +249,7 @@ export function AddRestaurantScreen({ navigation }: Props) {
               ))}
             </View>
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Món ăn</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.cuisineLabel')}</Text>
             <View style={styles.chipsRow}>
               {CUISINE_OPTIONS.map((code) => (
                 <Pressable
@@ -204,12 +257,12 @@ export function AddRestaurantScreen({ navigation }: Props) {
                   style={[styles.chip, cuisineCodes.includes(code) ? styles.chipActive : null]}
                   onPress={() => toggleCuisine(code)}
                 >
-                  <Text style={[styles.chipText, cuisineCodes.includes(code) ? styles.chipTextActive : null]}>{CUISINE_LABELS[code]}</Text>
+                  <Text style={[styles.chipText, cuisineCodes.includes(code) ? styles.chipTextActive : null]}>{t(CUISINE_LABEL_KEYS[code])}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Mức giá</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('filter.price')}</Text>
             <View style={styles.chipsRow}>
               {PRICE_OPTIONS.map((code) => (
                 <Pressable
@@ -222,11 +275,11 @@ export function AddRestaurantScreen({ navigation }: Props) {
               ))}
             </View>
 
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Số điện thoại</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('editProfile.phoneLabel')}</Text>
             <TextInput
               style={styles.input}
               keyboardType="phone-pad"
-              placeholder="0901234567"
+              placeholder={t('addRestaurant.phonePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               value={phone}
               onChangeText={setPhone}
@@ -236,8 +289,8 @@ export function AddRestaurantScreen({ navigation }: Props) {
 
         {step === 2 ? (
           <View>
-            <Text style={styles.sectionTitle}>Ảnh quán *</Text>
-            <Text style={styles.hint}>Cần ít nhất 1 ảnh để gửi thông tin quán.</Text>
+            <Text style={styles.sectionTitle}>{t('addRestaurant.photosLabel')}</Text>
+            <Text style={styles.hint}>{t('addRestaurant.photosHint')}</Text>
             <PhotoUploadGrid ownerType="restaurant" maxPhotos={MAX_PHOTOS} onPhotoIdsChange={setPhotoIds} />
           </View>
         ) : null}
@@ -246,40 +299,42 @@ export function AddRestaurantScreen({ navigation }: Props) {
           <View>
             {duplicateCandidates && duplicateCandidates.length > 0 ? (
               <View>
-                <Text style={styles.sectionTitle}>Có thể quán này đã tồn tại</Text>
-                <Text style={styles.hint}>Kiểm tra danh sách bên dưới trước khi tiếp tục.</Text>
+                <Text style={styles.sectionTitle}>{t('addRestaurant.duplicateTitle')}</Text>
+                <Text style={styles.hint}>{t('addRestaurant.duplicateHint')}</Text>
                 {duplicateCandidates.map((candidate) => (
                   <View key={candidate.id} style={styles.candidateRow}>
                     <Text style={styles.candidateName}>{candidate.name}</Text>
                     <Text style={styles.candidateAddress}>{candidate.fullAddressText}</Text>
-                    <Text style={styles.candidateMeta}>Cách {Math.round(candidate.distanceMeters)}m</Text>
+                    <Text style={styles.candidateMeta}>{t('addRestaurant.distanceMeters', { meters: Math.round(candidate.distanceMeters) })}</Text>
                   </View>
                 ))}
                 <Pressable style={styles.submitButton} onPress={() => handleSubmit(true)}>
-                  <Text style={styles.submitButtonText}>Đây là quán khác, tiếp tục gửi</Text>
+                  <Text style={styles.submitButtonText}>{t('addRestaurant.confirmDifferentSubmit')}</Text>
                 </Pressable>
                 <Pressable style={styles.secondaryButton} onPress={() => setDuplicateCandidates(null)}>
-                  <Text style={styles.secondaryButtonText}>Quay lại chỉnh sửa</Text>
+                  <Text style={styles.secondaryButtonText}>{t('addRestaurant.backToEdit')}</Text>
                 </Pressable>
               </View>
             ) : (
               <View>
-                <Text style={styles.sectionTitle}>Xác nhận thông tin</Text>
+                <Text style={styles.sectionTitle}>{t('addRestaurant.confirmTitle')}</Text>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Tên quán</Text>
+                  <Text style={styles.summaryLabel}>{t('addRestaurant.summaryName')}</Text>
                   <Text style={styles.summaryValue}>{name || '—'}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Loại hình</Text>
+                  <Text style={styles.summaryLabel}>{t('addRestaurant.summaryCategory')}</Text>
                   <Text style={styles.summaryValue}>{categoryCode ? CATEGORY_LABELS[categoryCode] : '—'}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Địa chỉ</Text>
-                  <Text style={styles.summaryValue}>{[line, ward, district, province].filter(Boolean).join(', ') || '—'}</Text>
+                  <Text style={styles.summaryLabel}>{t('addRestaurant.summaryAddress')}</Text>
+                  <Text style={styles.summaryValue}>
+                    {[line, ward?.shortName, province?.shortName].filter(Boolean).join(', ') || '—'}
+                  </Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Ảnh</Text>
-                  <Text style={styles.summaryValue}>{photoIds.length} ảnh</Text>
+                  <Text style={styles.summaryLabel}>{t('addRestaurant.summaryPhotos')}</Text>
+                  <Text style={styles.summaryValue}>{t('addRestaurant.photoCount', { count: photoIds.length })}</Text>
                 </View>
 
                 {formError ? <Text style={styles.formError}>{formError}</Text> : null}
@@ -289,7 +344,7 @@ export function AddRestaurantScreen({ navigation }: Props) {
                   onPress={() => handleSubmit()}
                   disabled={!canSubmit}
                 >
-                  <Text style={styles.submitButtonText}>{createContribution.isPending ? 'Đang gửi...' : 'Gửi thông tin quán'}</Text>
+                  <Text style={styles.submitButtonText}>{createContribution.isPending ? t('addRestaurant.submitting') : t('addRestaurant.submitButton')}</Text>
                 </Pressable>
               </View>
             )}
@@ -300,7 +355,7 @@ export function AddRestaurantScreen({ navigation }: Props) {
       <View style={styles.navRow}>
         {step > 0 ? (
           <Pressable style={styles.navButton} onPress={() => setStep((s) => s - 1)}>
-            <Text style={styles.navButtonText}>Quay lại</Text>
+            <Text style={styles.navButtonText}>{t('addRestaurant.back')}</Text>
           </Pressable>
         ) : (
           <View style={styles.navButton} />
@@ -317,7 +372,7 @@ export function AddRestaurantScreen({ navigation }: Props) {
             disabled={(step === 0 && !canProceedFromLocation) || (step === 1 && !canProceedFromInfo) || (step === 2 && photoIds.length === 0)}
             onPress={() => setStep((s) => s + 1)}
           >
-            <Text style={styles.navButtonTextPrimary}>Tiếp tục</Text>
+            <Text style={styles.navButtonTextPrimary}>{t('addRestaurant.continueButton')}</Text>
           </Pressable>
         ) : (
           <View style={styles.navButton} />
@@ -354,7 +409,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingHorizontal: 10,
       paddingVertical: 10,
       fontSize: 14,
@@ -365,7 +420,7 @@ const createStyles = (colors: ThemeColors) =>
     textarea: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 10,
       minHeight: 80,
       textAlignVertical: 'top',
@@ -379,14 +434,29 @@ const createStyles = (colors: ThemeColors) =>
       gap: 8,
       borderWidth: 1,
       borderColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 12,
       paddingHorizontal: 14,
       marginTop: 8,
     },
     locationButtonText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+    selectField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      backgroundColor: colors.surface,
+      marginTop: 8,
+    },
+    selectFieldDisabled: { opacity: 0.5 },
+    selectFieldText: { fontSize: 14, color: colors.textPrimary },
+    selectFieldPlaceholder: { color: colors.textTertiary },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: colors.surfaceAlt },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.surfaceAlt },
     chipActive: { backgroundColor: colors.primary },
     chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
     chipTextActive: { color: colors.onPrimary },
@@ -398,7 +468,7 @@ const createStyles = (colors: ThemeColors) =>
     summaryLabel: { fontSize: 12, color: colors.textTertiary },
     summaryValue: { fontSize: 14, color: colors.textPrimary, marginTop: 2 },
     formError: { color: colors.error, fontSize: 13, marginTop: 16, textAlign: 'center' },
-    submitButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+    submitButton: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
     submitButtonDisabled: { opacity: 0.5 },
     submitButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
     secondaryButton: { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
@@ -411,7 +481,7 @@ const createStyles = (colors: ThemeColors) =>
       borderTopColor: colors.divider,
     },
     navButton: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-    navButtonPrimary: { backgroundColor: colors.primary, borderRadius: 10, marginLeft: 8 },
+    navButtonPrimary: { backgroundColor: colors.primary, borderRadius: 14, marginLeft: 8 },
     navButtonDisabled: { opacity: 0.5 },
     navButtonText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
     navButtonTextPrimary: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },

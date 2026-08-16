@@ -3,12 +3,15 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import type {
+  AdminRestaurantDetailDto,
   ApiErrorResponse,
+  AuthResponse,
   Paginated,
   RestaurantDetailDto,
   RestaurantSummaryDto,
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 // Covers docs/02-user-stories.md Epic C (US-C1–C4) backend contract, per the
 // Definition of Done in docs/build-prompts/04-search-filter.md. Runs against
@@ -18,6 +21,7 @@ import { AppModule } from '../src/app.module';
 // hardcoded specific restaurants).
 describe('Search & Filter (e2e)', () => {
   let app: INestApplication<App>;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -33,6 +37,7 @@ describe('Search & Filter (e2e)', () => {
       }),
     );
     await app.init();
+    prisma = moduleFixture.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -42,6 +47,66 @@ describe('Search & Filter (e2e)', () => {
   const body = (res: request.Response) =>
     res.body as Paginated<RestaurantSummaryDto>;
   const errorBody = (res: request.Response) => res.body as ApiErrorResponse;
+  const authBody = (res: request.Response) => res.body as AuthResponse;
+
+  const uniqueEmail = (label: string) =>
+    `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+
+  async function registerAdmin(label: string): Promise<{ token: string }> {
+    const email = uniqueEmail(label);
+    const reg = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email, password: 'password123' })
+      .expect(201);
+    const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: 'admin' } });
+    await prisma.user.update({ where: { id: authBody(reg).user.id }, data: { roleId: roleRow.id } });
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'password123' })
+      .expect(200);
+    return { token: authBody(login).accessToken };
+  }
+
+  // Mirrors review.e2e-spec.ts's createRestaurant/cleanupRestaurant fixture
+  // pattern — a real restaurant via the admin API (immediately published),
+  // not hand-rolled Prisma relations.
+  async function createRestaurant(adminToken: string, name: string): Promise<AdminRestaurantDetailDto> {
+    const res = await request(app.getHttpServer())
+      .post('/admin/restaurants')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name,
+        categoryCode: 'quan_an',
+        priceRangeCode: '50_100k',
+        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
+        location: { lat: 10.7769, lng: 106.7009 },
+      })
+      .expect(201);
+    return res.body as AdminRestaurantDetailDto;
+  }
+
+  async function addMenuItem(adminToken: string, restaurantId: string, name: string): Promise<void> {
+    await request(app.getHttpServer())
+      .post(`/admin/restaurants/${restaurantId}/menu-items`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name, priceVnd: 40000 })
+      .expect(201);
+  }
+
+  async function cleanupRestaurant(id: string): Promise<void> {
+    // Menu/MenuItem cascade-delete with the restaurant (onDelete: Cascade in
+    // schema.prisma) — no explicit cleanup needed for those.
+    await prisma.restaurantStatus.deleteMany({ where: { restaurantId: id } });
+    await prisma.restaurantCuisine.deleteMany({ where: { restaurantId: id } });
+    await prisma.openingHour.deleteMany({ where: { restaurantId: id } });
+    await prisma.restaurantFacility.deleteMany({ where: { restaurantId: id } });
+    const restaurant = await prisma.restaurant.findUnique({ where: { id } });
+    await prisma.restaurant.delete({ where: { id } });
+    if (restaurant) {
+      await prisma.address.delete({ where: { id: restaurant.addressId } });
+      await prisma.location.delete({ where: { id: restaurant.locationId } });
+    }
+  }
 
   describe('GET /search — US-C1 (search by name/dish/cuisine, diacritics-insensitive)', () => {
     it('matches a diacritics-stripped query against accented restaurant names', async () => {
@@ -63,6 +128,48 @@ describe('Search & Filter (e2e)', () => {
         .query({ q: 'zzz-no-such-restaurant-zzz' })
         .expect(200);
       expect(body(res)).toMatchObject({ items: [], total: 0 });
+    });
+  });
+
+  describe('GET /search — dish-name matching, and the fuzzy-name-match false-positive fix', () => {
+    it('matches via a menu item\'s dish name, per the literal "com tam" acceptance criterion', async () => {
+      const admin = await registerAdmin('search-dish');
+      // Name deliberately shares nothing with "cơm tấm" — the only way this
+      // fixture can match is via the dish-name join (search.service.ts
+      // branch (c)), proving that specific branch actually works end-to-end
+      // now that MenuItem.dishId gets linked at creation time.
+      const restaurant = await createRestaurant(admin.token, `Search Dish Test Alpha ${Date.now()}`);
+      await addMenuItem(admin.token, restaurant.id, 'Cơm tấm sườn bì chả');
+
+      try {
+        const res = await request(app.getHttpServer())
+          .get('/search')
+          .query({ q: 'com tam' })
+          .expect(200);
+        expect(body(res).items.some((r) => r.id === restaurant.id)).toBe(true);
+      } finally {
+        await cleanupRestaurant(restaurant.id);
+      }
+    });
+
+    it('does NOT return a restaurant whose name merely shares an unaccented substring with the query (regression)', async () => {
+      const admin = await registerAdmin('search-false-positive');
+      // Mirrors the real reported bug exactly: unaccented, this name shares
+      // the "Tam" token with unaccented "Cơm tấm" ("Com tam"), which used to
+      // cross the old 0.2 trigram-similarity threshold despite being
+      // semantically unrelated. No menu item is added, so this can only
+      // match via the fuzzy-name branch (b), if the threshold fix regresses.
+      const restaurant = await createRestaurant(admin.token, `Quán Ăn Chị Tám Test ${Date.now()}`);
+
+      try {
+        const res = await request(app.getHttpServer())
+          .get('/search')
+          .query({ q: 'Cơm tấm' })
+          .expect(200);
+        expect(body(res).items.some((r) => r.id === restaurant.id)).toBe(false);
+      } finally {
+        await cleanupRestaurant(restaurant.id);
+      }
     });
   });
 
@@ -146,6 +253,31 @@ describe('Search & Filter (e2e)', () => {
         .query({ category: 'quan_bar', district: 'zzz-no-such-district' })
         .expect(200);
       expect(body(combinedRes).items).toEqual([]);
+    });
+
+    // Province/Ward replace District as Vietnam's real administrative
+    // hierarchy going forward (backend/src/modules/search/dto/search-query.dto.ts) —
+    // seeded via prisma/seed-restaurants.ts's DISTRICTS constant, which
+    // writes a real `province`/`ward` on every restaurant regardless of the
+    // legacy `district` field.
+    it('filters by province and by province+ward (exact match)', async () => {
+      const provinceRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ province: 'TP. Hồ Chí Minh' })
+        .expect(200);
+      expect(body(provinceRes).items.length).toBeGreaterThan(0);
+
+      const wardRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ province: 'TP. Hồ Chí Minh', ward: 'Bến Nghé' })
+        .expect(200);
+      expect(body(wardRes).items.length).toBeGreaterThan(0);
+
+      const noMatchRes = await request(app.getHttpServer())
+        .get('/restaurants')
+        .query({ province: 'TP. Hồ Chí Minh', ward: 'zzz-no-such-ward' })
+        .expect(200);
+      expect(body(noMatchRes).items).toEqual([]);
     });
   });
 

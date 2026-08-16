@@ -397,10 +397,42 @@ function categoryLabel(code: CategoryCode): string {
   }
 }
 
+// ---------- Dish catalog ----------
+// `Dish` is a curated/admin-managed catalog (docs/06-database-erd.md) that
+// search's dish-name-matching branch joins against via MenuItem.dishId —
+// there's no separate hand-authored dish list to maintain in sync: the
+// CATEGORY_SPECS menuPools above are already the complete, closed set of
+// dish names this seed script ever creates MenuItems from, so the catalog
+// is just their deduplicated union. Exported so backfill-dish-links.ts can
+// reuse the exact same logic against already-seeded data.
+export async function ensureDishCatalog(client: PrismaClient): Promise<Map<string, string>> {
+  const uniqueNames = new Set<string>();
+  for (const spec of CATEGORY_SPECS) {
+    for (const item of spec.menuPool) {
+      uniqueNames.add(item.name);
+    }
+  }
+
+  const dishByName = new Map<string, string>();
+  for (const name of uniqueNames) {
+    // eslint-disable-next-line no-await-in-loop
+    const dish = await client.dish.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+    dishByName.set(name, dish.id);
+  }
+  return dishByName;
+}
+
 // ---------- Seed execution ----------
 
 async function main() {
   console.log('Seeding the real Module 5 demo dataset (30-50 HCMC restaurants)...');
+
+  const dishByName = await ensureDishCatalog(prisma);
+  console.log(`Dish catalog ready: ${dishByName.size} unique dishes.`);
 
   const plans = buildPlans();
   console.log(`Plan: ${plans.length} restaurants across ${DISTRICTS.length} districts.`);
@@ -480,6 +512,7 @@ async function main() {
       await prisma.menuItem.createMany({
         data: items.map((item, idx) => ({
           menuId: menu.id,
+          dishId: dishByName.get(item.name) ?? null,
           name: item.name,
           priceVnd: randomPrice(item.priceRange),
           category: item.category,
@@ -521,11 +554,17 @@ async function uniqueSlug(name: string): Promise<string> {
   return candidate;
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Guarded so `backfill-dish-links.ts` (and anything else) can `import {
+// ensureDishCatalog }` from this file without ALSO triggering a full
+// duplicate re-seed as a side effect — this file is meant to run standalone
+// (`ts-node prisma/seed-restaurants.ts`) but is now also a library module.
+if (require.main === module) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

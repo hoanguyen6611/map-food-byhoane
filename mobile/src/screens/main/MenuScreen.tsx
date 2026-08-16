@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MenuItemDto } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
@@ -6,17 +7,16 @@ import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
 import { formatVndFull } from '../../lib/restaurantLabels';
 import { ApiError } from '../../api/client';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Menu'>;
 
-const UNCATEGORIZED_LABEL = 'Khác';
-
-/** Groups every item across all of a restaurant's menus by `category` (null -> "Khác"), preserving first-seen category order. */
-function groupByCategory(items: MenuItemDto[]): { category: string; items: MenuItemDto[] }[] {
+/** Groups every item across all of a restaurant's menus by `category` (null -> uncategorizedLabel), preserving first-seen category order. */
+function groupByCategory(items: MenuItemDto[], uncategorizedLabel: string): { category: string; items: MenuItemDto[] }[] {
   const order: string[] = [];
   const groups = new Map<string, MenuItemDto[]>();
   for (const item of items) {
-    const category = item.category ?? UNCATEGORIZED_LABEL;
+    const category = item.category ?? uncategorizedLabel;
     if (!groups.has(category)) {
       groups.set(category, []);
       order.push(category);
@@ -35,6 +35,7 @@ function groupByCategory(items: MenuItemDto[]): { category: string; items: MenuI
  * simple and correct for the common one-menu case.
  */
 export function MenuScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const { colors } = useTheme();
@@ -52,10 +53,10 @@ export function MenuScreen({ route }: Props) {
     const isNotFound = detailQuery.error instanceof ApiError && detailQuery.error.status === 404;
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorTitle}>{isNotFound ? 'Không tìm thấy quán' : 'Không có kết nối'}</Text>
+        <Text style={styles.errorTitle}>{isNotFound ? t('restaurantDetail.notFoundTitle') : t('common.noConnectionTitle')}</Text>
         {!isNotFound ? (
           <Pressable style={styles.retryButton} onPress={() => detailQuery.refetch()}>
-            <Text style={styles.retryButtonText}>Thử lại</Text>
+            <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -67,12 +68,12 @@ export function MenuScreen({ route }: Props) {
   if (allItems.length === 0) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.emptyText}>Quán này chưa cập nhật thực đơn</Text>
+        <Text style={styles.emptyText}>{t('menu.emptyText')}</Text>
       </View>
     );
   }
 
-  const groups = groupByCategory(allItems);
+  const groups = groupByCategory(allItems, t('menu.uncategorized'));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -85,7 +86,7 @@ export function MenuScreen({ route }: Props) {
                 <Text style={styles.itemName}>{item.name}</Text>
                 {item.isPopular ? (
                   <View style={styles.popularBadge}>
-                    <Text style={styles.popularBadgeText}>Phổ biến</Text>
+                    <Text style={styles.popularBadgeText}>{t('menu.popular')}</Text>
                   </View>
                 ) : null}
               </View>
@@ -110,12 +111,12 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 32,
       gap: 12,
     },
-    errorTitle: { fontSize: 16, fontWeight: '700', color: colors.error, textAlign: 'center' },
-    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
-    emptyText: { fontSize: 15, color: colors.textTertiary, fontWeight: '600', textAlign: 'center' },
+    errorTitle: { fontSize: 16, fontFamily: FONT_FAMILY.bodyBold, color: colors.error, textAlign: 'center' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold },
+    emptyText: { fontSize: 15, color: colors.textTertiary, fontFamily: FONT_FAMILY.bodySemiBold, textAlign: 'center' },
     group: { marginBottom: 20 },
-    groupTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 10 },
+    groupTitle: { fontSize: 16, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary, marginBottom: 10 },
     itemRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -125,10 +126,10 @@ const createStyles = (colors: ThemeColors) =>
       borderBottomColor: colors.divider,
     },
     itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 },
-    itemName: { fontSize: 14, color: colors.textPrimary, flexShrink: 1 },
-    popularBadge: { backgroundColor: colors.primarySurface, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+    itemName: { fontSize: 14, color: colors.textPrimary, flexShrink: 1, fontFamily: FONT_FAMILY.body },
+    popularBadge: { backgroundColor: colors.primarySurface, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
     // `primaryStrong`, not `primary` — this text is too small to qualify for
     // WCAG AA's large-text exemption (see ThemeColors.primaryStrong's doc comment).
-    popularBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primaryStrong },
-    itemPrice: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+    popularBadgeText: { fontSize: 10, fontFamily: FONT_FAMILY.bodyBold, color: colors.primaryStrong },
+    itemPrice: { fontSize: 14, color: colors.primary, fontFamily: FONT_FAMILY.bodyBold },
   });

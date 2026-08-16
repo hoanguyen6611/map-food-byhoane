@@ -1,0 +1,158 @@
+{
+  "common": {
+    "siteDescription": "The Food Map of Vietnam — find the restaurant, cafe, or eatery that's actually right for you, not just the closest one.",
+    "skipToContent": "Skip to main content",
+    "homeAriaLabel": "The Food Map of Vietnam — go to homepage",
+    "mainNav": "Main navigation",
+    "findRestaurants": "Find restaurants",
+    "footerCta": "Want to write a review? Use The Food Map of Vietnam mobile app.",
+    "favoriteAdd": "Save to favorites",
+    "favoriteRemove": "Remove from favorites",
+    "languageSwitcherLabel": "Choose language",
+    "home": "Home",
+    "breadcrumbLabel": "Breadcrumb",
+    "paginationLabel": "Pagination",
+    "prev": "← Previous",
+    "next": "Next →",
+    "pageOf": "Page {page} of {totalPages}",
+    "resultCount": "{count, plural, one {# restaurant} other {# restaurants}}",
+    "noRating": "No ratings yet",
+    "openNow": "Open now",
+    "closedNow": "Closed now",
+    "seeAllRestaurants": "See all restaurants",
+    "priceOver": "Over",
+    "priceUnder": "Under"
+  },
+  "home": {
+    "heroTitle": "Find the right place, not just the nearest one",
+    "heroSubtitle": "The Food Map of Vietnam — discover restaurants, cafes, eateries, and street food carts in Ho Chi Minh City through real reviews from the community.",
+    "searchPlaceholder": "Search by restaurant name, dish...",
+    "searchAriaLabel": "Search keyword",
+    "searchButton": "Search",
+    "categoriesHeading": "Categories",
+    "areasHeading": "Areas",
+    "featuredHeading": "Featured restaurants",
+    "emptyFeatured": "No restaurants have been published yet."
+  },
+  "search": {
+    "titleAll": "Search restaurants",
+    "titleQuery": "Results for \"{query}\"",
+    "titleForDistrict": "Restaurants in {district}",
+    "metaDescription": "Find restaurants, cafes, and eateries in Ho Chi Minh City by name, dish, area, or filters.",
+    "emptyTitle": "No matching restaurants found."
+  },
+  "filterForm": {
+    "ariaLabel": "Restaurant search filters",
+    "searchPlaceholder": "Search by restaurant name, dish...",
+    "searchAriaLabel": "Search keyword",
+    "category": "Category",
+    "all": "All",
+    "areaLabel": "Area",
+    "areaPlaceholder": "e.g. District 1",
+    "price": "Price range",
+    "openNowLabel": "Open now",
+    "cuisineLabel": "Cuisine",
+    "facilitiesLabel": "Facilities",
+    "apply": "Apply filters",
+    "clear": "Clear filters"
+  },
+  "district": {
+    "notFoundTitle": "Area not found",
+    "metaTitle": "Restaurants in {name}",
+    "metaDescription": "Restaurants, cafes, and eateries in {name} — real reviews from The Food Map of Vietnam community.",
+    "heading": "Restaurants in {name}",
+    "empty": "No restaurants have been published in {name} yet.",
+    "filterMoreLink": "Filter further by cuisine, price, facilities…"
+  },
+  "restaurant": {
+    "notFoundTitle": "Restaurant not found",
+    "metaDescriptionFallback": "{name} — {category} in {district}, {province}. See opening hours, menu, and real reviews from the community.",
+    "ctaTitle": "Want to write a review?",
+    "ctaBody": "Writing reviews is currently only available on The Food Map of Vietnam mobile app — this website focuses on helping you find and discover restaurants.",
+    "infoHeading": "Information",
+    "addressLabel": "Address",
+    "phoneLabel": "Phone",
+    "facilitiesLabel": "Facilities",
+    "hoursHeading": "Opening hours",
+    "closedDay": "Closed",
+    "menuHeading": "Menu",
+    "noMenu": "This restaurant hasn't added a menu yet.",
+    "menuCaption": "{name}'s menu",
+    "popularDish": "Popular dish",
+    "reviewsHeading": "Reviews",
+    "noReviews": "No reviews for this restaurant yet.",
+    "photoAlt": "Photo {index} of {name}",
+    "noPhotos": "No photos for this restaurant yet.",
+    "ratingSummary": "★ {score} ({count} reviews)",
+    "reviewsPaginationLabel": "Reviews pagination"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The restaurant or page you're looking for doesn't exist, or has closed.",
+    "backHome": "Back to home"
+  },
+  "errorPage": {
+    "title": "Something went wrong",
+    "body": "This page couldn't be loaded right now. Please try again in a few minutes.",
+    "retry": "Retry"
+  },
+  "auth": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "genericError": "Incorrect email or password.",
+    "greeting": "Hi, {email}",
+    "favoritesLink": "Favorites"
+  },
+  "favorites": {
+    "title": "Favorite restaurants",
+    "empty": "You haven't saved any restaurants yet."
+  },
+  "labels": {
+    "category": {
+      "quan_an": "Eatery",
+      "quan_ca_phe": "Cafe",
+      "nha_hang": "Restaurant",
+      "xe_day": "Food cart",
+      "quan_via_he": "Street food stall",
+      "quan_bar": "Bar"
+    },
+    "cuisine": {
+      "mon_viet": "Vietnamese",
+      "mon_han": "Korean",
+      "mon_nhat": "Japanese",
+      "mon_chay": "Vegetarian",
+      "mon_thai": "Thai",
+      "mon_au": "Western"
+    },
+    "facilityLabel": {
+      "wifi": "Wifi",
+      "parking_car": "Car parking",
+      "parking_motorbike": "Motorbike parking",
+      "air_conditioner": "Air conditioning",
+      "outdoor_seating": "Outdoor seating",
+      "kid_friendly": "Kid-friendly",
+      "pet_friendly": "Pet-friendly",
+      "card_payment": "Card payment",
+      "private_room": "Private room"
+    },
+    "priceBucket": {
+      "under_50k": "Under 50k",
+      "50_100k": "50k - 100k",
+      "100_200k": "100k - 200k",
+      "200_500k": "200k - 500k",
+      "above_500k": "Over 500k"
+    },
+    "day": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    }
+  }
+}

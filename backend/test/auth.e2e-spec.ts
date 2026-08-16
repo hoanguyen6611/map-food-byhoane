@@ -2,17 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import sharp from 'sharp';
 import type {
   ApiErrorResponse,
   AuthResponse,
+  CreateUploadUrlResponse,
   MeResponse,
+  PhotoDto,
 } from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 // Covers docs/02-user-stories.md Epic A (US-A1–A5) acceptance criteria, per
 // the Definition of Done in docs/build-prompts/02-auth.md.
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
+  let prisma: PrismaService;
+  let realJpeg: Buffer;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -28,6 +34,12 @@ describe('Auth (e2e)', () => {
       }),
     );
     await app.init();
+    prisma = moduleFixture.get(PrismaService);
+    realJpeg = await sharp({
+      create: { width: 400, height: 400, channels: 3, background: { r: 200, g: 100, b: 50 } },
+    })
+      .jpeg()
+      .toBuffer();
   });
 
   afterAll(async () => {
@@ -36,6 +48,30 @@ describe('Auth (e2e)', () => {
 
   const uniqueEmail = (label: string) =>
     `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+
+  // Mirrors media.e2e-spec.ts's helpers — a real upload against MinIO, not mocked.
+  async function uploadUserProfilePhoto(token: string, userId: string): Promise<PhotoDto> {
+    const uploadRes = await request(app.getHttpServer())
+      .post('/media/upload-url')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ contentType: 'image/jpeg', fileSizeBytes: realJpeg.length })
+      .expect(201);
+    const { uploadUrl, storageKey } = uploadRes.body as CreateUploadUrlResponse;
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(realJpeg),
+    });
+    if (!putRes.ok) throw new Error(`PUT to signed URL failed: ${putRes.status}`);
+
+    const confirmRes = await request(app.getHttpServer())
+      .post('/media/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ storageKey, ownerType: 'user_profile', ownerId: userId })
+      .expect(201);
+    return confirmRes.body as PhotoDto;
+  }
 
   // supertest's `.body` is `any` by default; casting through this helper
   // keeps every call site typed against the real shared-types contract
@@ -190,6 +226,114 @@ describe('Auth (e2e)', () => {
         .set('Authorization', auth)
         .send({ phone: 'not-a-phone' })
         .expect(400);
+    });
+
+    it('rejects an avatarPhotoId that does not exist', async () => {
+      const reg = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: uniqueEmail('avatar-missing'), password: 'password123' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${authBody(reg).accessToken}`)
+        .send({ avatarPhotoId: '00000000-0000-0000-0000-000000000000' })
+        .expect(400);
+    });
+
+    it("rejects another user's photo, and a review-owned photo, as an avatar", async () => {
+      const owner = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: uniqueEmail('avatar-owner'), password: 'password123' })
+        .expect(201);
+      const ownerBody = authBody(owner);
+      const other = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: uniqueEmail('avatar-other'), password: 'password123' })
+        .expect(201);
+
+      const photo = await uploadUserProfilePhoto(ownerBody.accessToken, ownerBody.user.id);
+
+      // Someone else's user_profile photo.
+      await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${authBody(other).accessToken}`)
+        .send({ avatarPhotoId: photo.id })
+        .expect(400);
+
+      // A real photo the caller owns, but confirmed under `ownerType: 'review'`,
+      // not `user_profile` — still rejected.
+      const reviewOwnedRes = await request(app.getHttpServer())
+        .post('/media/upload-url')
+        .set('Authorization', `Bearer ${ownerBody.accessToken}`)
+        .send({ contentType: 'image/jpeg', fileSizeBytes: realJpeg.length })
+        .expect(201);
+      const { uploadUrl, storageKey } = reviewOwnedRes.body as CreateUploadUrlResponse;
+      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: new Uint8Array(realJpeg) });
+      const reviewPhotoRes = await request(app.getHttpServer())
+        .post('/media/confirm')
+        .set('Authorization', `Bearer ${ownerBody.accessToken}`)
+        .send({ storageKey, ownerType: 'review' })
+        .expect(201);
+      const reviewPhoto = reviewPhotoRes.body as PhotoDto;
+
+      await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${ownerBody.accessToken}`)
+        .send({ avatarPhotoId: reviewPhoto.id })
+        .expect(400);
+    });
+
+    it('accepts an approved, own user_profile photo and resolves it to avatarUrl on GET /me', async () => {
+      const reg = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: uniqueEmail('avatar-happy'), password: 'password123' })
+        .expect(201);
+      const { accessToken, user } = authBody(reg);
+
+      const photo = await uploadUserProfilePhoto(accessToken, user.id);
+      // Photo moderation calls a real (external, billed) AI gateway — this
+      // environment has no credits for it, so every fresh upload lands as
+      // `pending` (see photo-moderation.service.ts's catch-block fallback),
+      // never `approved`, regardless of image content. Forcing the status
+      // here isolates what this test actually verifies (updateProfile's own
+      // validation + avatarUrl resolution), not the moderation pipeline's
+      // availability, which is already covered by media.e2e-spec.ts.
+      await prisma.photo.update({ where: { id: photo.id }, data: { status: 'approved' } });
+
+      const updated = await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ avatarPhotoId: photo.id })
+        .expect(200);
+      expect(meBody(updated).profile.avatarUrl).toBe(photo.url);
+
+      const me = await request(app.getHttpServer()).get('/me').set('Authorization', `Bearer ${accessToken}`).expect(200);
+      expect(meBody(me).profile.avatarPhotoId).toBe(photo.id);
+      expect(meBody(me).profile.avatarUrl).toBe(photo.url);
+    });
+
+    it('clears the avatar when avatarPhotoId is set to null, with no validation', async () => {
+      const reg = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: uniqueEmail('avatar-clear'), password: 'password123' })
+        .expect(201);
+      const { accessToken, user } = authBody(reg);
+      const photo = await uploadUserProfilePhoto(accessToken, user.id);
+      await prisma.photo.update({ where: { id: photo.id }, data: { status: 'approved' } });
+      await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ avatarPhotoId: photo.id })
+        .expect(200);
+
+      const cleared = await request(app.getHttpServer())
+        .patch('/me/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ avatarPhotoId: null })
+        .expect(200);
+      expect(meBody(cleared).profile.avatarPhotoId).toBeNull();
+      expect(meBody(cleared).profile.avatarUrl).toBeNull();
     });
   });
 

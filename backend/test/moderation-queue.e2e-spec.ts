@@ -233,7 +233,7 @@ describe('Admin Moderation Queue (e2e)', () => {
         name: `Queue Contrib Test ${Date.now()}`,
         categoryCode: 'quan_an',
         description: 'kiếm tiền online dễ dàng, xem tại https://spam.example.com nhé', // force hold_for_review
-        address: { line: '1 Queue St', district: 'Quận Test', province: 'TP. Test' },
+        address: { line: '1 Queue St', ward: 'Phường Test', province: 'TP. Test' },
         location: { lat: 10.95, lng: 106.95 },
         photoIds: [photoId],
       })
@@ -273,7 +273,7 @@ describe('Admin Moderation Queue (e2e)', () => {
         name: `Queue Related Reports Test ${Date.now()}`,
         categoryCode: 'quan_an',
         description: 'click vào link https://x.com kiếm tiền online',
-        address: { line: '1 Related St', district: 'Quận Test', province: 'TP. Test' },
+        address: { line: '1 Related St', ward: 'Phường Test', province: 'TP. Test' },
         location: { lat: 10.96, lng: 106.96 },
         photoIds: [photoId],
       })

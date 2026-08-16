@@ -8,10 +8,13 @@ export type NotificationType = 'moderation_result' | 'report_resolved' | 'contri
 
 // Deep-link target — `screen` matches a mobile route name in
 // MainStackParamList; the id fields are populated per notification type.
+// 'moderation_result' (review decisions) -> screen: 'Reviews', restaurantId.
+// 'contribution_status' -> screen: 'SubmissionStatus', contributionId.
 export interface NotificationDeepLink {
   screen: string;
   restaurantId?: string;
   reviewId?: string;
+  contributionId?: string;
 }
 
 export interface NotificationPayload {

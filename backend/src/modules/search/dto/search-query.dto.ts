@@ -126,6 +126,19 @@ export class SearchQueryDto {
   @IsString()
   district?: string;
 
+  // Exact-match filters against Address.province/Address.ward, populated by
+  // the Province+Ward select added to restaurant creation (vn-address.ts).
+  // `ward` alone is ambiguous (short ward names repeat across provinces) —
+  // the client is expected to always send `province` alongside it, but each
+  // condition is applied independently for simplicity.
+  @IsOptional()
+  @IsString()
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  ward?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

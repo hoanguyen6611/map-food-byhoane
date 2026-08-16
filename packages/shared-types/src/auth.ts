@@ -50,6 +50,8 @@ export interface AuthResponse extends AuthTokenPair {
 export interface UserProfileDto {
   displayName: string;
   avatarPhotoId: string | null;
+  /** Resolved display URL for `avatarPhotoId`, or null if unset/no longer resolvable. */
+  avatarUrl: string | null;
   bio: string | null;
   homeCity: string | null;
 }

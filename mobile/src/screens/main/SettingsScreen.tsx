@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { authApi } from '../../api/auth';
 import { secureStorage } from '../../lib/secureStorage';
 import { useAuthStore } from '../../store/authStore';
 import { ApiError } from '../../api/client';
 import { useTheme, type ThemeColors, type ThemePreference } from '../../theme/ThemeContext';
-
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'system', label: 'Hệ thống' },
-  { value: 'light', label: 'Sáng' },
-  { value: 'dark', label: 'Tối' },
-];
+import { useLocale, type LocalePreference } from '../../i18n/LocaleContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 /**
  * Settings screen per build-prompts/08. Reachable only from ProfileScreen's
@@ -35,10 +32,23 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
  */
 export function SettingsScreen() {
   const { colors, preference, setPreference } = useTheme();
+  const { t } = useTranslation();
+  const { preference: localePreference, setPreference: setLocalePreference } = useLocale();
   const styles = createStyles(colors);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
+
+  const themeOptions: { value: ThemePreference; label: string }[] = [
+    { value: 'system', label: t('settings.themeSystem') },
+    { value: 'light', label: t('settings.themeLight') },
+    { value: 'dark', label: t('settings.themeDark') },
+  ];
+  const languageOptions: { value: LocalePreference; label: string }[] = [
+    { value: 'system', label: t('settings.languageSystem') },
+    { value: 'vi', label: t('settings.languageVi') },
+    { value: 'en', label: t('settings.languageEn') },
+  ];
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -57,11 +67,11 @@ export function SettingsScreen() {
     if (!deleteArmed) {
       // Step 1: native confirm dialog.
       Alert.alert(
-        'Xoá tài khoản?',
-        'Hành động này không thể hoàn tác. Toàn bộ dữ liệu tài khoản của bạn sẽ bị xoá vĩnh viễn.',
+        t('settings.deleteAccountConfirmTitle'),
+        t('settings.deleteAccountConfirmBody'),
         [
-          { text: 'Huỷ', style: 'cancel' },
-          { text: 'Tiếp tục', style: 'destructive', onPress: () => setDeleteArmed(true) },
+          { text: t('settings.cancel'), style: 'cancel' },
+          { text: t('settings.deleteAccountConfirmProceed'), style: 'destructive', onPress: () => setDeleteArmed(true) },
         ],
       );
       return;
@@ -81,8 +91,8 @@ export function SettingsScreen() {
       await useAuthStore.getState().clearSession();
     } catch (error) {
       setDeleteArmed(false);
-      const message = error instanceof ApiError ? error.message : 'Lỗi mạng, vui lòng thử lại.';
-      Alert.alert('Không thể xoá tài khoản', message);
+      const message = error instanceof ApiError ? error.message : t('auth.networkError');
+      Alert.alert(t('settings.deleteAccountFailedTitle'), message);
     } finally {
       setIsDeleting(false);
     }
@@ -90,9 +100,9 @@ export function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Giao diện</Text>
+      <Text style={styles.sectionTitle}>{t('settings.appearance')}</Text>
       <View style={styles.segmentRow}>
-        {THEME_OPTIONS.map((option) => {
+        {themeOptions.map((option) => {
           const selected = preference === option.value;
           return (
             <Pressable
@@ -106,23 +116,37 @@ export function SettingsScreen() {
         })}
       </View>
 
-      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Tài khoản</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('settings.language')}</Text>
+      <View style={styles.segmentRow}>
+        {languageOptions.map((option) => {
+          const selected = localePreference === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              style={[styles.segment, selected && styles.segmentSelected]}
+              onPress={() => setLocalePreference(option.value)}
+            >
+              <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('settings.account')}</Text>
       <Pressable style={styles.menuItem} onPress={handleLogout} disabled={isLoggingOut}>
         {isLoggingOut ? (
           <ActivityIndicator color={colors.error} />
         ) : (
-          <Text style={[styles.menuItemText, styles.logoutText]}>Đăng xuất</Text>
+          <Text style={[styles.menuItemText, styles.logoutText]}>{t('settings.logout')}</Text>
         )}
       </Pressable>
 
       <View style={styles.dangerZone}>
         <View style={styles.dangerHeaderRow}>
           <Ionicons name="warning-outline" size={16} color={colors.error} />
-          <Text style={styles.dangerTitle}>Xoá tài khoản</Text>
+          <Text style={styles.dangerTitle}>{t('settings.deleteAccountTitle')}</Text>
         </View>
-        <Text style={styles.dangerBody}>
-          Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan (đánh giá, yêu thích, đóng góp). Không thể hoàn tác.
-        </Text>
+        <Text style={styles.dangerBody}>{t('settings.deleteAccountBody')}</Text>
         <Pressable
           style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
           onPress={handleDeletePress}
@@ -132,13 +156,13 @@ export function SettingsScreen() {
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.deleteButtonText}>
-              {deleteArmed ? 'Xác nhận xoá tài khoản' : 'Xoá tài khoản'}
+              {deleteArmed ? t('settings.deleteAccountConfirmButton') : t('settings.deleteAccountButton')}
             </Text>
           )}
         </Pressable>
         {deleteArmed && !isDeleting ? (
           <Pressable style={styles.cancelDeleteButton} onPress={() => setDeleteArmed(false)}>
-            <Text style={styles.cancelDeleteButtonText}>Huỷ</Text>
+            <Text style={styles.cancelDeleteButtonText}>{t('settings.cancel')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -151,14 +175,14 @@ const createStyles = (colors: ThemeColors) =>
     container: { flex: 1, backgroundColor: colors.background, padding: 20 },
     sectionTitle: {
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: FONT_FAMILY.bodyBold,
       color: colors.textSecondary,
       textTransform: 'uppercase',
       marginBottom: 10,
     },
     sectionTitleSpaced: { marginTop: 32 },
-    segmentRow: { flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: 10, padding: 4 },
-    segment: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+    segmentRow: { flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: 999, padding: 4 },
+    segment: { flex: 1, paddingVertical: 8, borderRadius: 999, alignItems: 'center' },
     segmentSelected: {
       backgroundColor: colors.surface,
       shadowColor: colors.shadow,
@@ -166,7 +190,7 @@ const createStyles = (colors: ThemeColors) =>
       shadowRadius: 3,
       elevation: 1,
     },
-    segmentText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+    segmentText: { fontSize: 13, fontFamily: FONT_FAMILY.bodySemiBold, color: colors.textSecondary },
     segmentTextSelected: { color: colors.primary },
     menuItem: {
       paddingVertical: 14,
@@ -174,22 +198,22 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       borderTopColor: colors.divider,
     },
-    menuItemText: { fontSize: 16, fontWeight: '500', color: colors.textPrimary },
-    logoutText: { color: colors.error, fontWeight: '700' },
+    menuItemText: { fontSize: 16, fontFamily: FONT_FAMILY.bodyMedium, color: colors.textPrimary },
+    logoutText: { color: colors.error, fontFamily: FONT_FAMILY.bodyBold },
     dangerZone: {
       marginTop: 32,
       padding: 16,
-      borderRadius: 12,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.errorBorder,
       backgroundColor: colors.errorBg,
     },
     dangerHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-    dangerTitle: { fontSize: 14, fontWeight: '700', color: colors.error },
-    dangerBody: { fontSize: 12, color: colors.error, marginBottom: 14, lineHeight: 17 },
-    deleteButton: { backgroundColor: colors.error, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+    dangerTitle: { fontSize: 14, fontFamily: FONT_FAMILY.bodyBold, color: colors.error },
+    dangerBody: { fontSize: 12, color: colors.error, marginBottom: 14, lineHeight: 17, fontFamily: FONT_FAMILY.body },
+    deleteButton: { backgroundColor: colors.error, borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
     deleteButtonDisabled: { opacity: 0.6 },
-    deleteButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
+    deleteButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 14 },
     cancelDeleteButton: { alignItems: 'center', paddingVertical: 10 },
-    cancelDeleteButtonText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    cancelDeleteButtonText: { color: colors.textSecondary, fontSize: 13, fontFamily: FONT_FAMILY.bodySemiBold },
   });

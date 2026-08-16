@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { CuisineCode, FacilityType, PriceRangeCode } from '@foodmap/shared-types';
+import { useTranslation } from 'react-i18next';
+import type { CuisineCode, FacilityType } from '@foodmap/shared-types';
+import { VN_PROVINCES, findVnProvinceByName } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
+import { PRICE_BUCKETS, type PriceBucket } from '../../lib/priceBuckets';
 import { getFilterValues, useFilterStore, type FilterValues } from '../../store/filterStore';
+import { SearchableSelectModal } from '../../components/SearchableSelectModal';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Filter'>;
 
@@ -13,48 +18,30 @@ const DISTANCE_MAX_KM = 20;
 const DISTANCE_STEP_KM = 0.5;
 const DEFAULT_DISTANCE_KM = 3;
 
-interface PriceBucket {
-  code: PriceRangeCode;
-  label: string;
-  min: number;
-  max?: number;
-}
-
-// Matches the `PriceRangeCode` buckets from packages/shared-types/src/restaurant.ts —
-// a single-select chip row is simpler and more correct than a raw numeric
-// slider since these buckets are discrete, non-overlapping VND ranges.
-const PRICE_BUCKETS: PriceBucket[] = [
-  { code: 'under_50k', label: 'Dưới 50k', min: 0, max: 50000 },
-  { code: '50_100k', label: '50k - 100k', min: 50000, max: 100000 },
-  { code: '100_200k', label: '100k - 200k', min: 100000, max: 200000 },
-  { code: '200_500k', label: '200k - 500k', min: 200000, max: 500000 },
-  { code: 'above_500k', label: 'Trên 500k', min: 500000, max: undefined },
-];
-
 const RATING_OPTIONS = [1, 2, 3, 4, 5];
 
-const FACILITY_LABELS: Record<FacilityType, string> = {
-  wifi: 'Wifi',
-  parking_car: 'Đậu ô tô',
-  parking_motorbike: 'Đậu xe máy',
-  air_conditioner: 'Máy lạnh',
-  outdoor_seating: 'Ngoài trời',
-  kid_friendly: 'Thân thiện trẻ em',
-  pet_friendly: 'Cho thú cưng',
-  card_payment: 'Thanh toán thẻ',
-  private_room: 'Phòng riêng',
+const FACILITY_LABEL_KEYS: Record<FacilityType, string> = {
+  wifi: 'filter.facilityWifi',
+  parking_car: 'filter.facilityParkingCar',
+  parking_motorbike: 'filter.facilityParkingMotorbike',
+  air_conditioner: 'filter.facilityAirConditioner',
+  outdoor_seating: 'filter.facilityOutdoorSeating',
+  kid_friendly: 'filter.facilityKidFriendly',
+  pet_friendly: 'filter.facilityPetFriendly',
+  card_payment: 'filter.facilityCardPayment',
+  private_room: 'filter.facilityPrivateRoom',
 };
-const FACILITY_OPTIONS = Object.keys(FACILITY_LABELS) as FacilityType[];
+const FACILITY_OPTIONS = Object.keys(FACILITY_LABEL_KEYS) as FacilityType[];
 
-const CUISINE_LABELS: Record<CuisineCode, string> = {
-  mon_viet: 'Món Việt',
-  mon_han: 'Món Hàn',
-  mon_nhat: 'Món Nhật',
-  mon_chay: 'Món chay',
-  mon_thai: 'Món Thái',
-  mon_au: 'Món Âu',
+const CUISINE_LABEL_KEYS: Record<CuisineCode, string> = {
+  mon_viet: 'filter.cuisineMonViet',
+  mon_han: 'filter.cuisineMonHan',
+  mon_nhat: 'filter.cuisineMonNhat',
+  mon_chay: 'filter.cuisineMonChay',
+  mon_thai: 'filter.cuisineMonThai',
+  mon_au: 'filter.cuisineMonAu',
 };
-const CUISINE_OPTIONS = Object.keys(CUISINE_LABELS) as CuisineCode[];
+const CUISINE_OPTIONS = Object.keys(CUISINE_LABEL_KEYS) as CuisineCode[];
 
 function toggleInArray<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
@@ -79,7 +66,33 @@ function toggleInArray<T>(list: T[], value: T): T[] {
 export function FilterScreen({ navigation }: Props) {
   const [local, setLocal] = useState<FilterValues>(() => getFilterValues(useFilterStore.getState()));
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
+  const [isProvincePickerOpen, setProvincePickerOpen] = useState(false);
+  const [isWardPickerOpen, setWardPickerOpen] = useState(false);
+
+  // `local.province`/`local.ward` store the official dataset name (what
+  // actually gets sent to the API) — derive the VnProvince record back from
+  // it purely to build the Ward picker's option list and to know when a
+  // province is currently selected. Same code/name split as AddRestaurantScreen.
+  const selectedProvince = local.province ? findVnProvinceByName(local.province) : undefined;
+
+  function selectProvince(code: string) {
+    const found = VN_PROVINCES.find((p) => p.code === code);
+    if (!found) return;
+    // Previously chosen ward belongs to the old province — clear it.
+    setLocal((prev) => ({ ...prev, province: found.name, ward: undefined }));
+  }
+
+  function selectWard(code: string) {
+    const found = selectedProvince?.wards.find((w) => w.code === code);
+    if (!found) return;
+    setLocal((prev) => ({ ...prev, ward: found.name }));
+  }
+
+  function clearArea() {
+    setLocal((prev) => ({ ...prev, province: undefined, ward: undefined }));
+  }
 
   const selectedBucket = PRICE_BUCKETS.find(
     (bucket) => bucket.min === local.priceMin && bucket.max === local.priceMax,
@@ -132,9 +145,9 @@ export function FilterScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Khoảng cách</Text>
+        <Text style={styles.sectionTitle}>{t('filter.distance')}</Text>
         <View style={styles.rowBetween}>
-          <Text style={styles.rowLabel}>Giới hạn khoảng cách</Text>
+          <Text style={styles.rowLabel}>{t('filter.limitDistance')}</Text>
           <Switch value={local.distanceKm !== undefined} onValueChange={toggleDistance} />
         </View>
         {local.distanceKm !== undefined ? (
@@ -157,7 +170,7 @@ export function FilterScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Mức giá</Text>
+        <Text style={styles.sectionTitle}>{t('filter.price')}</Text>
         <View style={styles.chipRow}>
           {PRICE_BUCKETS.map((bucket) => {
             const selected = selectedBucket?.code === bucket.code;
@@ -173,7 +186,7 @@ export function FilterScreen({ navigation }: Props) {
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>Đánh giá tối thiểu</Text>
+        <Text style={styles.sectionTitle}>{t('filter.minRating')}</Text>
         <View style={styles.chipRow}>
           {RATING_OPTIONS.map((rating) => {
             const selected = local.minRating === rating;
@@ -183,21 +196,68 @@ export function FilterScreen({ navigation }: Props) {
                 style={[styles.chip, selected && styles.chipSelected]}
                 onPress={() => selectRating(rating)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{rating}★+</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{t('filter.ratingOption', { rating })}</Text>
               </Pressable>
             );
           })}
         </View>
 
         <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Đang mở cửa</Text>
+          <Text style={styles.sectionTitle}>{t('filter.openNow')}</Text>
           <Switch
             value={local.openNow ?? false}
             onValueChange={(value) => setLocal((prev) => ({ ...prev, openNow: value || undefined }))}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Tiện ích</Text>
+        <View style={styles.rowBetween}>
+          <Text style={styles.sectionTitle}>{t('filter.area')}</Text>
+          {local.province ? (
+            <Pressable onPress={clearArea} hitSlop={8}>
+              <Text style={styles.clearAreaText}>{t('filter.clear')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <Pressable style={styles.selectField} onPress={() => setProvincePickerOpen(true)}>
+          <Text style={[styles.selectFieldText, !local.province ? styles.selectFieldPlaceholder : null]}>
+            {selectedProvince ? selectedProvince.shortName : t('filter.chooseProvince')}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.selectField, !selectedProvince ? styles.selectFieldDisabled : null]}
+          disabled={!selectedProvince}
+          onPress={() => setWardPickerOpen(true)}
+        >
+          <Text style={[styles.selectFieldText, !local.ward ? styles.selectFieldPlaceholder : null]}>
+            {local.ward
+              ? (selectedProvince?.wards.find((w) => w.name === local.ward)?.shortName ?? local.ward)
+              : selectedProvince
+                ? t('filter.chooseWard')
+                : t('filter.chooseProvinceFirst')}
+          </Text>
+        </Pressable>
+
+        <SearchableSelectModal
+          visible={isProvincePickerOpen}
+          title={t('filter.chooseProvince')}
+          options={VN_PROVINCES.map((p) => ({ code: p.code, label: p.shortName }))}
+          selectedCode={selectedProvince?.code}
+          onSelect={(option) => selectProvince(option.code)}
+          onClose={() => setProvincePickerOpen(false)}
+        />
+
+        <SearchableSelectModal
+          visible={isWardPickerOpen}
+          title={t('filter.chooseWard')}
+          options={(selectedProvince?.wards ?? []).map((w) => ({ code: w.code, label: w.shortName }))}
+          selectedCode={selectedProvince?.wards.find((w) => w.name === local.ward)?.code}
+          onSelect={(option) => selectWard(option.code)}
+          onClose={() => setWardPickerOpen(false)}
+        />
+
+        <Text style={styles.sectionTitle}>{t('filter.facilities')}</Text>
         <View style={styles.chipRow}>
           {FACILITY_OPTIONS.map((facility) => {
             const selected = local.facilities.includes(facility);
@@ -208,14 +268,14 @@ export function FilterScreen({ navigation }: Props) {
                 onPress={() => toggleFacility(facility)}
               >
                 <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                  {FACILITY_LABELS[facility]}
+                  {t(FACILITY_LABEL_KEYS[facility])}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>Loại món</Text>
+        <Text style={styles.sectionTitle}>{t('filter.cuisine')}</Text>
         <View style={styles.chipRow}>
           {CUISINE_OPTIONS.map((cuisine) => {
             const selected = local.cuisine.includes(cuisine);
@@ -225,7 +285,7 @@ export function FilterScreen({ navigation }: Props) {
                 style={[styles.chip, selected && styles.chipSelected]}
                 onPress={() => toggleCuisine(cuisine)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{CUISINE_LABELS[cuisine]}</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{t(CUISINE_LABEL_KEYS[cuisine])}</Text>
               </Pressable>
             );
           })}
@@ -234,10 +294,10 @@ export function FilterScreen({ navigation }: Props) {
 
       <View style={styles.footer}>
         <Pressable style={styles.clearButton} onPress={handleClear}>
-          <Text style={styles.clearButtonText}>Xoá bộ lọc</Text>
+          <Text style={styles.clearButtonText}>{t('filter.clearAll')}</Text>
         </Pressable>
         <Pressable style={styles.applyButton} onPress={handleApply}>
-          <Text style={styles.applyButtonText}>Áp dụng</Text>
+          <Text style={styles.applyButtonText}>{t('filter.apply')}</Text>
         </Pressable>
       </View>
     </View>
@@ -248,32 +308,54 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { padding: 16, paddingBottom: 32 },
-    sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 20, marginBottom: 10 },
+    sectionTitle: { fontSize: 14, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary, marginTop: 20, marginBottom: 10 },
     rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    rowLabel: { fontSize: 14, color: colors.textPrimary },
+    rowLabel: { fontSize: 14, color: colors.textPrimary, fontFamily: FONT_FAMILY.body },
     stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12 },
     stepperButton: {
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: 999,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    stepperButtonText: { fontSize: 18, fontWeight: '700', color: colors.primary },
-    stepperValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, minWidth: 64, textAlign: 'center' },
+    stepperButtonText: { fontSize: 18, fontFamily: FONT_FAMILY.bodyBold, color: colors.primary },
+    stepperValue: {
+      fontSize: 15,
+      fontFamily: FONT_FAMILY.bodySemiBold,
+      color: colors.textPrimary,
+      minWidth: 64,
+      textAlign: 'center',
+    },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 999,
       backgroundColor: colors.surfaceAlt,
       borderWidth: 1,
       borderColor: 'transparent',
     },
     chipSelected: { backgroundColor: colors.primarySurface, borderColor: colors.primary },
-    chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+    chipText: { fontSize: 13, color: colors.textSecondary, fontFamily: FONT_FAMILY.bodySemiBold },
     chipTextSelected: { color: colors.primary },
+    clearAreaText: { fontSize: 13, fontFamily: FONT_FAMILY.bodySemiBold, color: colors.primary },
+    selectField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      backgroundColor: colors.surface,
+      marginTop: 8,
+    },
+    selectFieldDisabled: { opacity: 0.5 },
+    selectFieldText: { fontSize: 14, color: colors.textPrimary, fontFamily: FONT_FAMILY.body },
+    selectFieldPlaceholder: { color: colors.textTertiary },
     footer: {
       flexDirection: 'row',
       gap: 12,
@@ -285,17 +367,17 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       borderWidth: 1,
       borderColor: colors.primary,
-      borderRadius: 10,
+      borderRadius: 999,
       paddingVertical: 14,
       alignItems: 'center',
     },
-    clearButtonText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
+    clearButtonText: { color: colors.primary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 15 },
     applyButton: {
       flex: 1,
       backgroundColor: colors.primary,
-      borderRadius: 10,
+      borderRadius: 999,
       paddingVertical: 14,
       alignItems: 'center',
     },
-    applyButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+    applyButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 15 },
   });

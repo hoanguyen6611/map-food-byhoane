@@ -9,7 +9,8 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fragment, useState } from 'react'
-import type { ModerationDecision, ModerationTargetType } from '@foodmap/shared-types'
+import { useSearchParams } from 'react-router-dom'
+import type { ModerationDecision, ModerationTargetType, ReportDto } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminModerationApi } from '../api/admin-moderation'
 import {
@@ -17,6 +18,7 @@ import {
   TARGET_TYPE_TABS,
   decisionLabel,
   formatDateTime,
+  reportReasonLabel,
   riskScoreLabel,
 } from './moderation-admin/constants'
 
@@ -25,8 +27,17 @@ const PAGE_SIZE = 20
 export function AdminModerationQueuePage() {
   const queryClient = useQueryClient()
 
-  const [targetType, setTargetType] = useState<ModerationTargetType | ''>('')
-  const [decision, setDecision] = useState<ModerationDecision | ''>('pending')
+  // targetType/decision can arrive via deep-link (e.g. the Dashboard's KPI
+  // cards) — only used to seed the INITIAL filter; the tabs/select below
+  // manage it locally from then on, same "read once" idea as
+  // AdminReviewManagementPage's restaurantId/userId deep-link params.
+  const [searchParams] = useSearchParams()
+  const [targetType, setTargetType] = useState<ModerationTargetType | ''>(
+    () => (searchParams.get('targetType') as ModerationTargetType | null) ?? '',
+  )
+  const [decision, setDecision] = useState<ModerationDecision | ''>(
+    () => (searchParams.get('decision') as ModerationDecision | null) ?? 'pending',
+  )
   const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -62,6 +73,16 @@ export function AdminModerationQueuePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
       setExpandedId(null)
+      setActionError(null)
+    },
+    onError: reportError,
+  })
+
+  const resolveReportMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'resolved' | 'dismissed' }) =>
+      adminModerationApi.resolveReport(id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
       setActionError(null)
     },
     onError: reportError,
@@ -173,9 +194,14 @@ export function AdminModerationQueuePage() {
                         {decisionLabel(item.decision)}
                       </span>
                       {item.relatedReports.length > 0 && (
-                        <div className="moderation-labels">
-                          {item.relatedReports.length} báo cáo liên quan
-                        </div>
+                        <ReportsList
+                          reports={item.relatedReports}
+                          isPending={resolveReportMutation.isPending}
+                          onResolve={(reportId, status) => {
+                            setActionError(null)
+                            resolveReportMutation.mutate({ id: reportId, status })
+                          }}
+                        />
                       )}
                     </td>
                     <td className="data-table-actions">
@@ -235,6 +261,60 @@ export function AdminModerationQueuePage() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+interface ReportsListProps {
+  reports: ReportDto[]
+  isPending: boolean
+  onResolve: (reportId: string, status: 'resolved' | 'dismissed') => void
+}
+
+/**
+ * Gap-fix: `PATCH /admin/reports/:id/resolve` and its client wrapper
+ * (adminModerationApi.resolveReport) existed but nothing in the UI called
+ * them — resolving a report required knowing its id out-of-band. Reused
+ * here (rather than a separate "reports" page) since a report only becomes
+ * queue-visible by riding along on a ModerationResult (see
+ * ReportService.ensureQueueVisible), so this is already the one place an
+ * admin sees it.
+ */
+function ReportsList({ reports, isPending, onResolve }: ReportsListProps) {
+  return (
+    <div className="moderation-labels">
+      {reports.map((report) => (
+        <div key={report.id} style={{ marginTop: 4 }}>
+          <span>
+            {reportReasonLabel(report.reason)}
+            {report.description ? ` — ${report.description}` : ''}
+          </span>
+          {report.status === 'open' || report.status === 'escalated' ? (
+            <span style={{ marginLeft: 8 }}>
+              <button
+                type="button"
+                className="button button-small"
+                disabled={isPending}
+                onClick={() => onResolve(report.id, 'resolved')}
+              >
+                Đã xử lý
+              </button>{' '}
+              <button
+                type="button"
+                className="button button-small"
+                disabled={isPending}
+                onClick={() => onResolve(report.id, 'dismissed')}
+              >
+                Bỏ qua
+              </button>
+            </span>
+          ) : (
+            <span style={{ marginLeft: 8, fontStyle: 'italic' }}>
+              ({report.status === 'resolved' ? 'đã xử lý' : 'đã bỏ qua'})
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,6 +1,18 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // Runs middleware.ts in the Node.js runtime (paired with `runtime: 'nodejs'`
+  // in middleware.ts's config) instead of the sandboxed Edge runtime — see
+  // that file's comment for why.
+  experimental: {
+    // @ts-expect-error -- runtime-supported in 15.5.22 (see the startup log's
+    // "Experiments (use with caution): ✓ nodeMiddleware"), but this version's
+    // bundled `ExperimentalConfig` type declarations haven't caught up yet.
+    nodeMiddleware: true,
+  },
   // `@foodmap/shared-types` ships raw TypeScript source (`main: src/index.ts`,
   // see the package's own package.json) — Next.js doesn't transpile
   // node_modules packages by default, only app source, so this is required
@@ -26,4 +38,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

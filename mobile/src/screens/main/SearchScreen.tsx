@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import type { MainStackParamList } from '../../navigation/types';
 import { addRecentSearch, getRecentSearches } from '../../lib/recentSearches';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Search'>;
 
@@ -25,12 +27,14 @@ const DEBOUNCE_MS = 300;
  * only gates the below-input length hint, avoiding a flicker on every
  * keystroke while the user is still typing.
  */
-export function SearchScreen({ navigation }: Props) {
+export function SearchScreen({ navigation, route }: Props) {
+  const { mode, category } = route.params ?? {};
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   useEffect(() => {
@@ -56,7 +60,7 @@ export function SearchScreen({ navigation }: Props) {
     if (trimmed.length < MIN_QUERY_LENGTH) return;
     await addRecentSearch(trimmed);
     setRecentSearches(await getRecentSearches());
-    navigation.navigate('SearchResult', { query: trimmed });
+    navigation.navigate('SearchResult', { query: trimmed, mode, category });
   }
 
   const trimmedDebounced = debouncedQuery.trim();
@@ -71,23 +75,23 @@ export function SearchScreen({ navigation }: Props) {
           style={styles.input}
           value={query}
           onChangeText={setQuery}
-          placeholder="Tìm quán ăn, món ăn, khu vực..."
+          placeholder={t('search.placeholder')}
           placeholderTextColor={colors.textTertiary}
           returnKeyType="search"
           onSubmitEditing={() => submitQuery(query)}
         />
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={styles.cancelText}>Huỷ</Text>
+          <Text style={styles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
 
-      {showLengthHint ? <Text style={styles.hint}>Nhập ít nhất {MIN_QUERY_LENGTH} ký tự để tìm kiếm</Text> : null}
+      {showLengthHint ? <Text style={styles.hint}>{t('search.lengthHint', { count: MIN_QUERY_LENGTH })}</Text> : null}
 
       {showSuggestions ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           {recentSearches.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tìm kiếm gần đây</Text>
+              <Text style={styles.sectionTitle}>{t('search.recent')}</Text>
               {recentSearches.map((item) => (
                 <Pressable key={item} style={styles.suggestionRow} onPress={() => submitQuery(item)}>
                   <Text style={styles.suggestionIcon}>🕓</Text>
@@ -97,7 +101,7 @@ export function SearchScreen({ navigation }: Props) {
             </View>
           ) : (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tìm kiếm phổ biến</Text>
+              <Text style={styles.sectionTitle}>{t('search.popular')}</Text>
               {POPULAR_QUERIES.map((item) => (
                 <Pressable key={item} style={styles.suggestionRow} onPress={() => submitQuery(item)}>
                   <Text style={styles.suggestionIcon}>🔥</Text>
@@ -126,19 +130,19 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       flex: 1,
       backgroundColor: colors.surfaceAlt,
-      borderRadius: 10,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 10,
       fontSize: 15,
       color: colors.textPrimary,
     },
-    cancelText: { fontSize: 15, color: colors.primary, fontWeight: '600' },
+    cancelText: { fontSize: 15, color: colors.primary, fontFamily: FONT_FAMILY.bodySemiBold },
     hint: { paddingHorizontal: 16, paddingBottom: 8, fontSize: 12, color: colors.error },
     scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
     section: { marginTop: 16 },
     sectionTitle: {
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: FONT_FAMILY.bodyBold,
       color: colors.textSecondary,
       marginBottom: 8,
       textTransform: 'uppercase',

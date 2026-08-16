@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ReportReason } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
@@ -10,19 +11,20 @@ import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReportContent'>;
 
-const REASONS: { code: ReportReason; label: string }[] = [
-  { code: 'spam', label: 'Spam hoặc quảng cáo' },
-  { code: 'inappropriate', label: 'Nội dung không phù hợp' },
-  { code: 'incorrect_info', label: 'Thông tin sai lệch' },
-  { code: 'duplicate', label: 'Trùng lặp' },
-  { code: 'closed_down', label: 'Quán đã đóng cửa' },
-  { code: 'other', label: 'Lý do khác' },
+const REASON_LABEL_KEYS: { code: ReportReason; labelKey: string }[] = [
+  { code: 'spam', labelKey: 'reportContent.reasonSpam' },
+  { code: 'inappropriate', labelKey: 'reportContent.reasonInappropriate' },
+  { code: 'incorrect_info', labelKey: 'reportContent.reasonIncorrectInfo' },
+  { code: 'duplicate', labelKey: 'reportContent.reasonDuplicate' },
+  { code: 'closed_down', labelKey: 'reportContent.reasonClosedDown' },
+  { code: 'other', labelKey: 'reportContent.reasonOther' },
 ];
 
 const DESCRIPTION_MAX_LENGTH = 500;
 
 /** Screen 27 (Report Content) per build-prompts/07 — reason list + optional description. */
 export function ReportContentScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { targetType, targetId } = route.params;
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [description, setDescription] = useState('');
@@ -38,16 +40,16 @@ export function ReportContentScreen({ route, navigation }: Props) {
       { targetType, targetId, reason, description: description.trim() ? description.trim() : undefined },
       {
         onSuccess: () => {
-          Alert.alert('Đã gửi báo cáo', 'Cảm ơn bạn đã báo cáo — chúng tôi sẽ xem xét sớm.', [
-            { text: 'OK', onPress: () => navigation.goBack() },
+          Alert.alert(t('reportContent.successTitle'), t('reportContent.successBody'), [
+            { text: t('common.ok'), onPress: () => navigation.goBack() },
           ]);
         },
         onError: (error) => {
           if (error instanceof ApiError && error.status === 409) {
-            setFormError('Bạn đã báo cáo nội dung này rồi.');
+            setFormError(t('reportContent.alreadyReported'));
             return;
           }
-          setFormError('Không thể gửi báo cáo. Vui lòng thử lại.');
+          setFormError(t('reportContent.submitError'));
         },
       },
     );
@@ -55,8 +57,8 @@ export function ReportContentScreen({ route, navigation }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>Lý do báo cáo *</Text>
-      {REASONS.map((item) => (
+      <Text style={styles.sectionTitle}>{t('reportContent.reasonLabel')}</Text>
+      {REASON_LABEL_KEYS.map((item) => (
         <Pressable
           key={item.code}
           style={styles.reasonRow}
@@ -69,16 +71,16 @@ export function ReportContentScreen({ route, navigation }: Props) {
             size={20}
             color={reason === item.code ? colors.primary : colors.textTertiary}
           />
-          <Text style={styles.reasonLabel}>{item.label}</Text>
+          <Text style={styles.reasonLabel}>{t(item.labelKey)}</Text>
         </Pressable>
       ))}
 
-      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Mô tả thêm (tùy chọn)</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('reportContent.descriptionLabel')}</Text>
       <TextInput
         style={styles.textarea}
         multiline
         maxLength={DESCRIPTION_MAX_LENGTH}
-        placeholder="Cho chúng tôi biết thêm chi tiết..."
+        placeholder={t('reportContent.descriptionPlaceholder')}
         placeholderTextColor={colors.textTertiary}
         value={description}
         onChangeText={setDescription}
@@ -91,7 +93,7 @@ export function ReportContentScreen({ route, navigation }: Props) {
         onPress={handleSubmit}
         disabled={!reason || reportContent.isPending}
       >
-        <Text style={styles.submitButtonText}>{reportContent.isPending ? 'Đang gửi...' : 'Gửi báo cáo'}</Text>
+        <Text style={styles.submitButtonText}>{reportContent.isPending ? t('addRestaurant.submitting') : t('reportContent.submitButton')}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -108,7 +110,7 @@ const createStyles = (colors: ThemeColors) =>
     textarea: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 10,
       minHeight: 90,
       textAlignVertical: 'top',
@@ -117,7 +119,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
     },
     formError: { color: colors.error, fontSize: 13, marginTop: 16, textAlign: 'center' },
-    submitButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+    submitButton: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
     submitButtonDisabled: { opacity: 0.5 },
     submitButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
   });

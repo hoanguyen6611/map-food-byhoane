@@ -3,6 +3,7 @@ import type { Prisma, ModerationResult } from '@prisma/client';
 import type {
   AdminModerationQueueItemDto,
   ModerationDecision,
+  NotificationDeepLink,
   NotificationType,
   Paginated,
   ReportDto,
@@ -27,6 +28,7 @@ const CONTENT_KIND_LABELS: Record<string, string> = {
   closure_report: 'Báo cáo đóng cửa',
   photo: 'Ảnh',
   video: 'Video',
+  restaurant: 'Nhà hàng bị báo cáo',
 };
 
 @Injectable()
@@ -88,7 +90,7 @@ export class AdminModerationService {
       data: { decision: dto.decision, decidedBy: actorId, decidedAt: new Date() },
     });
 
-    const contributorUserId = await this.applyTargetSideEffect(moderationResult, dto.decision, actorId);
+    const sideEffect = await this.applyTargetSideEffect(moderationResult, dto.decision, actorId);
 
     await this.auditLog.record({
       actorId,
@@ -99,29 +101,40 @@ export class AdminModerationService {
       afterState: { decision: dto.decision, reason: dto.reason },
     });
 
-    if (contributorUserId) {
+    if (sideEffect) {
       const notificationType: NotificationType = moderationResult.targetType === 'review' ? 'moderation_result' : 'contribution_status';
-      await this.notificationService.create(contributorUserId, notificationType, {
+      await this.notificationService.create(sideEffect.contributorUserId, notificationType, {
         title: this.decisionTitle(dto.decision),
         body: dto.reason ?? this.decisionDefaultBody(dto.decision),
-        deepLink: { screen: moderationResult.targetType === 'review' ? 'RestaurantDetail' : 'SubmissionStatus', reviewId: moderationResult.targetType === 'review' ? moderationResult.targetId : undefined },
+        deepLink: sideEffect.deepLink,
       });
     }
   }
 
-  /** Returns the contributor's userId (for notification), or null if the target no longer exists. */
+  /**
+   * Returns the contributor's userId + a deep link the mobile app can
+   * actually navigate with, or null if the target no longer exists.
+   * Gap-fix: this used to send `{screen: 'RestaurantDetail', reviewId}` for
+   * reviews — 'RestaurantDetail' needs a `restaurantId` param, not
+   * `reviewId`, so NotificationsScreen's NAVIGABLE_SCREENS check (which only
+   * ever recognized 'Reviews') could never match it; tapping either real
+   * notification type just marked it read and never navigated anywhere.
+   */
   private async applyTargetSideEffect(
     moderationResult: ModerationResult,
     decision: 'approved' | 'rejected' | 'edit_requested',
     actorId: string,
-  ): Promise<string | null> {
+  ): Promise<{ contributorUserId: string; deepLink: NotificationDeepLink } | null> {
     switch (moderationResult.targetType) {
       case 'review': {
         const review = await this.prisma.review.findUnique({ where: { id: moderationResult.targetId } });
         if (!review) return null;
         const status = decision === 'approved' ? 'published' : decision === 'rejected' ? 'rejected' : 'pending';
         await this.prisma.review.update({ where: { id: moderationResult.targetId }, data: { status } });
-        return review.userId;
+        // 'Reviews' (restaurantId) — the only screen NotificationsScreen's
+        // NAVIGABLE_SCREENS actually recognizes; the review's own id isn't a
+        // navigable target on its own.
+        return { contributorUserId: review.userId, deepLink: { screen: 'Reviews', restaurantId: review.restaurantId } };
       }
       case 'contribution': {
         const contribution = await this.prisma.contribution.findUnique({ where: { id: moderationResult.targetId } });
@@ -132,15 +145,31 @@ export class AdminModerationService {
           decision,
           actorId,
         );
-        return contribution.userId;
+        return {
+          contributorUserId: contribution.userId,
+          deepLink: { screen: 'SubmissionStatus', contributionId: contribution.id },
+        };
       }
       case 'photo': {
         const photo = await this.prisma.photo.findUnique({ where: { id: moderationResult.targetId } });
         if (!photo) return null;
         if (decision === 'rejected') {
-          await this.prisma.photo.update({ where: { id: moderationResult.targetId }, data: { deletedAt: new Date() } });
+          // deletedAt already hides it from every photo query (all filter
+          // deletedAt: null) — status is set too, purely for an honest audit
+          // trail on the row itself.
+          await this.prisma.photo.update({
+            where: { id: moderationResult.targetId },
+            data: { status: 'rejected', deletedAt: new Date() },
+          });
+        } else if (decision === 'approved') {
+          await this.prisma.photo.update({ where: { id: moderationResult.targetId }, data: { status: 'approved' } });
         }
-        return photo.uploadedBy;
+        // No user notification for photo decisions — there's no mobile
+        // screen to deep-link a bare photo status into (unlike review/
+        // contribution, which have Reviews/SubmissionStatus). Sending one
+        // anyway would just recreate the exact bug this method now fixes,
+        // for a third case.
+        return null;
       }
       default:
         return null;
@@ -217,6 +246,14 @@ export class AdminModerationService {
       case 'video':
         contentSummary = '(Video chưa được hỗ trợ)';
         break;
+      case 'restaurant': {
+        // No single "submitter" for an already-published restaurant being
+        // reported — submitterDisplayName stays the generic default.
+        const restaurant = await this.prisma.restaurant.findUnique({ where: { id: moderationResult.targetId } });
+        contentSummary = restaurant?.name ?? '(Không tìm thấy quán)';
+        relatedReports = await this.reportService.findByTarget('restaurant', moderationResult.targetId);
+        break;
+      }
     }
 
     return {

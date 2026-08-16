@@ -72,15 +72,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     sheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
       padding: 24,
     },
     title: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center', color: colors.textPrimary },
     message: { fontSize: 14, color: colors.textSecondary, marginBottom: 20, textAlign: 'center' },
     primaryButton: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginBottom: 12,
@@ -89,7 +89,7 @@ const createStyles = (colors: ThemeColors) =>
     secondaryButton: {
       borderWidth: 1,
       borderColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginBottom: 12,

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
 export function PermissionLocationScreen({ onDone }: Props) {
   const [isRequesting, setIsRequesting] = useState(false);
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   async function handleAllow() {
@@ -35,11 +37,8 @@ export function PermissionLocationScreen({ onDone }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bật vị trí của bạn</Text>
-      <Text style={styles.body}>
-        Cho phép truy cập vị trí để tìm quán ăn gần bạn nhanh hơn. Bạn vẫn có thể dùng ứng dụng
-        nếu bỏ qua bước này.
-      </Text>
+      <Text style={styles.title}>{t('root.permissionTitle')}</Text>
+      <Text style={styles.body}>{t('root.permissionBody')}</Text>
 
       <Pressable
         style={[styles.primaryButton, isRequesting && styles.buttonDisabled]}
@@ -49,12 +48,12 @@ export function PermissionLocationScreen({ onDone }: Props) {
         {isRequesting ? (
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={styles.primaryButtonText}>Cho phép vị trí</Text>
+          <Text style={styles.primaryButtonText}>{t('root.permissionAllow')}</Text>
         )}
       </Pressable>
 
       <Pressable style={styles.skipButton} onPress={onDone} disabled={isRequesting}>
-        <Text style={styles.skipButtonText}>Để sau</Text>
+        <Text style={styles.skipButtonText}>{t('root.permissionSkip')}</Text>
       </Pressable>
     </View>
   );
@@ -73,7 +72,7 @@ const createStyles = (colors: ThemeColors) =>
     body: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 32 },
     primaryButton: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       paddingHorizontal: 32,
       alignItems: 'center',

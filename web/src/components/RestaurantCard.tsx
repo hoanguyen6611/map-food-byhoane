@@ -1,18 +1,38 @@
 import Image from 'next/image';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatPriceRange } from '@/lib/format';
+import { Link } from '@/i18n/navigation';
+import { FavoriteButton } from './FavoriteButton';
 
-interface Props {
-  restaurant: RestaurantSummaryDto;
+// Structural subset — deliberately loose so both RestaurantSummaryDto (search
+// results) and FavoriteRestaurantSummaryDto (the favorites page) satisfy it
+// without an adapter, same pattern mobile's RestaurantCard already uses for
+// the same two DTOs. isOpenNow is absent on the favorites DTO, so it's
+// optional here and the badge only renders when it's actually known.
+interface RestaurantCardData {
+  id: string;
+  slug: string;
+  name: string;
+  thumbnailUrl: string | null;
+  compositeScore: number | null;
+  reviewCount: number;
+  priceRange: RestaurantSummaryDto['priceRange'];
+  isOpenNow?: boolean;
 }
 
-export function RestaurantCard({ restaurant }: Props) {
-  const priceLabel = formatPriceRange(restaurant.priceRange);
+interface Props {
+  restaurant: RestaurantCardData;
+}
+
+export async function RestaurantCard({ restaurant }: Props) {
+  const tCommon = await getTranslations('common');
+  const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
 
   return (
     <Link href={`/restaurant/${restaurant.slug}`} className="restaurant-card">
       <div className="thumb">
+        <FavoriteButton restaurantId={restaurant.id} />
         {restaurant.thumbnailUrl ? (
           <Image
             src={restaurant.thumbnailUrl}
@@ -31,15 +51,17 @@ export function RestaurantCard({ restaurant }: Props) {
           <span>
             {restaurant.compositeScore !== null
               ? `★ ${restaurant.compositeScore.toFixed(1)} (${restaurant.reviewCount})`
-              : 'Chưa có đánh giá'}
+              : tCommon('noRating')}
           </span>
           {priceLabel ? <span>· {priceLabel}đ</span> : null}
         </div>
-        <div className="meta" style={{ marginTop: 6 }}>
-          <span className={`badge ${restaurant.isOpenNow ? 'badge-open' : 'badge-closed'}`}>
-            {restaurant.isOpenNow ? 'Đang mở cửa' : 'Đã đóng cửa'}
-          </span>
-        </div>
+        {restaurant.isOpenNow !== undefined ? (
+          <div className="meta" style={{ marginTop: 6 }}>
+            <span className={`badge ${restaurant.isOpenNow ? 'badge-open' : 'badge-closed'}`}>
+              {restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')}
+            </span>
+          </div>
+        ) : null}
       </div>
     </Link>
   );

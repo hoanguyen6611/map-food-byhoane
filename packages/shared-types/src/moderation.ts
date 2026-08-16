@@ -29,7 +29,7 @@ export interface ResolveReportRequest {
   status: 'resolved' | 'dismissed';
 }
 
-export type ModerationTargetType = 'review' | 'contribution' | 'photo' | 'video';
+export type ModerationTargetType = 'review' | 'contribution' | 'photo' | 'video' | 'restaurant';
 export type ModerationRecommendedAction = 'auto_approve' | 'hold_for_review' | 'reject';
 export type ModerationDecision = 'pending' | 'approved' | 'rejected' | 'edit_requested';
 

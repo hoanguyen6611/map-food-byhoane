@@ -1,8 +1,10 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatDistanceMeters, formatPriceRange } from '../lib/format';
 import { useTheme, type ThemeColors } from '../theme/ThemeContext';
+import { FONT_FAMILY } from '../theme/fonts';
 
 /**
  * The subset of fields `RestaurantCard` actually renders — satisfied by both
@@ -50,6 +52,7 @@ export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavor
   const priceLabel = formatPriceRange(restaurant.priceRange);
   const showFavoriteButton = onToggleFavorite !== undefined;
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   return (
@@ -69,9 +72,13 @@ export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavor
 
         <View style={styles.metaRow}>
           <Text style={styles.ratingText}>
-            {restaurant.compositeScore !== null
-              ? `★ ${restaurant.compositeScore.toFixed(1)} (${restaurant.reviewCount})`
-              : 'Chưa có đánh giá'}
+            {restaurant.compositeScore !== null ? (
+              <>
+                <Text style={styles.starGlyph}>★</Text> {restaurant.compositeScore.toFixed(1)} ({restaurant.reviewCount})
+              </>
+            ) : (
+              t('restaurantCard.noRating')
+            )}
           </Text>
           {priceLabel ? <Text style={styles.dot}>·</Text> : null}
           {priceLabel ? <Text style={styles.priceText}>{priceLabel}đ</Text> : null}
@@ -80,7 +87,7 @@ export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavor
         <View style={styles.metaRow}>
           {restaurant.isOpenNow !== undefined ? (
             <View style={[styles.badge, restaurant.isOpenNow ? styles.badgeOpen : styles.badgeClosed]}>
-              <Text style={styles.badgeText}>{restaurant.isOpenNow ? 'Đang mở cửa' : 'Đã đóng cửa'}</Text>
+              <Text style={styles.badgeText}>{restaurant.isOpenNow ? t('restaurantCard.openNow') : t('restaurantCard.closedNow')}</Text>
             </View>
           ) : null}
           {restaurant.distanceMeters !== null && restaurant.distanceMeters !== undefined ? (
@@ -98,13 +105,17 @@ export function RestaurantCard({ restaurant, onPress, isFavorited, onToggleFavor
             onToggleFavorite?.();
           }}
           accessibilityRole="button"
-          accessibilityLabel={isFavorited ? `Bỏ yêu thích ${restaurant.name}` : `Yêu thích ${restaurant.name}`}
+          accessibilityLabel={
+            isFavorited
+              ? t('restaurantCard.unfavorite', { name: restaurant.name })
+              : t('restaurantCard.favorite', { name: restaurant.name })
+          }
           accessibilityState={{ selected: isFavorited }}
         >
           <Ionicons
             name={isFavorited ? 'heart' : 'heart-outline'}
             size={18}
-            color={isFavorited ? colors.primary : colors.textTertiary}
+            color={isFavorited ? colors.favorite : colors.textTertiary}
           />
         </Pressable>
       ) : null}
@@ -138,7 +149,9 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       padding: 12,
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
       marginBottom: 10,
       shadowColor: colors.shadow,
       shadowOpacity: 0.06,
@@ -164,7 +177,7 @@ const createStyles = (colors: ThemeColors) =>
     thumbnailPlaceholder: {
       width: 64,
       height: 64,
-      borderRadius: 10,
+      borderRadius: 14,
       backgroundColor: colors.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
@@ -173,22 +186,23 @@ const createStyles = (colors: ThemeColors) =>
     thumbnailImage: {
       width: 64,
       height: 64,
-      borderRadius: 10,
+      borderRadius: 14,
       marginRight: 12,
     },
     thumbnailEmoji: { fontSize: 28 },
     info: { flex: 1, justifyContent: 'center' },
-    name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+    name: { fontSize: 15, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary, marginBottom: 4 },
     metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
-    ratingText: { fontSize: 13, color: colors.textSecondary },
+    ratingText: { fontSize: 13, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
+    starGlyph: { color: colors.star },
     dot: { fontSize: 13, color: colors.textTertiary },
-    priceText: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
-    badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+    priceText: { fontSize: 13, color: colors.textPrimary, fontFamily: FONT_FAMILY.bodySemiBold },
+    badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
     badgeOpen: { backgroundColor: colors.successBg },
     badgeClosed: { backgroundColor: colors.errorBg },
-    badgeText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary },
-    distanceText: { fontSize: 12, color: colors.textSecondary },
-    skeletonBlock: { backgroundColor: colors.surfaceAlt, borderRadius: 6 },
+    badgeText: { fontSize: 11, fontFamily: FONT_FAMILY.metaMedium, color: colors.textPrimary },
+    distanceText: { fontSize: 12, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
+    skeletonBlock: { backgroundColor: colors.surfaceAlt, borderRadius: 8 },
     skeletonLineWide: { height: 14, width: '70%', marginBottom: 8 },
     skeletonLineNarrow: { height: 12, width: '45%', marginBottom: 8 },
   });

@@ -113,6 +113,65 @@ describe('ClaudeGatewayService.moderate — free rule-based fallback (no ANTHROP
   });
 });
 
+describe('ClaudeGatewayService.moderate — image input', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => createMock.mockReset());
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('holds for review without calling Claude when no API key is configured', async () => {
+    const service = buildService({}, '');
+    const result = await service.moderate({ text: null, imageUrls: ['https://example.com/photo.jpg'] });
+    expect(result.recommendedAction).toBe('hold_for_review');
+    expect(result.labels).toContain('image_unscreened_no_api_key');
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches the image, sends it as a base64 vision block, and derives the result from Claude', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'image/jpeg' },
+      arrayBuffer: async () => new TextEncoder().encode('fake-image-bytes').buffer,
+    }) as never;
+    createMock.mockResolvedValue(
+      textResponse({ riskScore: 0.1, labels: [], reason: 'Ảnh món ăn bình thường.', isSevereViolation: false }),
+    );
+
+    const service = buildService();
+    const result = await service.moderate({ text: null, imageUrls: ['https://storage.example.com/photo.jpg'] });
+
+    expect(global.fetch).toHaveBeenCalledWith('https://storage.example.com/photo.jpg');
+    expect(result.recommendedAction).toBe('auto_approve');
+    const callArgs = createMock.mock.calls[0][0];
+    const imageBlock = callArgs.messages[0].content.find((block: { type: string }) => block.type === 'image');
+    expect(imageBlock).toBeDefined();
+    expect(imageBlock.source.type).toBe('base64');
+    expect(imageBlock.source.media_type).toBe('image/jpeg');
+  });
+
+  it('skips a failed image fetch and still moderates using any remaining text', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 }) as never;
+    createMock.mockResolvedValue(
+      textResponse({ riskScore: 0.1, labels: [], reason: 'Nội dung bình thường.', isSevereViolation: false }),
+    );
+
+    const service = buildService();
+    const result = await service.moderate({ text: 'Quán ngon', imageUrls: ['https://storage.example.com/broken.jpg'] });
+
+    expect(result.recommendedAction).toBe('auto_approve');
+    const callArgs = createMock.mock.calls[0][0];
+    expect(callArgs.messages[0].content.some((block: { type: string }) => block.type === 'image')).toBe(false);
+  });
+
+  it('throws if every image fetch fails and there is no text either', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as never;
+    const service = buildService();
+    await expect(service.moderate({ text: null, imageUrls: ['https://storage.example.com/broken.jpg'] })).rejects.toThrow();
+  });
+});
+
 describe('ClaudeGatewayService.summarize', () => {
   beforeEach(() => createMock.mockReset());
 

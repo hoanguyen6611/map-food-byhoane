@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ReviewCriteriaBreakdownDto, ReviewDto, ReviewSort } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
@@ -10,22 +11,24 @@ import { ReviewCard } from '../../components/ReviewCard';
 import { AuthGateModal } from '../../components/AuthGateModal';
 import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Reviews'>;
 
-const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
-  { value: 'newest', label: 'Mới nhất' },
+const SORT_OPTION_KEYS: { value: ReviewSort; labelKey: string }[] = [
+  { value: 'newest', labelKey: 'reviews.sortNewest' },
   // These two currently behave identically to 'newest' server-side (no
   // helpfulness-vote model or review-photo support exists yet) — offered
   // here for forward-compat with the sort contract, not because they
   // produce different results today.
-  { value: 'most_helpful', label: 'Hữu ích nhất' },
-  { value: 'has_photos', label: 'Có ảnh' },
+  { value: 'most_helpful', labelKey: 'reviews.sortMostHelpful' },
+  { value: 'has_photos', labelKey: 'reviews.sortHasPhotos' },
 ];
 
 const RATING_FILTERS: (number | null)[] = [null, 5, 4, 3, 2, 1];
 
 function RatingBreakdownRow({ item }: { item: ReviewCriteriaBreakdownDto }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const pct = item.averageScore !== null ? (item.averageScore / 5) * 100 : 0;
@@ -38,7 +41,7 @@ function RatingBreakdownRow({ item }: { item: ReviewCriteriaBreakdownDto }) {
         <View style={[styles.breakdownBarFill, { width: `${pct}%` }]} />
       </View>
       <Text style={styles.breakdownValue}>
-        {item.averageScore !== null ? item.averageScore.toFixed(1) : 'Chưa có đánh giá'}
+        {item.averageScore !== null ? item.averageScore.toFixed(1) : t('restaurantDetail.noRating')}
         {item.averageScore !== null ? ` (${item.ratingCount})` : ''}
       </Text>
     </View>
@@ -52,6 +55,7 @@ function RatingBreakdownRow({ item }: { item: ReviewCriteriaBreakdownDto }) {
  * paginated review list via `useReviewList`.
  */
 export function ReviewsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -112,7 +116,7 @@ export function ReviewsScreen({ route, navigation }: Props) {
 
             {reviewsQuery.data ? (
               <View style={styles.breakdownBlock}>
-                <Text style={styles.sectionTitle}>Đánh giá theo tiêu chí</Text>
+                <Text style={styles.sectionTitle}>{t('reviews.breakdownTitle')}</Text>
                 {reviewsQuery.data.ratingBreakdown.map((item) => (
                   <RatingBreakdownRow key={item.code} item={item} />
                 ))}
@@ -120,22 +124,22 @@ export function ReviewsScreen({ route, navigation }: Props) {
             ) : null}
 
             <View style={styles.controlsBlock}>
-              <Text style={styles.controlsLabel}>Sắp xếp</Text>
+              <Text style={styles.controlsLabel}>{t('reviews.sortLabel')}</Text>
               <View style={styles.chipsRow}>
-                {SORT_OPTIONS.map((opt) => (
+                {SORT_OPTION_KEYS.map((opt) => (
                   <Pressable
                     key={opt.value}
                     style={[styles.chip, sort === opt.value ? styles.chipActive : null]}
                     onPress={() => handleSortChange(opt.value)}
                   >
                     <Text style={[styles.chipText, sort === opt.value ? styles.chipTextActive : null]}>
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
 
-              <Text style={styles.controlsLabel}>Lọc theo sao</Text>
+              <Text style={styles.controlsLabel}>{t('reviews.filterLabel')}</Text>
               <View style={styles.chipsRow}>
                 {RATING_FILTERS.map((value) => (
                   <Pressable
@@ -144,7 +148,7 @@ export function ReviewsScreen({ route, navigation }: Props) {
                     onPress={() => handleFilterChange(value)}
                   >
                     <Text style={[styles.chipText, filter === value ? styles.chipTextActive : null]}>
-                      {value === null ? 'Tất cả' : `${value}★`}
+                      {value === null ? t('reviews.filterAll') : `${value}★`}
                     </Text>
                   </Pressable>
                 ))}
@@ -157,18 +161,16 @@ export function ReviewsScreen({ route, navigation }: Props) {
 
             {reviewsQuery.isError ? (
               <View style={styles.centeredBlock}>
-                <Text style={styles.errorText}>Không thể tải đánh giá. Vui lòng thử lại.</Text>
+                <Text style={styles.errorText}>{t('reviews.errorBody')}</Text>
                 <Pressable style={styles.retryButton} onPress={() => reviewsQuery.refetch()}>
-                  <Text style={styles.retryButtonText}>Thử lại</Text>
+                  <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
                 </Pressable>
               </View>
             ) : null}
 
             {reviewsQuery.data && total === 0 ? (
               <View style={styles.centeredBlock}>
-                <Text style={styles.emptyText}>
-                  Chưa có đánh giá nào cho quán này. Hãy là người đầu tiên!
-                </Text>
+                <Text style={styles.emptyText}>{t('reviews.emptyText')}</Text>
               </View>
             ) : null}
           </View>
@@ -181,17 +183,15 @@ export function ReviewsScreen({ route, navigation }: Props) {
                 onPress={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
-                <Text style={styles.pagerButtonText}>Trước</Text>
+                <Text style={styles.pagerButtonText}>{t('common.prev')}</Text>
               </Pressable>
-              <Text style={styles.pagerLabel}>
-                Trang {page}/{totalPages}
-              </Text>
+              <Text style={styles.pagerLabel}>{t('common.pageOf', { page, totalPages })}</Text>
               <Pressable
                 style={[styles.pagerButton, page >= totalPages ? styles.pagerButtonDisabled : null]}
                 onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
-                <Text style={styles.pagerButtonText}>Sau</Text>
+                <Text style={styles.pagerButtonText}>{t('common.next')}</Text>
               </Pressable>
             </View>
           ) : null
@@ -199,12 +199,12 @@ export function ReviewsScreen({ route, navigation }: Props) {
       />
 
       <Pressable style={styles.fab} onPress={handleWriteReview}>
-        <Text style={styles.fabText}>Viết đánh giá</Text>
+        <Text style={styles.fabText}>{t('restaurantDetail.writeReview')}</Text>
       </Pressable>
 
       <AuthGateModal
         visible={showAuthGate}
-        message="Đăng nhập để viết đánh giá."
+        message={t('reviews.authGateMessage')}
         onDismiss={() => setShowAuthGate(false)}
         onLoginPress={() => setShowAuthGate(false)}
         onRegisterPress={() => setShowAuthGate(false)}
@@ -218,44 +218,44 @@ const createStyles = (colors: ThemeColors) =>
     container: { flex: 1, backgroundColor: colors.background },
     listContent: { paddingHorizontal: 16, paddingBottom: 100 },
     headerBlock: { paddingTop: 16, paddingBottom: 8 },
-    restaurantName: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-    restaurantCategory: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-    sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 8 },
+    restaurantName: { fontSize: 18, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary },
+    restaurantCategory: { fontSize: 13, color: colors.textSecondary, marginTop: 2, fontFamily: FONT_FAMILY.meta },
+    sectionTitle: { fontSize: 15, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary, marginBottom: 8 },
     breakdownBlock: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.divider },
     breakdownRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-    breakdownLabel: { fontSize: 12, color: colors.textSecondary, width: 110 },
+    breakdownLabel: { fontSize: 12, color: colors.textSecondary, width: 110, fontFamily: FONT_FAMILY.meta },
     breakdownBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
     breakdownBarFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
-    breakdownValue: { fontSize: 11, color: colors.textSecondary, width: 92, textAlign: 'right' },
+    breakdownValue: { fontSize: 11, color: colors.textSecondary, width: 92, textAlign: 'right', fontFamily: FONT_FAMILY.meta },
     controlsBlock: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.divider },
-    controlsLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 6, marginTop: 4 },
+    controlsLabel: { fontSize: 12, fontFamily: FONT_FAMILY.bodyBold, color: colors.textSecondary, marginBottom: 6, marginTop: 4 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
     chip: {
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 16,
+      borderRadius: 999,
       backgroundColor: colors.surfaceAlt,
     },
     chipActive: { backgroundColor: colors.primary },
-    chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+    chipText: { fontSize: 12, color: colors.textSecondary, fontFamily: FONT_FAMILY.bodySemiBold },
     chipTextActive: { color: colors.onPrimary },
     loading: { marginVertical: 24 },
     centeredBlock: { paddingVertical: 32, alignItems: 'center' },
     errorText: { fontSize: 14, color: colors.error, marginBottom: 12, textAlign: 'center' },
-    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold },
     emptyText: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', paddingHorizontal: 24 },
     pagerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 20 },
-    pagerButton: { backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+    pagerButton: { backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
     pagerButtonDisabled: { opacity: 0.4 },
-    pagerButtonText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-    pagerLabel: { fontSize: 13, color: colors.textSecondary },
+    pagerButtonText: { fontSize: 13, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary },
+    pagerLabel: { fontSize: 13, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
     fab: {
       position: 'absolute',
       right: 16,
       bottom: 24,
       backgroundColor: colors.primary,
-      borderRadius: 24,
+      borderRadius: 999,
       paddingVertical: 14,
       paddingHorizontal: 20,
       shadowColor: colors.shadow,
@@ -264,5 +264,5 @@ const createStyles = (colors: ThemeColors) =>
       shadowRadius: 6,
       elevation: 4,
     },
-    fabText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
+    fabText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold, fontSize: 14 },
   });

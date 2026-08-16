@@ -1,24 +1,19 @@
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { NotificationDto } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useMarkNotificationRead, useNotificationsList } from '../../hooks/useNotifications';
 import { formatRelativeDate } from '../../lib/format';
+import { resolveNotificationTarget } from '../../lib/notificationNavigation';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Notifications'>;
 
 const PAGE_SIZE = 20;
-
-// Only screens this build actually knows how to deep-link into with the data
-// a NotificationDto carries. `SubmissionStatus` IS a registered route, but it
-// requires a `contributionId` param the notification payload doesn't carry
-// (Module 7's moderation queue — the real producer — doesn't exist yet, so
-// there's no way to know which contribution to show) — tapping one just
-// marks it read instead of navigating into a screen with missing params.
-const NAVIGABLE_SCREENS = new Set(['Reviews']);
 
 function NotificationRow({
   notification,
@@ -59,6 +54,7 @@ function NotificationRow({
  * real test account for manual verification.
  */
 export function NotificationsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const notificationsQuery = useNotificationsList(page, PAGE_SIZE);
   const markRead = useMarkNotificationRead();
@@ -74,11 +70,10 @@ export function NotificationsScreen({ navigation }: Props) {
     if (!notification.isRead) {
       markRead.mutate(notification.id);
     }
-    const { screen, restaurantId } = notification.payload.deepLink;
-    if (screen === 'Reviews' && restaurantId && NAVIGABLE_SCREENS.has(screen)) {
-      navigation.navigate('Reviews', { restaurantId });
+    const target = resolveNotificationTarget(notification.payload.deepLink);
+    if (target) {
+      navigation.navigate(...target);
     }
-    // Any other/unrecognized screen name: mark-read only, no navigation.
   }
 
   if (notificationsQuery.isLoading) {
@@ -92,10 +87,10 @@ export function NotificationsScreen({ navigation }: Props) {
   if (notificationsQuery.isError) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.errorTitle}>Không có kết nối</Text>
-        <Text style={styles.errorBody}>Không thể tải thông báo. Vui lòng thử lại.</Text>
+        <Text style={styles.errorTitle}>{t('common.noConnectionTitle')}</Text>
+        <Text style={styles.errorBody}>{t('notifications.errorBody')}</Text>
         <Pressable style={styles.retryButton} onPress={() => notificationsQuery.refetch()}>
-          <Text style={styles.retryButtonText}>Thử lại</Text>
+          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -104,7 +99,7 @@ export function NotificationsScreen({ navigation }: Props) {
   if (showEmpty) {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.emptyText}>Bạn chưa có thông báo nào.</Text>
+        <Text style={styles.emptyText}>{t('notifications.emptyText')}</Text>
       </View>
     );
   }
@@ -126,17 +121,15 @@ export function NotificationsScreen({ navigation }: Props) {
                 onPress={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
-                <Text style={styles.pagerButtonText}>Trước</Text>
+                <Text style={styles.pagerButtonText}>{t('common.prev')}</Text>
               </Pressable>
-              <Text style={styles.pagerLabel}>
-                Trang {page}/{totalPages}
-              </Text>
+              <Text style={styles.pagerLabel}>{t('common.pageOf', { page, totalPages })}</Text>
               <Pressable
                 style={[styles.pagerButton, page >= totalPages ? styles.pagerButtonDisabled : null]}
                 onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
-                <Text style={styles.pagerButtonText}>Sau</Text>
+                <Text style={styles.pagerButtonText}>{t('common.next')}</Text>
               </Pressable>
             </View>
           ) : null
@@ -156,24 +149,24 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
       paddingHorizontal: 32,
     },
-    errorTitle: { fontSize: 18, fontWeight: '700', color: colors.error, marginBottom: 8 },
+    errorTitle: { fontSize: 18, fontFamily: FONT_FAMILY.bodyBold, color: colors.error, marginBottom: 8 },
     errorBody: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 20 },
-    retryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
-    retryButtonText: { color: colors.onPrimary, fontWeight: '700' },
-    emptyText: { fontSize: 15, color: colors.textTertiary, fontWeight: '600', textAlign: 'center' },
+    retryButton: { backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 24 },
+    retryButtonText: { color: colors.onPrimary, fontFamily: FONT_FAMILY.buttonSemiBold },
+    emptyText: { fontSize: 15, color: colors.textTertiary, fontFamily: FONT_FAMILY.bodySemiBold, textAlign: 'center' },
     row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
     unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginTop: 6 },
     unreadDotSpacer: { width: 8, height: 8, marginTop: 6 },
     rowBody: { flex: 1 },
-    title: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-    titleUnread: { fontWeight: '800', color: colors.textPrimary },
-    body: { fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 },
-    date: { fontSize: 11, color: colors.textTertiary, marginTop: 6 },
+    title: { fontSize: 14, fontFamily: FONT_FAMILY.bodySemiBold, color: colors.textPrimary },
+    titleUnread: { fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary },
+    body: { fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18, fontFamily: FONT_FAMILY.body },
+    date: { fontSize: 11, color: colors.textTertiary, marginTop: 6, fontFamily: FONT_FAMILY.meta },
     trailingDot: { marginTop: 6 },
     separator: { height: 1, backgroundColor: colors.divider, marginHorizontal: 16 },
     pagerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 20 },
-    pagerButton: { backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+    pagerButton: { backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
     pagerButtonDisabled: { opacity: 0.4 },
-    pagerButtonText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-    pagerLabel: { fontSize: 13, color: colors.textSecondary },
+    pagerButtonText: { fontSize: 13, fontFamily: FONT_FAMILY.bodyBold, color: colors.textPrimary },
+    pagerLabel: { fontSize: 13, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },
   });

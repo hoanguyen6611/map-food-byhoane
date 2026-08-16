@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
@@ -20,16 +21,12 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-// Response is identical whether or not the account exists — per the API
-// contract there is nothing to branch on client-side, so we always show
-// this same message on success.
-const SUCCESS_MESSAGE = 'Nếu tài khoản tồn tại, chúng tôi đã gửi email hướng dẫn đặt lại mật khẩu.';
-
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export function ForgotPasswordScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -72,13 +69,13 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     setErrorMessage(null);
     try {
       await authApi.forgotPassword({ email: email.trim() });
-      setSuccessMessage(SUCCESS_MESSAGE);
+      setSuccessMessage(t('forgotPassword.successMessage'));
       startCooldown();
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Lỗi mạng, vui lòng thử lại.');
+        setErrorMessage(t('auth.networkError'));
       }
     } finally {
       setIsSubmitting(false);
@@ -88,10 +85,8 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Quên mật khẩu</Text>
-        <Text style={styles.subtitle}>
-          Nhập email của bạn, chúng tôi sẽ gửi liên kết đặt lại mật khẩu nếu tài khoản tồn tại.
-        </Text>
+        <Text style={styles.title}>{t('nav.forgotPassword')}</Text>
+        <Text style={styles.subtitle}>{t('forgotPassword.subtitle')}</Text>
 
         {successMessage ? (
           <View style={styles.successBanner}>
@@ -105,7 +100,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('auth.email')}</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -127,13 +122,13 @@ export function ForgotPasswordScreen({ navigation }: Props) {
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>
-              {cooldownSeconds > 0 ? `Gửi lại sau ${cooldownSeconds}s` : 'Gửi liên kết'}
+              {cooldownSeconds > 0 ? t('forgotPassword.resendCooldown', { seconds: cooldownSeconds }) : t('forgotPassword.submitButton')}
             </Text>
           )}
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Login')} style={styles.linkRow}>
-          <Text style={styles.link}>Quay lại đăng nhập</Text>
+          <Text style={styles.link}>{t('forgotPassword.backToLogin')}</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -150,7 +145,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginBottom: 16,
@@ -160,7 +155,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 8,
@@ -173,7 +168,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.errorBg,
       borderColor: colors.errorBorder,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 12,
       marginBottom: 16,
     },
@@ -182,7 +177,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.successBg,
       borderColor: colors.successBorder,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 12,
       marginBottom: 16,
     },

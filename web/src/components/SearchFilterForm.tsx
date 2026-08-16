@@ -1,13 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { CuisineCode, FacilityType, RestaurantCategoryCode } from '@foodmap/shared-types';
-import { CATEGORY_LABELS, CUISINE_LABELS, FACILITY_META, PRICE_BUCKETS } from '@/lib/labels';
-
-const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as RestaurantCategoryCode[];
-const CUISINE_OPTIONS = Object.keys(CUISINE_LABELS) as CuisineCode[];
-const FACILITY_OPTIONS = Object.keys(FACILITY_META) as FacilityType[];
+import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_EMOJI, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { useRouter } from '@/i18n/navigation';
 
 export interface SearchFilterValues {
   q?: string;
@@ -41,6 +38,8 @@ function toggleInList(list: string[], value: string): string[] {
  */
 export function SearchFilterForm({ initial }: Props) {
   const router = useRouter();
+  const t = useTranslations('filterForm');
+  const tLabels = useTranslations('labels');
   const [q, setQ] = useState(initial.q ?? '');
   const [category, setCategory] = useState(initial.category ?? '');
   const [district, setDistrict] = useState(initial.district ?? '');
@@ -76,48 +75,48 @@ export function SearchFilterForm({ initial }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="filter-form" aria-label="Bộ lọc tìm kiếm quán ăn">
+    <form onSubmit={handleSubmit} className="filter-form" aria-label={t('ariaLabel')}>
       <div className="filter-row">
         <input
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Tìm theo tên quán, món ăn..."
-          aria-label="Từ khoá tìm kiếm"
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchAriaLabel')}
           className="filter-text-input"
         />
       </div>
 
       <div className="filter-row filter-row-inline">
         <label className="filter-field">
-          <span>Danh mục</span>
+          <span>{t('category')}</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">Tất cả</option>
-            {CATEGORY_OPTIONS.map((code) => (
+            <option value="">{t('all')}</option>
+            {(CATEGORY_OPTIONS as RestaurantCategoryCode[]).map((code) => (
               <option key={code} value={code}>
-                {CATEGORY_LABELS[code]}
+                {tLabels(`category.${code}`)}
               </option>
             ))}
           </select>
         </label>
 
         <label className="filter-field">
-          <span>Khu vực</span>
+          <span>{t('areaLabel')}</span>
           <input
             type="text"
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
-            placeholder="VD: Quận 1"
+            placeholder={t('areaPlaceholder')}
           />
         </label>
 
         <label className="filter-field">
-          <span>Mức giá</span>
+          <span>{t('price')}</span>
           <select value={priceCode} onChange={(e) => setPriceCode(e.target.value)}>
-            <option value="">Tất cả</option>
+            <option value="">{t('all')}</option>
             {PRICE_BUCKETS.map((bucket) => (
               <option key={bucket.code} value={bucket.code}>
-                {bucket.label}
+                {tLabels(`priceBucket.${bucket.code}`)}
               </option>
             ))}
           </select>
@@ -125,14 +124,14 @@ export function SearchFilterForm({ initial }: Props) {
 
         <label className="filter-field filter-checkbox-field">
           <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
-          <span>Đang mở cửa</span>
+          <span>{t('openNowLabel')}</span>
         </label>
       </div>
 
       <div className="filter-row">
-        <span className="filter-label">Món ăn</span>
+        <span className="filter-label">{t('cuisineLabel')}</span>
         <div className="chip-row">
-          {CUISINE_OPTIONS.map((code) => (
+          {(CUISINE_OPTIONS as CuisineCode[]).map((code) => (
             <button
               type="button"
               key={code}
@@ -140,16 +139,16 @@ export function SearchFilterForm({ initial }: Props) {
               className={`chip chip-toggle${cuisine.includes(code) ? ' chip-selected' : ''}`}
               aria-pressed={cuisine.includes(code)}
             >
-              {CUISINE_LABELS[code]}
+              {tLabels(`cuisine.${code}`)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="filter-row">
-        <span className="filter-label">Tiện ích</span>
+        <span className="filter-label">{t('facilitiesLabel')}</span>
         <div className="chip-row">
-          {FACILITY_OPTIONS.map((code) => (
+          {(FACILITY_OPTIONS as FacilityType[]).map((code) => (
             <button
               type="button"
               key={code}
@@ -157,7 +156,7 @@ export function SearchFilterForm({ initial }: Props) {
               className={`chip chip-toggle${facilities.includes(code) ? ' chip-selected' : ''}`}
               aria-pressed={facilities.includes(code)}
             >
-              {FACILITY_META[code].emoji} {FACILITY_META[code].label}
+              {FACILITY_EMOJI[code]} {tLabels(`facilityLabel.${code}`)}
             </button>
           ))}
         </div>
@@ -165,10 +164,10 @@ export function SearchFilterForm({ initial }: Props) {
 
       <div className="filter-row filter-actions">
         <button type="submit" className="filter-submit">
-          Áp dụng bộ lọc
+          {t('apply')}
         </button>
         <button type="button" onClick={handleClear} className="filter-reset">
-          Xoá bộ lọc
+          {t('clear')}
         </button>
       </div>
     </form>

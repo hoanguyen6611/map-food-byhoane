@@ -47,6 +47,12 @@ export class AuthController {
     return this.authService.oauthLogin('apple', dto.idToken);
   }
 
+  @Post('oauth/facebook')
+  @HttpCode(HttpStatus.OK)
+  oauthFacebook(@Body() dto: OAuthLoginDto): Promise<AuthResponse> {
+    return this.authService.oauthLogin('facebook', dto.idToken);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@Body() dto: RefreshDto): Promise<AuthResponse> {

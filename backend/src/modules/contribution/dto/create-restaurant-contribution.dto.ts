@@ -48,14 +48,18 @@ export class ContributionAddressDto {
   @MaxLength(255)
   line!: string;
 
+  @IsString()
+  @MaxLength(100)
+  ward!: string;
+
+  // District was eliminated from Vietnam's administrative hierarchy in
+  // 2025 — no longer collected from any client. Kept optional (rather than
+  // removed) purely so legacy callers/tests aren't broken; new writes
+  // always omit it and the service layer defaults it to ''.
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  ward?: string;
-
-  @IsString()
-  @MaxLength(100)
-  district!: string;
+  district?: string;
 
   @IsString()
   @MaxLength(100)

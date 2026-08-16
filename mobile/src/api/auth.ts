@@ -3,12 +3,15 @@ import type {
   ForgotPasswordRequest,
   LoginRequest,
   MeResponse,
+  OAuthLoginRequest,
   RefreshRequest,
   RegisterRequest,
   ResetPasswordRequest,
   UpdateProfileRequest,
 } from '@foodmap/shared-types';
 import { apiClient } from './client';
+
+export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
 /**
  * Typed functions for every AuthModule/UserModule endpoint consumed by the
@@ -20,6 +23,9 @@ export const authApi = {
   register: (body: RegisterRequest) => apiClient.post<AuthResponse>('/auth/register', body),
 
   login: (body: LoginRequest) => apiClient.post<AuthResponse>('/auth/login', body),
+
+  oauthLogin: (provider: OAuthProvider, body: OAuthLoginRequest) =>
+    apiClient.post<AuthResponse>(`/auth/oauth/${provider}`, body),
 
   refresh: (body: RefreshRequest) => apiClient.post<AuthResponse>('/auth/refresh', body),
 

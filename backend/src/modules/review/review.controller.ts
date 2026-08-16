@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { ReviewDto, ReviewListResponse } from '@foodmap/shared-types';
+import type { MyReviewListResponse, ReviewDto, ReviewListResponse } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../auth/guards/rate-limit.guard';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
@@ -21,6 +21,7 @@ import { ReviewService } from './review.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewListQueryDto } from './dto/review-list-query.dto';
+import { MyReviewListQueryDto } from './dto/my-review-list-query.dto';
 
 @Controller('reviews')
 export class ReviewController {
@@ -67,5 +68,19 @@ export class RestaurantReviewController {
     @Query() query: ReviewListQueryDto,
   ): Promise<ReviewListResponse> {
     return this.reviewService.listForRestaurant(restaurantId, query);
+  }
+}
+
+// Separate controller (not nested under `reviews`) for the same reason
+// FavoriteController/NotificationController live at `me/...` paths — this
+// is a profile-scoped route, not a review-resource route.
+@Controller('me/reviews')
+@UseGuards(JwtAuthGuard)
+export class MyReviewController {
+  constructor(private readonly reviewService: ReviewService) {}
+
+  @Get()
+  listMine(@CurrentUser() user: RequestUser, @Query() query: MyReviewListQueryDto): Promise<MyReviewListResponse> {
+    return this.reviewService.listMine(user.id, query.page, query.pageSize);
   }
 }

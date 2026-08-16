@@ -21,6 +21,14 @@ import type { SearchQueryDto } from './dto/search-query.dto';
 const MAX_CANDIDATES = 500;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
+// Matches contribution.service.ts's DUPLICATE_SIMILARITY_THRESHOLD (same
+// "how similar is similar enough" question, same value) — 0.2 produced real
+// false positives on short queries: unaccented "Cơm tấm" ("Com tam") vs an
+// unrelated restaurant's unaccented "...Chị Tám" ("...Chi Tam") share enough
+// trigrams (the "tam" token) to cross 0.2 despite being semantically
+// unrelated. 0.4 clears both observed false-positive scores (0.20, 0.294)
+// while still catching genuine typos/near-misses of a restaurant's own name.
+const NAME_SIMILARITY_THRESHOLD = 0.4;
 
 interface RawRow {
   id: string;
@@ -67,7 +75,7 @@ export class SearchService {
       const q = query.q;
       conditions.push(Prisma.sql`(
         r.search_vector @@ plainto_tsquery('simple', immutable_unaccent(${q}))
-        OR similarity(immutable_unaccent(r.name), immutable_unaccent(${q})) > 0.2
+        OR similarity(immutable_unaccent(r.name), immutable_unaccent(${q})) > ${NAME_SIMILARITY_THRESHOLD}
         OR EXISTS (
           SELECT 1 FROM menus mm
           JOIN menu_items mi ON mi.menu_id = mm.id
@@ -129,9 +137,26 @@ export class SearchService {
       conditions.push(Prisma.sql`a.district = ${query.district}`);
     }
 
+    if (query.province) {
+      conditions.push(Prisma.sql`a.province = ${query.province}`);
+    }
+
+    if (query.ward) {
+      conditions.push(Prisma.sql`a.ward = ${query.ward}`);
+    }
+
     const whereClause = Prisma.join(conditions, ' AND ');
+    // GREATEST(...) rather than the tsvector rank alone — a row matched only
+    // via the fuzzy-name branch (not full-text) used to get a flat 0 here,
+    // tying it with every unrelated browse-mode row for ordering purposes.
+    // Folding the trigram similarity score in means a strong fuzzy match
+    // (near-exact typo of the restaurant's own name) ranks above a weak one,
+    // instead of both being indistinguishable from "no match at all."
     const textRankExpr = query.q
-      ? Prisma.sql`ts_rank_cd(r.search_vector, plainto_tsquery('simple', immutable_unaccent(${query.q})))`
+      ? Prisma.sql`GREATEST(
+          ts_rank_cd(r.search_vector, plainto_tsquery('simple', immutable_unaccent(${query.q}))),
+          similarity(immutable_unaccent(r.name), immutable_unaccent(${query.q}))
+        )`
       : Prisma.sql`0`;
     const distanceExpr = hasLatLng
       ? Prisma.sql`ST_Distance(l.geo_point, ST_SetSRID(ST_MakePoint(${query.lng}, ${query.lat}), 4326)::geography)`

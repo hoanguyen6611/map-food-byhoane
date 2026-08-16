@@ -82,6 +82,7 @@ export class FavoriteService {
         createdAt: f.createdAt.toISOString(),
         restaurant: {
           id: f.restaurant.id,
+          slug: f.restaurant.slug,
           name: f.restaurant.name,
           categoryCode: f.restaurant.category.code as RestaurantCategoryCode,
           thumbnailUrl: firstPhotoByRestaurant.get(f.restaurantId) ?? null,

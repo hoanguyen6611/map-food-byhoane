@@ -3,7 +3,7 @@
  * `@foodmap/shared-types` (`moderation.ts`) — kept here only for
  * Vietnamese-language display, not as a source of truth for validation.
  */
-import type { ModerationDecision, ModerationTargetType } from '@foodmap/shared-types'
+import type { ModerationDecision, ModerationTargetType, ReportReason } from '@foodmap/shared-types'
 
 export const TARGET_TYPE_TABS: { value: ModerationTargetType | ''; label: string }[] = [
   { value: '', label: 'Tất cả' },
@@ -11,7 +11,21 @@ export const TARGET_TYPE_TABS: { value: ModerationTargetType | ''; label: string
   { value: 'contribution', label: 'Đóng góp' },
   { value: 'photo', label: 'Ảnh' },
   { value: 'video', label: 'Video' },
+  { value: 'restaurant', label: 'Nhà hàng bị báo cáo' },
 ]
+
+const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  spam: 'Spam/quảng cáo',
+  inappropriate: 'Nội dung không phù hợp',
+  incorrect_info: 'Thông tin sai',
+  duplicate: 'Trùng lặp',
+  closed_down: 'Quán đã đóng cửa',
+  other: 'Khác',
+}
+
+export function reportReasonLabel(reason: ReportReason): string {
+  return REPORT_REASON_LABELS[reason] ?? reason
+}
 
 export const DECISION_OPTIONS: { value: ModerationDecision | ''; label: string }[] = [
   { value: 'pending', label: 'Chờ xử lý' },

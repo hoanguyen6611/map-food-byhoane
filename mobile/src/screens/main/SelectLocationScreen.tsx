@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../navigation/types';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
@@ -27,6 +28,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'SelectLocation'>;
  * Location spec.
  */
 export function SelectLocationScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const { location: deviceLocation } = useDeviceLocation();
@@ -63,9 +65,9 @@ export function SelectLocationScreen({ navigation }: Props) {
       </View>
 
       {deviceLocation ? (
-        <Pressable style={styles.gpsButton} onPress={handleUseGps} accessibilityRole="button" accessibilityLabel="Dùng vị trí GPS hiện tại">
+        <Pressable style={styles.gpsButton} onPress={handleUseGps} accessibilityRole="button" accessibilityLabel={t('selectLocation.gpsButtonAccessibilityLabel')}>
           <Ionicons name="navigate" size={18} color={colors.primary} />
-          <Text style={styles.gpsButtonText}>Vị trí của tôi</Text>
+          <Text style={styles.gpsButtonText}>{t('selectLocation.gpsButtonText')}</Text>
         </Pressable>
       ) : null}
 
@@ -73,9 +75,9 @@ export function SelectLocationScreen({ navigation }: Props) {
         <Text style={styles.coordText}>
           {center.latitude.toFixed(6)}, {center.longitude.toFixed(6)}
         </Text>
-        <Text style={styles.hint}>Di chuyển bản đồ để đặt ghim đúng vị trí quán.</Text>
+        <Text style={styles.hint}>{t('selectLocation.hint')}</Text>
         <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>Xác nhận vị trí</Text>
+          <Text style={styles.confirmButtonText}>{t('selectLocation.confirmButton')}</Text>
         </Pressable>
       </View>
     </View>
@@ -102,7 +104,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: 6,
       backgroundColor: colors.surface,
-      borderRadius: 20,
+      borderRadius: 24,
       paddingHorizontal: 14,
       paddingVertical: 10,
       shadowColor: colors.shadow,
@@ -117,8 +119,8 @@ const createStyles = (colors: ThemeColors) =>
       left: 0,
       right: 0,
       backgroundColor: colors.surface,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
       padding: 20,
       shadowColor: colors.shadow,
       shadowOpacity: 0.15,
@@ -127,6 +129,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     coordText: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
     hint: { fontSize: 12, color: colors.textTertiary, marginTop: 4, marginBottom: 14 },
-    confirmButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+    confirmButton: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
     confirmButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
   });

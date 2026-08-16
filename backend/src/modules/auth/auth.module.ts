@@ -12,6 +12,7 @@ import { RateLimitGuard } from './guards/rate-limit.guard';
 import { PermissionsService } from './permissions.service';
 import { GoogleOAuthService } from './oauth/google-oauth.service';
 import { AppleOAuthService } from './oauth/apple-oauth.service';
+import { FacebookOAuthService } from './oauth/facebook-oauth.service';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AppleOAuthService } from './oauth/apple-oauth.service';
     PermissionsService,
     GoogleOAuthService,
     AppleOAuthService,
+    FacebookOAuthService,
   ],
   // Exported so RestaurantModule/ReviewModule/AdminModule etc. (later
   // modules) can apply @UseGuards(JwtAuthGuard, RolesGuard/PermissionsGuard)

@@ -1,47 +1,34 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { MainTabParamList } from './types';
-import { MapScreen } from '../screens/main/MapScreen';
-import { ListScreen } from '../screens/main/ListScreen';
-import { FavoritesScreen } from '../screens/main/FavoritesScreen';
+import { HomeScreen } from '../screens/main/HomeScreen';
+import { ExploreScreen } from '../screens/main/ExploreScreen';
+import { SavedScreen } from '../screens/main/SavedScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
-import { useTheme } from '../theme/ThemeContext';
+import { FloatingTabBar } from './FloatingTabBar';
+import { NotificationBellButton } from '../components/NotificationBellButton';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TAB_ICONS: Record<
-  keyof MainTabParamList,
-  { focused: keyof typeof Ionicons.glyphMap; unfocused: keyof typeof Ionicons.glyphMap }
-> = {
-  Map: { focused: 'map', unfocused: 'map-outline' },
-  List: { focused: 'list', unfocused: 'list-outline' },
-  Favorites: { focused: 'heart', unfocused: 'heart-outline' },
-  Profile: { focused: 'person', unfocused: 'person-outline' },
-};
-
 /**
- * Bottom tab bar per docs/03-sitemap-userflow.md §1: Bản đồ (Map),
- * Danh sách (List), Yêu thích (Favorites), Cá nhân (Profile). The floating
- * "+" Add Restaurant action lives above this navigator (pushed from the
- * enclosing MainStack), not as a 5th tab.
+ * "Ngon v3" bottom tab bar: Trang chủ (Home), Khám phá (Explore), Đã lưu
+ * (Saved), Cá nhân (Profile) — replaces the earlier Map/List/Favorites/
+ * Profile IA (build-prompts/03/04/08). "Viết" is a 5th icon rendered by
+ * `FloatingTabBar` itself (not a real tab route — see tabConfig.ts), and Map
+ * moved off the tab bar entirely (now reached via Explore's "Mở bản đồ").
  */
 export function MainTabNavigator() {
-  const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => (
-          <Ionicons name={focused ? TAB_ICONS[route.name].focused : TAB_ICONS[route.name].unfocused} size={size} color={color} />
-        ),
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-      })}
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerRight: () => <NotificationBellButton /> }}
     >
-      <Tab.Screen name="Map" component={MapScreen} options={{ title: 'Bản đồ' }} />
-      <Tab.Screen name="List" component={ListScreen} options={{ title: 'Danh sách' }} />
-      <Tab.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Yêu thích' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Cá nhân' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('nav.tabHome') }} />
+      <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: t('nav.tabExplore') }} />
+      <Tab.Screen name="Saved" component={SavedScreen} options={{ title: t('nav.tabSaved') }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t('nav.tabProfile') }} />
     </Tab.Navigator>
   );
 }

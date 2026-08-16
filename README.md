@@ -4,7 +4,7 @@
 
 This repository holds the full design (`/docs`) and the in-progress implementation for The Food Map of Vietnam: a Vietnam-first food & beverage discovery platform combining a specialized map, structured community reviews, and an explainable AI recommendation layer. It is built as a portfolio project with the architecture and product rigor of a real, fundable product.
 
-**Current status: Modules 1-6 and 8 complete, plus Module 9 (Phase 1.5 Public Web); Module 7 not yet started.** Foundations, Authentication & Profile, Map & Geospatial Core, Search & Filter, Restaurant Detail + Admin Seed Tooling (real 40-restaurant HCMC demo dataset), Reviews & Composite Scoring (Bayesian-damped scoring, rule-based moderation stand-in), Favorites/Notifications/Security-Performance-Accessibility hardening, and a server-rendered, SEO-focused public web app are implemented, tested, and verified working end-to-end — see [Getting Started](#getting-started) to run it, and [Status](#status) for what's next. Module 7 (Contribution, real AI moderation via Claude, media upload pipeline, Admin Moderation Queue) was deliberately deferred by the project owner in favor of finishing Module 8's hardening pass — and, later, Phase 1.5's public web app — first; it remains the next module to build.
+**Current status: Modules 1-9 complete** (all of Phase 1 MVP plus Phase 1.5's Public Web). Foundations, Authentication & Profile, Map & Geospatial Core, Search & Filter, Restaurant Detail + Admin Seed Tooling (real 40-restaurant HCMC demo dataset), Reviews & Composite Scoring (Bayesian-damped scoring), Contribution + Media + real AI Moderation (Claude, with a free rule-based fallback when no API key is configured) + Admin Moderation Queue, Favorites/Notifications/Security-Performance-Accessibility hardening, and a server-rendered, SEO-focused public web app are implemented, tested, and verified working end-to-end — see [Getting Started](#getting-started) to run it, and [Status](#status) for what's next.
 
 ## Design Document Index (`/docs`)
 
@@ -84,7 +84,7 @@ npm run dev:mobile    # Expo dev server (scan QR with Expo Go, or press i/a for 
 npm run dev:web       # http://localhost:3004 (backend already owns :3000)
 ```
 
-Notifications have no real producer yet (that's Module 7's Admin Moderation Queue) — after registering an account in the app, seed yourself a few example notifications to see the Notifications screen populated: `cd backend && npx ts-node prisma/seed-notifications.ts your-registered-email@example.com`.
+Notifications' real producer is the Admin Moderation Queue's decide action (approve/reject a review or contribution) — deep-links into the app (`Reviews`/`SubmissionStatus`) when tapped. To see the Notifications screen populated without going through a full moderation flow, seed yourself a few example rows instead: `cd backend && npx ts-node prisma/seed-notifications.ts your-registered-email@example.com`.
 
 ### Troubleshooting
 
@@ -108,7 +108,7 @@ Performance: `cd backend && npm run perf:nearby` / `perf:bounds` / `perf:search`
 - **Architecture:** modular monolith (NestJS), not microservices — see [05](docs/05-system-architecture.md)#1.
 - **Mobile:** React Native + Expo, not Flutter — see [07](docs/07-tech-stack.md)#1.
 - **Data:** PostgreSQL + PostGIS for both relational and geospatial needs; Postgres full-text/trigram search at MVP scale, not Elasticsearch — see [07](docs/07-tech-stack.md)#2.
-- **AI:** Claude API behind a provider-agnostic `AIGateway`; never auto-approves high-risk content — see [05](docs/05-system-architecture.md)#4 and [01](docs/01-prd-mvp.md)#10.9. (Not built yet — Module 6 ships a rule-based moderation stand-in with the same state machine; Module 7 swaps in the real adapter.)
+- **AI:** Claude (Haiku 4.5 for moderation, Opus 5 for AI Summary) behind a provider-agnostic `AIGateway`; never auto-approves high-risk content — see [05](docs/05-system-architecture.md)#4 and [01](docs/01-prd-mvp.md)#10.9. Moderation covers text AND image content (vision input) for reviews, contributions, and user-uploaded photos alike; with no `ANTHROPIC_API_KEY` configured, text falls back to a free rule-based heuristic (same state machine, zero cost) but images have no equivalent and are held for manual review instead of silently waved through.
 - **Scope discipline:** hard MVP boundary — no social feed, booking, payments, or ordering until Phase 2+ — see [01](docs/01-prd-mvp.md)#11 and [08](docs/08-roadmap-sprint.md).
 - **Composite scoring:** Bayesian/IMDB-style damping toward a global prior mean so 2 five-star reviews can't outrank 50 reliable ones — see [01](docs/01-prd-mvp.md)#10.8, formula unit-tested in `backend/src/modules/review/composite-score.util.spec.ts`.
 - **Public web (Phase 1.5):** a separate SEO-focused Next.js app (`web/`), server-rendered, read-only discovery surface (home/search/restaurant-detail + sitemap.xml/JSON-LD) — built ahead of Module 7 at the project owner's explicit direction, originally planned to wait until the full mobile MVP was done. See [07](docs/07-tech-stack.md)#5 and `docs/build-prompts/09-public-web.md`.
@@ -116,14 +116,14 @@ Performance: `cd backend && npm run perf:nearby` / `perf:bounds` / `perf:search`
 ## Status
 
 - [x] Phase 0 — Product Design (this document set)
-- [~] Phase 1 — MVP implementation, 8 build-prompt modules in `docs/build-prompts/`:
+- [x] Phase 1 — MVP implementation, 8 build-prompt modules in `docs/build-prompts/`:
   - [x] Module 1 — Foundations & Scaffolding
   - [x] Module 2 — Authentication & Profile
   - [x] Module 3 — Map & Geospatial Core
   - [x] Module 4 — Search & Filter
   - [x] Module 5 — Restaurant Detail + Admin Seed Tooling
   - [x] Module 6 — Reviews & Composite Scoring
-  - [ ] Module 7 — Contribution, Media, AI Moderation & Moderation Queue *(deliberately deferred — see below)*
+  - [x] Module 7 — Contribution, Media, AI Moderation & Moderation Queue *(built after Module 8/9 — see below)*
   - [x] Module 8 — Favorites, Notifications & Hardening *(built out of order — see below)*
 - [x] Phase 1.5 — Public Web (Module 9, `web/`) *(built ahead of Module 7 — see below)*
 - [ ] Phase 2 — Community
@@ -131,18 +131,28 @@ Performance: `cd backend && npm run perf:nearby` / `perf:bounds` / `perf:search`
 - [ ] Phase 4 — Business
 - [ ] Phase 5 — Monetization
 
+### Module 7 notes (built after Module 8/9)
+
+Contribution + Media + real AI Moderation + Admin Moderation Queue, built last per the project owner's explicit sequencing (see Module 8/9 notes below for why those went first). Scope per `docs/build-prompts/07-contribution-media-moderation-ai.md`, plus a subsequent gap-fix pass once fully wired up end-to-end:
+
+- **Contribution** (new restaurant / edit suggestion / status update / closure report) with the hard rule (DB constraint + `assertDecisionAllowed`, never auto-publishes high-risk content) and duplicate detection (trigram + `ST_DWithin`).
+- **Media pipeline** — signed upload URLs, server-side re-encode + magic-byte validation (never trusts the client's declared content-type), thumbnails, a background sweep for abandoned uploads.
+- **Real Claude adapter** (`ClaudeGatewayService`) for `ReviewModerationService`/`ContributionModerationService`, with a free rule-based fallback when no `ANTHROPIC_API_KEY` is configured (same state machine, zero cost).
+- **Admin Moderation Queue** (`admin-web` `/moderation`) — approve/reject/edit-request, with a notification sent to the contributor that actually deep-links into the app.
+- **Gap-fix pass** (found via a full 9-module audit after the initial build): user-uploaded photos went live with zero screening — `MediaService.confirm()` now calls a new `PhotoModerationService` synchronously (same pattern as reviews/contributions), gating a new `Photo.status` (pending/approved/rejected) that every public-facing photo query filters on. Claude moderation now genuinely screens image content (fetches and sends it as base64 vision input) instead of accepting `imageUrls` without using them. Reports against already-published content (the typical case) previously never surfaced in the queue at all — `ReportService.create()` now creates/reuses a queue-visible `ModerationResult` (added `restaurant` as a valid moderation target type for this). The queue's `resolveReport` endpoint existed but no UI ever called it — `AdminModerationQueuePage` now lists each related report inline with Resolve/Dismiss buttons. Notification deep-links were silently broken for both real notification types (`RestaurantDetail`+`reviewId` isn't a navigable combination; `SubmissionStatus` needs a `contributionId` the payload never carried) — fixed to `Reviews`+`restaurantId` and `SubmissionStatus`+`contributionId` respectively.
+
 ### Module 8 notes (built ahead of Module 7)
 
 Module 8 was completed before Module 7 at the project owner's explicit direction. Everything in its scope that doesn't depend on Module 7 is done and verified:
 
 - **Favorites** — fully wired end-to-end (Detail, Search Result/List cards, Map marker preview, Favorites tab), instantly consistent across all four via a shared `useFavoriteIds()` cache.
-- **Notifications** — real read/unread list + deep-linking; no producer exists yet (that's Module 7's Admin Moderation Queue), so `prisma/seed-notifications.ts` seeds a few example rows for your own test account in the meantime.
+- **Notifications** — real read/unread list + deep-linking, now with a real producer (Module 7's Admin Moderation Queue decide action) — `prisma/seed-notifications.ts` still works if you want example rows without going through a full moderation flow.
 - **Settings** — dark mode (a real theme system: `mobile/src/theme/`, retrofitted across every screen, not just a toggle) + 2-step account deletion + logout.
-- **Admin User Management gap-fix** — PRD §10.11 ("manage users (suspend/ban)") and the Security Checklist's "moderator blocked from role-change" item were never actually implemented by any earlier module; added now (`POST /admin/users/...`, API-only, no admin-web UI yet).
-- **Security hardening** — full pass against the checklist in `docs/09-testing-plan.md` §4: SQL injection, JWT tampering (including `alg:none`), rate limiting (a real per-IP-vs-per-user bug was found and fixed), RBAC/IDOR, secrets-in-bundle, password-reset reuse. All verified against the running system, not just code review.
+- **Admin User Management gap-fix** — PRD §10.11 ("manage users (suspend/ban)") and the Security Checklist's "moderator blocked from role-change" item were never actually implemented by any earlier module; added (`POST /admin/users/...`) with a real admin-web UI (`/users`), plus a user-detail panel (review count, reports-received count), search-by-name, and last-admin/self-suspend protection added in a later pass.
+- **Security hardening** — full pass against the checklist in `docs/09-testing-plan.md` §4: SQL injection, JWT tampering (including `alg:none`), rate limiting (a real per-IP-vs-per-user bug was found and fixed), RBAC/IDOR, secrets-in-bundle, password-reset reuse. All verified against the running system, not just code review. The file-upload-abuse item (magic-byte mismatch/oversized-file rejection) is covered by `backend/test/media.e2e-spec.ts` against a real MinIO instance — a dedicated adversarial pass with fresh/crafted attack files hasn't been logged separately.
 - **Performance** — k6 load tests against `/restaurants/nearby`, `/restaurants/bounds`, `/search`; all p95 <35ms against the full seed dataset (target: <500ms). See `backend/k6/README.md`.
 - **Accessibility** — a real pass on the 5 primary flows (Login, Home Map, Search Result, Detail, Write Review): found and fixed a genuine WCAG AA contrast failure in the new dark-mode tokens, and added missing screen-reader labels/state (the star-rating picker in Write Review had zero accessible labels before this pass — the worst offender found).
-- **Blocked on Module 7, not done**: the Security Checklist's file-upload-abuse item (no media pipeline exists yet), and the Demo Readiness checklist's demo video / deployed link / AI-Summary+Moderation-Queue screenshots (see `docs/10-portfolio-presentation.md` §5 — those two screens don't exist until Module 7 ships). These are re-flagged as pending, not silently skipped.
+- **Still not done**: the Demo Readiness checklist's demo video / deployed link / screenshots (see `docs/10-portfolio-presentation.md` §5) — genuinely pending, not silently skipped; there's no recording/browser-automation tooling in this environment to produce them.
 
 ### Module 9 / Phase 1.5 notes (public web, built ahead of Module 7)
 
@@ -155,4 +165,6 @@ Also built at the project owner's explicit direction, ahead of the original depe
 - Verified against the real seed dataset: server-rendered content confirmed via raw HTTP response (not just the browser-rendered DOM), including both a review-sparse and a photo/menu-sparse restaurant's honest empty states, `sitemap.xml` listing all 40 restaurants, and a production `next build` succeeding with no type errors.
 - **Completeness pass (after the initial build)**: the search page's filter chips became a real interactive `SearchFilterForm` (category/district/cuisine/facilities/price/openNow, `'use client'` only for the filter controls — results stay server-rendered); generated favicon/apple-icon (`next/og`) + `viewport`/`theme-color`; detail-page photos moved to `next/image`; a `loading.tsx` skeleton for `/search` (not for the detail page — see the Troubleshooting entry on soft 404s above); a global `error.tsx` boundary; breadcrumb nav + `BreadcrumbList` JSON-LD and paginated reviews on the detail page; an accessibility pass (skip-link, landmark `aria-label`s, `:focus-visible`, `sr-only` table caption, decorative-emoji `aria-hidden`) that also caught a real WCAG AA contrast failure — white text on `--color-primary` (#e4572e) computes to ~3.7:1, below the 4.5:1 normal-text threshold; buttons/selected-chips now use `--color-primary-dark` (~4.9:1) instead.
 - **Real thumbnails wired up everywhere, not just Favorites**: `RestaurantSummaryDto.thumbnailUrl` had a working implementation in `favorite.service.ts` (first photo per restaurant from the `photos` table) but `search.service.ts` and `restaurant.service.ts`'s map-viewport queries still hard-coded `thumbnailUrl: null`, and *no* card component (web or mobile) ever rendered it even when present — every list/map view showed a 🍽️ emoji placeholder regardless of whether real photos existed. This was never blocked by Module 7 (the media *upload* pipeline) — seed data already populates the `photos` table. Fixed: both backend hydrators now batch-fetch each restaurant's first photo (same pattern as Favorites), and `RestaurantCard` (web + mobile) and mobile's map `RestaurantPreviewCard` render the real photo via `next/image`/`Image` when `thumbnailUrl` is set, falling back to the emoji only for restaurants with zero photos.
-- **Not done**: no deployment (local dev only — see Module 8's notes above on the same gap), no visual/design polish pass beyond functional plain CSS, no automated tests for the web app itself (verification so far is manual/curl-based against the real running stack, mirroring how earlier modules were verified before their own test suites were written).
+- **Backend deploy prep** (a later pass, not part of the original module scope): `backend/Dockerfile` + `docker-compose.prod.yml` + `docs/deploy-oracle-cloud.md` — a full runbook for a free Oracle Cloud "Always Free" VM, verified locally (image builds, full stack comes up healthy, migrate+seed succeed) but not yet actually deployed (that needs the project owner's own Oracle account/VM, which nothing in this environment can create).
+- **Visual refresh** (also a later pass): `web/src/app/globals.css`'s color/radius/typography tokens were revised twice based on live feedback, landing on a warm ShopeeFood/Baemin-adjacent orange palette — mirrored in `mobile/src/theme/tokens.ts` for cross-platform consistency.
+- **Not done**: no automated tests for the web app itself (verification so far is manual/curl-based against the real running stack, mirroring how earlier modules were verified before their own test suites were written).

@@ -11,14 +11,13 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import type { AuthStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
-
-// TODO(later module): Google / Apple native sign-in buttons — see the same
-// TODO in LoginScreen.tsx for rationale.
+import { SocialLoginButtons } from '../../components/SocialLoginButtons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -41,6 +40,7 @@ export function RegisterScreen({ navigation }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   const passwordsMatch = password.length > 0 && password === confirmPassword;
@@ -71,7 +71,7 @@ export function RegisterScreen({ navigation }: Props) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Lỗi mạng, vui lòng thử lại.');
+        setErrorMessage(t('auth.networkError'));
       }
     } finally {
       setIsSubmitting(false);
@@ -81,7 +81,7 @@ export function RegisterScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Đăng ký</Text>
+        <Text style={styles.title}>{t('auth.registerTitle')}</Text>
 
         {errorMessage ? (
           <View style={styles.errorBanner}>
@@ -89,16 +89,16 @@ export function RegisterScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.label}>Tên hiển thị (tuỳ chọn)</Text>
+        <Text style={styles.label}>{t('auth.displayName')}</Text>
         <TextInput
           style={styles.input}
           value={displayName}
           onChangeText={setDisplayName}
-          placeholder="Nguyễn Văn A"
+          placeholder={t('auth.displayNamePlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('auth.email')}</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -111,28 +111,28 @@ export function RegisterScreen({ navigation }: Props) {
           placeholderTextColor={colors.textTertiary}
         />
 
-        <Text style={styles.label}>Mật khẩu</Text>
+        <Text style={styles.label}>{t('auth.password')}</Text>
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           textContentType="newPassword"
-          placeholder="Tối thiểu 8 ký tự, có số"
+          placeholder={t('auth.passwordPlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
 
-        <Text style={styles.label}>Xác nhận mật khẩu</Text>
+        <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
         <TextInput
           style={styles.input}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
-          placeholder="Nhập lại mật khẩu"
+          placeholder={t('auth.confirmPasswordPlaceholder')}
           placeholderTextColor={colors.textTertiary}
         />
         {confirmPassword.length > 0 && !passwordsMatch ? (
-          <Text style={styles.fieldError}>Mật khẩu xác nhận không khớp.</Text>
+          <Text style={styles.fieldError}>{t('auth.passwordMismatch')}</Text>
         ) : null}
 
         <Pressable
@@ -144,9 +144,7 @@ export function RegisterScreen({ navigation }: Props) {
           <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
             {agreedToTerms ? <Text style={styles.checkboxMark}>✓</Text> : null}
           </View>
-          <Text style={styles.checkboxLabel}>
-            Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật.
-          </Text>
+          <Text style={styles.checkboxLabel}>{t('auth.agreeToTerms')}</Text>
         </Pressable>
 
         <Pressable
@@ -157,12 +155,17 @@ export function RegisterScreen({ navigation }: Props) {
           {isSubmitting ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
-            <Text style={styles.buttonText}>Đăng ký</Text>
+            <Text style={styles.buttonText}>{t('auth.registerTitle')}</Text>
           )}
         </Pressable>
 
+        <SocialLoginButtons
+          onSuccess={(response) => setSession(response.user, response.accessToken, response.refreshToken)}
+          onError={setErrorMessage}
+        />
+
         <Pressable onPress={() => navigation.navigate('Login')} style={styles.linkRow}>
-          <Text style={styles.link}>Đã có tài khoản? Đăng nhập</Text>
+          <Text style={styles.link}>{t('auth.hasAccountLink')}</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -178,7 +181,7 @@ const createStyles = (colors: ThemeColors) =>
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginBottom: 16,
@@ -203,7 +206,7 @@ const createStyles = (colors: ThemeColors) =>
     checkboxLabel: { flex: 1, fontSize: 13, color: colors.textPrimary },
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 8,
@@ -216,7 +219,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.errorBg,
       borderColor: colors.errorBorder,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 12,
       marginBottom: 16,
     },

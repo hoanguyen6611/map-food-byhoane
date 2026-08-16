@@ -7,7 +7,7 @@
  * their own endpoints server-side and only make sense once a restaurant id
  * exists.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type {
   AdminRestaurantDetailDto,
@@ -15,6 +15,7 @@ import type {
   PriceRangeCode,
   RestaurantCategoryCode,
 } from '@foodmap/shared-types'
+import { VN_PROVINCES, findVnProvinceByName, findVnWardByName } from '@foodmap/shared-types'
 import type { CreateRestaurantBody } from '../../api/admin-restaurants'
 import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_RANGE_OPTIONS } from './constants'
 
@@ -25,9 +26,11 @@ export interface CoreFormValues {
   priceRangeCode: PriceRangeCode | ''
   phone: string
   addressLine: string
-  addressWard: string
-  addressDistrict: string
-  addressProvince: string
+  // Province/ward are select-driven — the value is the dataset `code`
+  // (or, for legacy data that predates this dataset, the raw stored text
+  // itself, injected as a synthetic option so it isn't silently blanked).
+  addressProvinceCode: string
+  addressWardCode: string
   lat: string
   lng: string
   cuisineCodes: CuisineCode[]
@@ -40,15 +43,16 @@ export const EMPTY_CORE_FORM_VALUES: CoreFormValues = {
   priceRangeCode: '',
   phone: '',
   addressLine: '',
-  addressWard: '',
-  addressDistrict: '',
-  addressProvince: '',
+  addressProvinceCode: '',
+  addressWardCode: '',
   lat: '',
   lng: '',
   cuisineCodes: [],
 }
 
 export function coreFormValuesFromDetail(detail: AdminRestaurantDetailDto): CoreFormValues {
+  const province = findVnProvinceByName(detail.address.province)
+  const ward = detail.address.ward && province ? findVnWardByName(province, detail.address.ward) : undefined
   return {
     name: detail.name,
     description: detail.description ?? '',
@@ -56,9 +60,11 @@ export function coreFormValuesFromDetail(detail: AdminRestaurantDetailDto): Core
     priceRangeCode: detail.priceRange?.code ?? '',
     phone: detail.phone ?? '',
     addressLine: detail.address.line,
-    addressWard: detail.address.ward ?? '',
-    addressDistrict: detail.address.district,
-    addressProvince: detail.address.province,
+    // Fall back to the raw legacy text when it doesn't match the dataset
+    // (older restaurants, pre-restructuring data) — the select renders it
+    // as a clearly-labeled extra option rather than blanking the field.
+    addressProvinceCode: province?.code ?? detail.address.province,
+    addressWardCode: ward?.code ?? detail.address.ward ?? '',
     lat: String(detail.location.lat),
     lng: String(detail.location.lng),
     cuisineCodes: detail.cuisineCodes,
@@ -79,11 +85,11 @@ function validate(values: CoreFormValues): FieldErrors {
   if (!values.addressLine.trim()) {
     errors.addressLine = 'Vui lòng nhập địa chỉ (số nhà, đường).'
   }
-  if (!values.addressDistrict.trim()) {
-    errors.addressDistrict = 'Vui lòng nhập quận/huyện.'
+  if (!values.addressProvinceCode) {
+    errors.addressProvinceCode = 'Vui lòng chọn tỉnh/thành.'
   }
-  if (!values.addressProvince.trim()) {
-    errors.addressProvince = 'Vui lòng nhập tỉnh/thành.'
+  if (!values.addressWardCode) {
+    errors.addressWardCode = 'Vui lòng chọn phường/xã.'
   }
 
   const lat = Number(values.lat)
@@ -102,6 +108,20 @@ function validate(values: CoreFormValues): FieldErrors {
   return errors
 }
 
+// Resolves a select's `code` value back to the official name to submit —
+// falls back to the raw value itself for legacy data that doesn't match
+// any entry in the dataset (see coreFormValuesFromDetail's synthetic option).
+function resolveProvinceName(provinceCode: string): string {
+  const province = VN_PROVINCES.find((p) => p.code === provinceCode)
+  return province ? province.name : provinceCode
+}
+
+function resolveWardName(provinceCode: string, wardCode: string): string {
+  const province = VN_PROVINCES.find((p) => p.code === provinceCode)
+  const ward = province?.wards.find((w) => w.code === wardCode)
+  return ward ? ward.name : wardCode
+}
+
 export function coreFormValuesToBody(values: CoreFormValues): CreateRestaurantBody {
   return {
     name: values.name.trim(),
@@ -111,9 +131,8 @@ export function coreFormValuesToBody(values: CoreFormValues): CreateRestaurantBo
     phone: values.phone.trim() || undefined,
     address: {
       line: values.addressLine.trim(),
-      ward: values.addressWard.trim() || undefined,
-      district: values.addressDistrict.trim(),
-      province: values.addressProvince.trim(),
+      ward: resolveWardName(values.addressProvinceCode, values.addressWardCode),
+      province: resolveProvinceName(values.addressProvinceCode),
     },
     location: {
       lat: Number(values.lat),
@@ -143,6 +162,27 @@ export function RestaurantCoreForm({
 
   function set<K extends keyof CoreFormValues>(key: K, value: CoreFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
+  }
+
+  const selectedProvince = useMemo(
+    () => VN_PROVINCES.find((p) => p.code === values.addressProvinceCode),
+    [values.addressProvinceCode],
+  )
+  // Legacy data (pre-restructuring) may carry a province/ward whose code
+  // doesn't exist in the current dataset — show it as an extra option
+  // instead of silently blanking the field when the edit form loads.
+  const provinceOptions = useMemo(() => {
+    if (!values.addressProvinceCode || selectedProvince) return VN_PROVINCES
+    return [{ code: values.addressProvinceCode, shortName: `${values.addressProvinceCode} (giá trị cũ)` }, ...VN_PROVINCES]
+  }, [selectedProvince, values.addressProvinceCode])
+  const wardOptions = useMemo(() => {
+    const wards = selectedProvince?.wards ?? []
+    if (!values.addressWardCode || wards.some((w) => w.code === values.addressWardCode)) return wards
+    return [{ code: values.addressWardCode, shortName: `${values.addressWardCode} (giá trị cũ)` }, ...wards]
+  }, [selectedProvince, values.addressWardCode])
+
+  function handleProvinceChange(code: string) {
+    setValues((current) => ({ ...current, addressProvinceCode: code, addressWardCode: '' }))
   }
 
   function toggleCuisine(code: CuisineCode) {
@@ -242,35 +282,37 @@ export function RestaurantCoreForm({
         </label>
 
         <label className="form-field">
-          <span>Phường/Xã</span>
-          <input
-            type="text"
-            value={values.addressWard}
-            disabled={isSubmitting}
-            onChange={(event) => set('addressWard', event.target.value)}
-          />
-        </label>
-
-        <label className="form-field">
-          <span>Quận/Huyện *</span>
-          <input
-            type="text"
-            value={values.addressDistrict}
-            disabled={isSubmitting}
-            onChange={(event) => set('addressDistrict', event.target.value)}
-          />
-          {errors.addressDistrict && <span className="field-error">{errors.addressDistrict}</span>}
-        </label>
-
-        <label className="form-field">
           <span>Tỉnh/Thành *</span>
-          <input
-            type="text"
-            value={values.addressProvince}
+          <select
+            value={values.addressProvinceCode}
             disabled={isSubmitting}
-            onChange={(event) => set('addressProvince', event.target.value)}
-          />
-          {errors.addressProvince && <span className="field-error">{errors.addressProvince}</span>}
+            onChange={(event) => handleProvinceChange(event.target.value)}
+          >
+            <option value="">— Chọn —</option>
+            {provinceOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.shortName}
+              </option>
+            ))}
+          </select>
+          {errors.addressProvinceCode && <span className="field-error">{errors.addressProvinceCode}</span>}
+        </label>
+
+        <label className="form-field">
+          <span>Phường/Xã *</span>
+          <select
+            value={values.addressWardCode}
+            disabled={isSubmitting || !values.addressProvinceCode}
+            onChange={(event) => set('addressWardCode', event.target.value)}
+          >
+            <option value="">{values.addressProvinceCode ? '— Chọn —' : '— Chọn tỉnh/thành trước —'}</option>
+            {wardOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.shortName}
+              </option>
+            ))}
+          </select>
+          {errors.addressWardCode && <span className="field-error">{errors.addressWardCode}</span>}
         </label>
 
         <label className="form-field">

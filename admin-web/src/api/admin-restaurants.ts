@@ -28,6 +28,7 @@ import { apiClient } from './client'
 export interface AdminRestaurantListQuery {
   status?: RestaurantPublicationStatus
   province?: string
+  ward?: string
   district?: string
   search?: string
   page?: number
@@ -36,10 +37,11 @@ export interface AdminRestaurantListQuery {
 
 // ---------- request bodies ----------
 
+// District was eliminated from Vietnam's administrative hierarchy in 2025 —
+// address entry now only collects line/ward/province (ward mandatory).
 export interface AddressInput {
   line: string
-  ward?: string
-  district: string
+  ward: string
   province: string
 }
 
@@ -119,6 +121,7 @@ function buildListQueryString(query: AdminRestaurantListQuery): string {
   const params = new URLSearchParams()
   if (query.status) params.set('status', query.status)
   if (query.province) params.set('province', query.province)
+  if (query.ward) params.set('ward', query.ward)
   if (query.district) params.set('district', query.district)
   if (query.search) params.set('search', query.search)
   if (query.page !== undefined) params.set('page', String(query.page))

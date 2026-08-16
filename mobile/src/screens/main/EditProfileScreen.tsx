@@ -11,12 +11,15 @@ import {
   View,
 } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { ApiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
+import { FONT_FAMILY } from '../../theme/fonts';
+import { AvatarPicker } from '../../components/media/AvatarPicker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'EditProfile'>;
 
@@ -25,6 +28,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'EditProfile'>;
 const VN_PHONE_REGEX = /^(\+84|0)\d{9,10}$/;
 
 export function EditProfileScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -34,6 +38,7 @@ export function EditProfileScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
   const [homeCity, setHomeCity] = useState('');
+  const [newAvatarPhotoId, setNewAvatarPhotoId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -41,8 +46,7 @@ export function EditProfileScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  // Pre-fill the form once `GET /me` resolves (task 5 requirement); avatar
-  // is intentionally left untouched — no media upload pipeline until Module 7.
+  // Pre-fill the form once `GET /me` resolves (task 5 requirement).
   useEffect(() => {
     if (meQuery.data && !isDirty) {
       setDisplayName(meQuery.data.profile.displayName ?? '');
@@ -75,6 +79,9 @@ export function EditProfileScreen({ navigation }: Props) {
         bio: bio.trim(),
         homeCity: homeCity.trim(),
         ...(phone.trim().length > 0 ? { phone: phone.trim() } : {}),
+        // Untouched avatar stays untouched — only send it when the picker
+        // actually produced a new, confirmed photo this session.
+        ...(newAvatarPhotoId ? { avatarPhotoId: newAvatarPhotoId } : {}),
       });
       queryClient.setQueryData(['me'], updated);
       setUser(updated.user);
@@ -87,7 +94,7 @@ export function EditProfileScreen({ navigation }: Props) {
       } else if (error instanceof ApiError) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Lỗi mạng, vui lòng thử lại.');
+        setErrorMessage(t('auth.networkError'));
       }
     } finally {
       setIsSaving(false);
@@ -105,7 +112,7 @@ export function EditProfileScreen({ navigation }: Props) {
   if (meQuery.isError) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Không thể tải hồ sơ. Vui lòng thử lại.</Text>
+        <Text style={styles.errorText}>{t('editProfile.loadError')}</Text>
       </View>
     );
   }
@@ -119,57 +126,68 @@ export function EditProfileScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.label}>Tên hiển thị</Text>
-        <TextInput
-          style={styles.input}
-          value={displayName}
-          onChangeText={markDirty(setDisplayName)}
-          placeholder="Tên hiển thị"
-          placeholderTextColor={colors.textTertiary}
-        />
-        {!displayNameValid && displayName.length > 0 ? (
-          <Text style={styles.fieldError}>Tên phải từ 2-50 ký tự.</Text>
-        ) : null}
-
-        <Text style={styles.label}>Số điện thoại</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={(value) => {
-            markDirty(setPhone)(value);
-            setPhoneError(null);
+        <AvatarPicker
+          currentAvatarUrl={meQuery.data?.profile.avatarUrl ?? null}
+          displayName={displayName}
+          onAvatarPhotoIdChange={(photoId) => {
+            setIsDirty(true);
+            setNewAvatarPhotoId(photoId);
           }}
-          keyboardType="phone-pad"
-          placeholder="0912345678"
-          placeholderTextColor={colors.textTertiary}
-        />
-        {(!phoneValid || phoneError) && (
-          <Text style={styles.fieldError}>
-            {phoneError ?? 'Số điện thoại không đúng định dạng Việt Nam.'}
-          </Text>
-        )}
-
-        <Text style={styles.label}>Giới thiệu ngắn</Text>
-        <TextInput
-          style={[styles.input, styles.multiline]}
-          value={bio}
-          onChangeText={markDirty(setBio)}
-          placeholder="Vài dòng về bạn"
-          placeholderTextColor={colors.textTertiary}
-          multiline
         />
 
-        <Text style={styles.label}>Thành phố</Text>
-        <TextInput
-          style={styles.input}
-          value={homeCity}
-          onChangeText={markDirty(setHomeCity)}
-          placeholder="TP. Hồ Chí Minh"
-          placeholderTextColor={colors.textTertiary}
-        />
+        <View style={styles.card}>
+          <Text style={styles.label}>{t('editProfile.displayNameLabel')}</Text>
+          <TextInput
+            style={styles.input}
+            value={displayName}
+            onChangeText={markDirty(setDisplayName)}
+            placeholder={t('editProfile.displayNamePlaceholder')}
+            placeholderTextColor={colors.textTertiary}
+          />
+          {!displayNameValid && displayName.length > 0 ? (
+            <Text style={styles.fieldError}>{t('editProfile.displayNameError')}</Text>
+          ) : null}
+
+          <Text style={styles.label}>{t('editProfile.phoneLabel')}</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={(value) => {
+              markDirty(setPhone)(value);
+              setPhoneError(null);
+            }}
+            keyboardType="phone-pad"
+            placeholder={t('editProfile.phonePlaceholder')}
+            placeholderTextColor={colors.textTertiary}
+          />
+          {(!phoneValid || phoneError) && (
+            <Text style={styles.fieldError}>
+              {phoneError ?? t('editProfile.phoneFormatError')}
+            </Text>
+          )}
+
+          <Text style={styles.label}>{t('editProfile.bioLabel')}</Text>
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            value={bio}
+            onChangeText={markDirty(setBio)}
+            placeholder={t('editProfile.bioPlaceholder')}
+            placeholderTextColor={colors.textTertiary}
+            multiline
+          />
+
+          <Text style={styles.label}>{t('editProfile.homeCityLabel')}</Text>
+          <TextInput
+            style={styles.input}
+            value={homeCity}
+            onChangeText={markDirty(setHomeCity)}
+            placeholder={t('editProfile.homeCityPlaceholder')}
+            placeholderTextColor={colors.textTertiary}
+          />
+        </View>
 
         <Pressable style={[styles.button, !canSave && styles.buttonDisabled]} onPress={handleSave} disabled={!canSave}>
-          {isSaving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>Lưu</Text>}
+          {isSaving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>{t('common.save')}</Text>}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -181,36 +199,44 @@ const createStyles = (colors: ThemeColors) =>
     flex: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
     container: { flexGrow: 1, padding: 24, backgroundColor: colors.background },
-    label: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: colors.textPrimary },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 18,
+    },
+    label: { fontSize: 14, fontFamily: FONT_FAMILY.bodySemiBold, marginBottom: 6, color: colors.textPrimary },
     input: {
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      marginBottom: 8,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 14,
       fontSize: 16,
       color: colors.textPrimary,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.background,
+      fontFamily: FONT_FAMILY.body,
     },
     multiline: { minHeight: 80, textAlignVertical: 'top' },
-    fieldError: { color: colors.error, fontSize: 13, marginBottom: 12 },
+    fieldError: { color: colors.error, fontSize: 13, marginBottom: 12, fontFamily: FONT_FAMILY.meta },
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
-      paddingVertical: 14,
+      borderRadius: 999,
+      paddingVertical: 16,
       alignItems: 'center',
-      marginTop: 16,
+      marginTop: 20,
     },
     buttonDisabled: { opacity: 0.5 },
-    buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
+    buttonText: { color: colors.onPrimary, fontSize: 16, fontFamily: FONT_FAMILY.buttonSemiBold },
     errorBanner: {
       backgroundColor: colors.errorBg,
       borderColor: colors.errorBorder,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 16,
       padding: 12,
       marginBottom: 16,
     },
-    errorText: { color: colors.error, fontSize: 14 },
+    errorText: { color: colors.error, fontSize: 14, fontFamily: FONT_FAMILY.body },
   });

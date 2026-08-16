@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import type { MediaOwnerType, PhotoDto, UploadableImageContentType } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { S3Service } from './s3.service';
+import { PhotoModerationService } from './photo-moderation.service';
 import { reencode, sniffImageMagicBytes } from './image-processing.util';
 
 const ALLOWED_CONTENT_TYPES: UploadableImageContentType[] = ['image/jpeg', 'image/png', 'image/webp'];
@@ -18,6 +19,7 @@ const OWNER_PHOTO_CAPS: Record<MediaOwnerType, number> = {
   review: 6,
   restaurant: 10,
   contribution: 10,
+  user_profile: 1,
 };
 
 export interface CreateUploadUrlResult {
@@ -39,6 +41,7 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
+    private readonly photoModeration: PhotoModerationService,
   ) {}
 
   async createUploadUrl(
@@ -118,6 +121,16 @@ export class MediaService {
         fileSizeBytes: processed.display.length,
       },
     });
+
+    // Moderate before returning — synchronous, same pattern as review/
+    // contribution submission (Haiku 4.5 is fast/cheap enough to call inline).
+    // The uploader still sees their own photo in the response regardless of
+    // outcome (they need to see what they just uploaded); it's PUBLIC reads
+    // (restaurant/review photo queries) that filter on `status: 'approved'`.
+    const moderation = await this.photoModeration.check(this.s3.publicUrl(displayKey));
+    const status = moderation.recommendedAction === 'auto_approve' ? 'approved' : moderation.recommendedAction === 'reject' ? 'rejected' : 'pending';
+    await this.prisma.photo.update({ where: { id: photoId }, data: { status } });
+    await this.photoModeration.recordResult(photoId, moderation);
 
     return this.toDto(photo, displayKey);
   }

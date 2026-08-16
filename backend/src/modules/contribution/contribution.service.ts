@@ -94,7 +94,9 @@ export class ContributionService {
       data: {
         line: dto.address.line,
         ward: dto.address.ward,
-        district: dto.address.district,
+        // District no longer collected from any client — defaulted to ''
+        // to satisfy the still-non-null DB column without a migration.
+        district: dto.address.district ?? '',
         province: dto.address.province,
         fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
           .filter(Boolean)
@@ -148,9 +150,17 @@ export class ContributionService {
 
     if (dto.menuItems && dto.menuItems.length > 0) {
       const menu = await this.prisma.menu.create({ data: { restaurantId: restaurant.id, isActive: true } });
+      // Best-effort link to the curated Dish catalog, same rule as
+      // admin-restaurant.service.ts's addMenuItem — never creates a new Dish
+      // from a contributor's free-text input, only links an exact match.
+      const dishes = await this.prisma.dish.findMany({
+        where: { name: { in: dto.menuItems.map((item) => item.name), mode: 'insensitive' } },
+      });
+      const dishIdByName = new Map(dishes.map((dish) => [dish.name.toLowerCase(), dish.id]));
       await this.prisma.menuItem.createMany({
         data: dto.menuItems.map((item) => ({
           menuId: menu.id,
+          dishId: dishIdByName.get(item.name.toLowerCase()) ?? null,
           name: item.name,
           priceVnd: item.priceVnd,
           category: item.category,

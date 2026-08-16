@@ -10,6 +10,7 @@ import type { AuthResponse, RoleCode } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GoogleOAuthService } from './oauth/google-oauth.service';
 import { AppleOAuthService } from './oauth/apple-oauth.service';
+import { FacebookOAuthService } from './oauth/facebook-oauth.service';
 import {
   generateOpaqueToken,
   hashOpaqueToken,
@@ -30,6 +31,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly googleOAuth: GoogleOAuthService,
     private readonly appleOAuth: AppleOAuthService,
+    private readonly facebookOAuth: FacebookOAuthService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -88,13 +90,14 @@ export class AuthService {
   }
 
   async oauthLogin(
-    provider: 'google' | 'apple',
+    provider: 'google' | 'apple' | 'facebook',
     idToken: string,
   ): Promise<AuthResponse> {
-    const identity =
-      provider === 'google'
-        ? await this.googleOAuth.verify(idToken)
-        : await this.appleOAuth.verify(idToken);
+    const identity = await (provider === 'google'
+      ? this.googleOAuth.verify(idToken)
+      : provider === 'apple'
+        ? this.appleOAuth.verify(idToken)
+        : this.facebookOAuth.verify(idToken));
 
     let user = await this.prisma.user.findFirst({
       where: { oauthProvider: provider, oauthSubjectId: identity.subjectId },

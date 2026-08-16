@@ -9,6 +9,7 @@ import {
 import { Prisma, type Review } from '@prisma/client';
 import type {
   CreateReviewRequest,
+  MyReviewListResponse,
   PhotoDto,
   ReviewCriteriaBreakdownDto,
   ReviewCriteriaCode,
@@ -23,6 +24,8 @@ import type { CreateReviewDto } from './dto/create-review.dto';
 import type { UpdateReviewDto } from './dto/update-review.dto';
 import type { ReviewListQueryDto } from './dto/review-list-query.dto';
 import type { ReviewRatingInputDto } from './dto/review-rating-input.dto';
+
+const DEFAULT_MY_REVIEWS_PAGE_SIZE = 20;
 
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EDIT_MARKER_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -133,6 +136,56 @@ export class ReviewService {
     await this.compositeScoreService.enqueueRecompute(existing.restaurantId);
   }
 
+  // "My Reviews" (profile) — unlike listForRestaurant, deliberately includes
+  // every status (pending/rejected/hidden too), not just 'published': this
+  // is the author's own view of their history, not the public-facing list.
+  async listMine(userId: string, page = 1, pageSize = DEFAULT_MY_REVIEWS_PAGE_SIZE): Promise<MyReviewListResponse> {
+    const where: Prisma.ReviewWhereInput = { userId, deletedAt: null };
+    const [rows, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        include: { ...REVIEW_INCLUDE, restaurant: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.review.count({ where }),
+    ]);
+
+    const restaurantIds = rows.map((r) => r.restaurantId);
+    const thumbnailByRestaurantId = await this.batchFetchRestaurantThumbnails(restaurantIds);
+    const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
+
+    return {
+      items: rows.map((r) => ({
+        ...this.toDto(r, photosByReviewId.get(r.id) ?? []),
+        restaurant: {
+          id: r.restaurant.id,
+          name: r.restaurant.name,
+          thumbnailUrl: thumbnailByRestaurantId.get(r.restaurantId) ?? null,
+        },
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  private async batchFetchRestaurantThumbnails(restaurantIds: string[]): Promise<Map<string, string>> {
+    if (restaurantIds.length === 0) return new Map();
+    const photos = await this.prisma.photo.findMany({
+      where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const map = new Map<string, string>();
+    for (const photo of photos) {
+      if (photo.ownerId && !map.has(photo.ownerId)) {
+        map.set(photo.ownerId, this.mediaService.resolveUrl(photo.storageKey));
+      }
+    }
+    return map;
+  }
+
   async listForRestaurant(restaurantId: string, query: ReviewListQueryDto): Promise<ReviewListResponse> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -143,26 +196,26 @@ export class ReviewService {
       ...(query.filter ? { overallRating: query.filter } : {}),
     };
 
-    // 'most_helpful' and 'has_photos' both degrade to 'newest' ordering —
-    // there's no helpfulness-vote model anywhere in scope yet, and reviews
-    // never carry photos in this module (Module 6 explicitly defers the
-    // upload pipeline to Module 7). Accepting the values keeps the mobile
-    // sort dropdown forward-compatible without fabricating a signal that
-    // doesn't exist. See ReviewSort in packages/shared-types/src/review.ts.
-    const orderBy: Prisma.ReviewOrderByWithRelationInput = { createdAt: 'desc' };
+    // 'most_helpful' still degrades to 'newest' — there's no helpfulness-vote
+    // model anywhere in scope. 'has_photos' now genuinely reorders (gap-fix:
+    // Module 7's photo pipeline exists now, unlike when this comment was
+    // originally written) — see fetchHasPhotosOrder for why it needs its own
+    // path rather than a plain `orderBy`.
+    const [rows, total] =
+      query.sort === 'has_photos'
+        ? await this.listForRestaurantSortedByPhotos(where, page, pageSize)
+        : await Promise.all([
+            this.prisma.review.findMany({
+              where,
+              include: REVIEW_INCLUDE,
+              orderBy: { createdAt: 'desc' },
+              skip: (page - 1) * pageSize,
+              take: pageSize,
+            }),
+            this.prisma.review.count({ where }),
+          ]);
 
-    const [rows, total, criteria] = await Promise.all([
-      this.prisma.review.findMany({
-        where,
-        include: REVIEW_INCLUDE,
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.prisma.review.count({ where }),
-      this.prisma.reviewCriteria.findMany(),
-    ]);
-
+    const criteria = await this.prisma.reviewCriteria.findMany();
     const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
 
     return {
@@ -172,6 +225,54 @@ export class ReviewService {
       pageSize,
       ratingBreakdown: await this.buildRatingBreakdown(restaurantId, criteria),
     };
+  }
+
+  /**
+   * `has_photos` sort needs "reviews with ≥1 approved photo first, newest
+   * first within each group" computed across the FULL matching set before
+   * pagination — Photo has no Prisma relation back to Review (`ownerId` is a
+   * loose polymorphic reference, see Photo's schema comment), so this can't
+   * be expressed as a plain `orderBy`. Fetches lightweight (id, createdAt)
+   * rows for everything matching, partitions in JS, then re-fetches only the
+   * requested page's full rows — cheap since only ids/timestamps are fetched
+   * for the full set.
+   */
+  private async listForRestaurantSortedByPhotos(
+    where: Prisma.ReviewWhereInput,
+    page: number,
+    pageSize: number,
+  ): Promise<[ReviewWithRelations[], number]> {
+    const allMatching = await this.prisma.review.findMany({
+      where,
+      select: { id: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const withPhotoRows = await this.prisma.photo.findMany({
+      where: {
+        ownerType: 'review',
+        ownerId: { in: allMatching.map((r) => r.id) },
+        status: 'approved',
+        deletedAt: null,
+      },
+      select: { ownerId: true },
+      distinct: ['ownerId'],
+    });
+    const idsWithPhotos = new Set(withPhotoRows.map((p) => p.ownerId));
+
+    const sortedIds = [...allMatching]
+      .sort((a, b) => {
+        const aHas = idsWithPhotos.has(a.id) ? 1 : 0;
+        const bHas = idsWithPhotos.has(b.id) ? 1 : 0;
+        return aHas !== bHas ? bHas - aHas : b.createdAt.getTime() - a.createdAt.getTime();
+      })
+      .map((r) => r.id);
+    const pageIds = sortedIds.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+
+    const pageRows = await this.prisma.review.findMany({ where: { id: { in: pageIds } }, include: REVIEW_INCLUDE });
+    const rowById = new Map(pageRows.map((r) => [r.id, r]));
+    const orderedRows = pageIds.map((id) => rowById.get(id)).filter((row): row is ReviewWithRelations => row !== undefined);
+
+    return [orderedRows, allMatching.length];
   }
 
   private async applyUpdate(existing: Review, patch: ReviewPatchInput): Promise<ReviewDto> {
@@ -250,7 +351,7 @@ export class ReviewService {
   private async batchFetchPhotos(reviewIds: string[]): Promise<Map<string, PhotoDto[]>> {
     if (reviewIds.length === 0) return new Map();
     const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'review', ownerId: { in: reviewIds }, deletedAt: null },
+      where: { ownerType: 'review', ownerId: { in: reviewIds }, deletedAt: null, status: 'approved' },
       orderBy: { createdAt: 'asc' },
     });
     const map = new Map<string, PhotoDto[]>();

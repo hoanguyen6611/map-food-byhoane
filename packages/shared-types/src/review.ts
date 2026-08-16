@@ -91,3 +91,42 @@ export interface ReviewListResponse {
   pageSize: number;
   ratingBreakdown: ReviewCriteriaBreakdownDto[];
 }
+
+// "My Reviews" (profile) — reviews are normally rendered on an
+// already-restaurant-scoped page (ReviewDto has no restaurant info for that
+// reason), but a cross-restaurant list needs enough to identify/link each
+// one, same rationale as AdminReviewListItemDto's restaurantName below.
+export interface MyReviewRestaurantSummaryDto {
+  id: string;
+  name: string;
+  thumbnailUrl: string | null;
+}
+
+export interface MyReviewDto extends ReviewDto {
+  restaurant: MyReviewRestaurantSummaryDto;
+}
+
+export interface MyReviewListResponse {
+  items: MyReviewDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Admin Review Management — docs/04-screen-list.md §32. Separate from
+// ReviewDto (the public/owner-facing shape) since this is admin-only and
+// includes moderation context (riskScore/labels) that ordinary review reads
+// never expose. riskScore/labels are null when no ModerationResult exists
+// for this review yet (e.g. it predates the AI moderation gateway).
+export interface AdminReviewListItemDto {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  author: ReviewAuthorDto;
+  overallRating: number;
+  comment: string | null;
+  status: ReviewStatus;
+  riskScore: number | null;
+  labels: string[];
+  createdAt: string;
+}

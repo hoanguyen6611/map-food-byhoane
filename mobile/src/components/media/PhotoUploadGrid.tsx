@@ -133,7 +133,7 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     emptyText: { fontSize: 13, color: colors.textTertiary, fontStyle: 'italic', marginBottom: 10 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-    tile: { width: TILE_SIZE, height: TILE_SIZE, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
+    tile: { width: TILE_SIZE, height: TILE_SIZE, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
     thumbnail: { width: '100%', height: '100%' },
     progressOverlay: {
       position: 'absolute',
@@ -163,7 +163,7 @@ const createStyles = (colors: ThemeColors) =>
       gap: 6,
       borderWidth: 1,
       borderColor: colors.primary,
-      borderRadius: 10,
+      borderRadius: 14,
       paddingVertical: 10,
       paddingHorizontal: 14,
     },

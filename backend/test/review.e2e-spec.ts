@@ -2,10 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import sharp from 'sharp';
 import type {
   AdminRestaurantDetailDto,
   ApiErrorResponse,
   AuthResponse,
+  CreateUploadUrlResponse,
+  MyReviewListResponse,
+  PhotoDto,
   RestaurantDetailDto,
   RestaurantSummaryDto,
   ReviewDto,
@@ -86,7 +90,7 @@ describe('Reviews & Composite Scoring (e2e)', () => {
         name: `Review Test Restaurant ${nameSuffix}`,
         categoryCode: 'quan_an',
         priceRangeCode: '50_100k',
-        address: { line: '1 Test St', district: 'Quận 1', province: 'TP. Hồ Chí Minh' },
+        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
         location: { lat: 10.7769, lng: 106.7009 },
       })
       .expect(201);
@@ -107,6 +111,31 @@ describe('Reviews & Composite Scoring (e2e)', () => {
       await prisma.address.delete({ where: { id: restaurant.addressId } });
       await prisma.location.delete({ where: { id: restaurant.locationId } });
     }
+  }
+
+  let realJpeg: Buffer;
+  async function uploadPhoto(token: string): Promise<string> {
+    realJpeg ??= await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 10, g: 200, b: 100 } } })
+      .jpeg()
+      .toBuffer();
+    const uploadRes = await request(app.getHttpServer())
+      .post('/media/upload-url')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ contentType: 'image/jpeg', fileSizeBytes: realJpeg.length })
+      .expect(201);
+    const { uploadUrl, storageKey } = uploadRes.body as CreateUploadUrlResponse;
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(realJpeg),
+    });
+    if (!putRes.ok) throw new Error(`PUT to signed URL failed: ${putRes.status}`);
+    const confirmRes = await request(app.getHttpServer())
+      .post('/media/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ storageKey, ownerType: 'review' })
+      .expect(201);
+    return (confirmRes.body as PhotoDto).id;
   }
 
   async function pollForCompositeScore(restaurantId: string, timeoutMs = 5000): Promise<number | null> {
@@ -507,6 +536,59 @@ describe('Reviews & Composite Scoring (e2e)', () => {
 
       await cleanupRestaurant(restaurant.id);
     });
+
+    it('sort=has_photos puts a review with an approved photo ahead of newer photo-less reviews', async () => {
+      const admin = await registerAdmin('list-photos-admin');
+      const restaurant = await createRestaurant(admin.token, 'ListPhotos');
+      const oldest = await registerUser('list-photos-oldest');
+      const middle = await registerUser('list-photos-middle');
+      const newest = await registerUser('list-photos-newest');
+
+      const photoId = await uploadPhoto(oldest.token);
+      const oldestRes = await request(app.getHttpServer())
+        .post('/reviews')
+        .set('Authorization', `Bearer ${oldest.token}`)
+        .send({
+          restaurantId: restaurant.id,
+          overallRating: 4,
+          ratings: [{ criteriaCode: 'food_quality', score: 4 }],
+          photoIds: [photoId],
+        })
+        .expect(201);
+      const oldestReviewId = (oldestRes.body as ReviewDto).id;
+
+      for (const reviewer of [middle, newest]) {
+        await request(app.getHttpServer())
+          .post('/reviews')
+          .set('Authorization', `Bearer ${reviewer.token}`)
+          .send({
+            restaurantId: restaurant.id,
+            overallRating: 4,
+            ratings: [{ criteriaCode: 'food_quality', score: 4 }],
+          })
+          .expect(201);
+      }
+
+      const defaultOrder = await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}/reviews`).expect(200);
+      // Sanity check: without an explicit sort, newest-first means the
+      // photo-less review created last comes first, NOT the oldest one.
+      expect((defaultOrder.body as ReviewListResponse).items[0].id).not.toBe(oldestReviewId);
+
+      const photoSorted = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurant.id}/reviews`)
+        .query({ sort: 'has_photos' })
+        .expect(200);
+      const items = (photoSorted.body as ReviewListResponse).items;
+      expect(items[0].id).toBe(oldestReviewId);
+      expect(items[0].photos).toHaveLength(1);
+
+      // cleanupRestaurant() doesn't know about photos (no test before this
+      // one ever attached a real one to a review) — clean up what this test
+      // uploaded so it doesn't leave stray rows in the shared dev DB.
+      await prisma.moderationResult.deleteMany({ where: { targetType: 'photo', targetId: photoId } });
+      await prisma.photo.delete({ where: { id: photoId } });
+      await cleanupRestaurant(restaurant.id);
+    });
   });
 
   describe('Search ranking reflects composite score', () => {
@@ -560,5 +642,51 @@ describe('Reviews & Composite Scoring (e2e)', () => {
         await cleanupRestaurant(mediocreRestaurant.id);
       }
     }, 15000);
+  });
+
+  describe('GET /me/reviews', () => {
+    it('rejects unauthenticated requests', async () => {
+      await request(app.getHttpServer()).get('/me/reviews').expect(401);
+    });
+
+    it('lists only the caller\'s own reviews (any status), each with its restaurant identified', async () => {
+      const admin = await registerAdmin('my-reviews-admin');
+      const restaurantA = await createRestaurant(admin.token, 'MyReviewsA');
+      const restaurantB = await createRestaurant(admin.token, 'MyReviewsB');
+      const reviewer = await registerUser('my-reviews-reviewer');
+      const stranger = await registerUser('my-reviews-stranger');
+
+      const reviewA = await request(app.getHttpServer())
+        .post('/reviews')
+        .set('Authorization', `Bearer ${reviewer.token}`)
+        .send({ restaurantId: restaurantA.id, overallRating: 5, ratings: [{ criteriaCode: 'food_quality', score: 5 }] })
+        .expect(201);
+      const reviewB = await request(app.getHttpServer())
+        .post('/reviews')
+        .set('Authorization', `Bearer ${reviewer.token}`)
+        .send({ restaurantId: restaurantB.id, overallRating: 3, ratings: [{ criteriaCode: 'service', score: 3 }] })
+        .expect(201);
+      // A review by someone else — must never leak into the reviewer's own list.
+      await request(app.getHttpServer())
+        .post('/reviews')
+        .set('Authorization', `Bearer ${stranger.token}`)
+        .send({ restaurantId: restaurantA.id, overallRating: 4, ratings: [{ criteriaCode: 'food_quality', score: 4 }] })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/me/reviews')
+        .set('Authorization', `Bearer ${reviewer.token}`)
+        .expect(200);
+      const body = res.body as MyReviewListResponse;
+      expect(body.total).toBe(2);
+      const ids = body.items.map((item) => item.id).sort();
+      expect(ids).toEqual([(reviewA.body as ReviewDto).id, (reviewB.body as ReviewDto).id].sort());
+
+      const itemA = body.items.find((item) => item.id === (reviewA.body as ReviewDto).id)!;
+      expect(itemA.restaurant).toEqual({ id: restaurantA.id, name: restaurantA.name, thumbnailUrl: null });
+
+      await cleanupRestaurant(restaurantA.id);
+      await cleanupRestaurant(restaurantB.id);
+    });
   });
 });

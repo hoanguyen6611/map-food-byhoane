@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { AdminUserListItemDto, Paginated, RoleCode, UserStatus } from '@foodmap/shared-types';
+import type { AdminUserDetailDto, AdminUserListItemDto, Paginated, RoleCode, UserStatus } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from './audit-log.service';
 import type { AdminUserQueryDto } from './dto/admin-user-query.dto';
@@ -30,7 +30,16 @@ export class AdminUserService {
     const where = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.role ? { role: { code: query.role } } : {}),
-      ...(query.search ? { email: { contains: query.search, mode: 'insensitive' as const } } : {}),
+      // Spec (screen 33) says "tìm kiếm theo email/tên" — OR across both,
+      // not just email.
+      ...(query.search
+        ? {
+            OR: [
+              { email: { contains: query.search, mode: 'insensitive' as const } },
+              { profile: { displayName: { contains: query.search, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
     };
 
     const [rows, total] = await this.prisma.$transaction([
@@ -60,9 +69,46 @@ export class AdminUserService {
     };
   }
 
+  // Screen 33's "chi tiết hoạt động" panel — fetched only when an admin opens
+  // one user's detail view, so the list endpoint stays cheap. reportsReceivedCount
+  // is derived via the user's reviews since Report has no direct 'user' target
+  // type (see ReportTargetType in shared-types).
+  async detail(targetUserId: string): Promise<AdminUserDetailDto> {
+    const user = await this.prisma.user.findUnique({ where: { id: targetUserId }, include: { role: true, profile: true } });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const reviews = await this.prisma.review.findMany({
+      where: { userId: targetUserId, deletedAt: null },
+      select: { id: true },
+    });
+    const reportsReceivedCount = reviews.length
+      ? await this.prisma.report.count({ where: { targetType: 'review', targetId: { in: reviews.map((r) => r.id) } } })
+      : 0;
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.profile?.displayName ?? null,
+      roleCode: user.role.code as RoleCode,
+      status: user.status as UserStatus,
+      createdAt: user.createdAt.toISOString(),
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      reviewCount: reviews.length,
+      reportsReceivedCount,
+    };
+  }
+
   // Admin-only per the RBAC checklist item — enforced by RolesGuard on the
   // controller, not re-checked here.
   async suspend(targetUserId: string, actorId: string): Promise<void> {
+    if (targetUserId === actorId) {
+      // Validation per screen 33: "Không thể tự khoá chính mình" — with no
+      // second-admin-invite flow in this MVP, self-suspension has no recovery path.
+      throw new BadRequestException('Không thể tự khoá chính mình');
+    }
+    await this.assertNotLastActiveAdmin(targetUserId, 'Không thể khoá admin cuối cùng của hệ thống');
     await this.setStatus(targetUserId, 'suspended', actorId, 'user.suspend');
   }
 
@@ -85,6 +131,9 @@ export class AdminUserService {
     if (!role) {
       throw new BadRequestException(`Vai trò không hợp lệ: ${roleCode}`);
     }
+    if (user.role.code === 'admin' && roleCode !== 'admin') {
+      await this.assertNotLastActiveAdmin(targetUserId, 'Không thể đổi vai trò của admin cuối cùng của hệ thống');
+    }
 
     await this.prisma.user.update({ where: { id: targetUserId }, data: { roleId: role.id } });
     await this.auditLog.record({
@@ -95,6 +144,20 @@ export class AdminUserService {
       beforeState: { roleCode: user.role.code },
       afterState: { roleCode },
     });
+  }
+
+  // Validation per screen 33: "không thể xoá [quyền của] admin cuối cùng của
+  // hệ thống" — covers both suspending and role-demoting the sole remaining
+  // active admin. No-ops for anyone who isn't currently an active admin.
+  private async assertNotLastActiveAdmin(targetUserId: string, message: string): Promise<void> {
+    const target = await this.prisma.user.findUnique({ where: { id: targetUserId }, include: { role: true } });
+    if (!target || target.role.code !== 'admin' || target.status !== 'active') {
+      return;
+    }
+    const activeAdminCount = await this.prisma.user.count({ where: { role: { code: 'admin' }, status: 'active' } });
+    if (activeAdminCount <= 1) {
+      throw new BadRequestException(message);
+    }
   }
 
   private async setStatus(targetUserId: string, status: UserStatus, actorId: string, action: string): Promise<void> {

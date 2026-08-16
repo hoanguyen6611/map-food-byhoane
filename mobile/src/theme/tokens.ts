@@ -63,6 +63,15 @@ export interface ThemeColors {
   primarySurface: string;
   /** Hyperlink-style text ("Xem tất cả...", "Đăng nhập?"). */
   link: string;
+  /** Darker `link` variant for a filled button's pressed state / gradient-bottom-stop stand-in (mockup's `#003CFF→#0638CD`, flattened per this file's no-gradient precedent). */
+  linkStrong: string;
+
+  /** Gamification-banner fill (mockup's cyan banner) — theme-invariant, like `star`/`shadow`, since it's a decorative fill rather than a reading surface. */
+  accentCyan: string;
+  /** Light tint of `accentCyan` for a banner's secondary/inner surface. */
+  accentCyanSurface: string;
+  /** Badge-progress-bar fill (mockup's pink) — theme-invariant, same rationale as `accentCyan`. */
+  accentPink: string;
 
   error: string;
   errorBg: string;
@@ -82,31 +91,45 @@ export interface ThemeColors {
 
   /** `shadowColor` for card/button elevation. */
   shadow: string;
+
+  /** Rating-star fill (badges, pickers, histogram bars) — always the same gold regardless of theme. */
+  star: string;
+  /** Liked-heart icon fill — distinct from `error`, which is reserved for error states. */
+  favorite: string;
 }
 
+// "Ngon v3" visual language (see docs/plans/spicy-waddling-origami.md for the
+// mockup this was ported from) — warm cream surfaces, ink-black primary
+// actions, a single dedicated accent blue for links/highlight CTAs. Replaces
+// the earlier ShopeeFood/Baemin-adjacent orange identity below.
 export const LightColors: ThemeColors = {
-  background: '#ffffff',
-  backgroundAlt: '#f7f7f7',
+  background: '#FFF8EB',
+  backgroundAlt: '#FFF3DC',
   surface: '#ffffff',
-  surfaceAlt: '#f2f2f2',
-  border: '#e0e0e0',
-  divider: '#f2f2f2',
+  surfaceAlt: '#F0F0F3',
+  border: '#F0F0F3',
+  divider: '#F0F0F3',
 
-  textPrimary: '#222222',
-  textSecondary: '#666666',
-  // #999999 measured 2.85:1 against white — below even the 3:1 WCAG AA
-  // minimum for large text/UI components (a real gap found in this
-  // module's accessibility pass, see docs/09-testing-plan.md §4). #808080
-  // clears 3.95:1 while staying visibly the lightest/most-muted text tier.
-  textTertiary: '#808080',
+  textPrimary: '#1C2024',
+  textSecondary: '#6F6F77',
+  textTertiary: '#8B8D98',
   onPrimary: '#ffffff',
 
-  primary: '#e4572e',
-  // 5.40:1 vs white, 4.57:1 vs primarySurface — both clear WCAG AA's 4.5:1
-  // normal-text threshold (see primaryStrong's doc comment on the interface).
-  primaryStrong: '#b64625',
-  primarySurface: '#fde8e0',
-  link: '#1e6fd9',
+  // Ink black — the mockup's dominant solid-fill color for buttons/active
+  // chips/nav bar (a flat stand-in for its `#2C2C2C→#141414` gradient, see
+  // the plan's "flat colors instead of gradients" note).
+  primary: '#141414',
+  // Already black, so no separate darker-for-small-text variant is needed
+  // (unlike the old orange, which fell short of WCAG AA at small sizes).
+  primaryStrong: '#141414',
+  primarySurface: '#FFF3D6',
+  // The mockup's one dedicated accent blue — links and highlight CTAs only.
+  link: '#003CFF',
+  linkStrong: '#0638CD',
+
+  accentCyan: '#57D7E0',
+  accentCyanSurface: '#DBF1F2',
+  accentPink: '#DD00D8',
 
   error: '#a94442',
   errorBg: '#fdecea',
@@ -123,6 +146,9 @@ export const LightColors: ThemeColors = {
   overlayBannerLink: '#ffd08a',
 
   shadow: '#000000',
+
+  star: '#F0CD86',
+  favorite: '#E11D48',
 };
 
 export const DarkColors: ThemeColors = {
@@ -136,15 +162,20 @@ export const DarkColors: ThemeColors = {
   textPrimary: '#f2f2f2',
   textSecondary: '#a0a0a5',
   textTertiary: '#7d7d82',
-  onPrimary: '#ffffff',
+  // Dark mode inverts the light theme's "ink black on cream" relationship:
+  // primary actions become a light cream fill (readable on dark surfaces),
+  // so the text/icon rendered ON that fill must flip to ink, not white.
+  onPrimary: '#141414',
 
-  primary: '#e4572e',
-  // Unlike light mode, plain `primary` already clears 4.5:1 against the dark
-  // surface/tint (dark backgrounds are dark enough on their own) — no
-  // separate darker variant needed here.
-  primaryStrong: '#e4572e',
-  primarySurface: 'rgba(228,87,46,0.22)',
-  link: '#5b9bf5',
+  primary: '#F5F0E4',
+  primaryStrong: '#F5F0E4',
+  primarySurface: 'rgba(245,240,228,0.16)',
+  link: '#5b8dff',
+  linkStrong: '#3454b4',
+
+  accentCyan: '#57D7E0',
+  accentCyanSurface: 'rgba(87,215,224,0.16)',
+  accentPink: '#DD00D8',
 
   error: '#e08a84',
   errorBg: 'rgba(169,68,66,0.28)',
@@ -161,4 +192,7 @@ export const DarkColors: ThemeColors = {
   overlayBannerLink: '#ffd08a',
 
   shadow: '#000000',
+
+  star: '#F5D890',
+  favorite: '#FF6B85',
 };

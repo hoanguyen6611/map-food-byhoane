@@ -8,7 +8,10 @@ export type UploadableImageContentType = 'image/jpeg' | 'image/png' | 'image/web
 // The owner isn't necessarily known yet at upload time (e.g. a review draft
 // has no id until it's created) — `ownerId` is supplied later via the
 // owning create-endpoint's `photoIds` field, which reparents the photo.
-export type MediaOwnerType = 'restaurant' | 'review' | 'contribution';
+// `user_profile` (avatar) is the one exception — the owner (the user
+// themself) always already exists, so its `ownerId` is supplied directly at
+// confirm time, never reparented.
+export type MediaOwnerType = 'restaurant' | 'review' | 'contribution' | 'user_profile';
 
 export interface CreateUploadUrlRequest {
   contentType: UploadableImageContentType;
