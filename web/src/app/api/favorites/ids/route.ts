@@ -1,22 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAccessToken } from '@/lib/auth';
-
-const BACKEND_API_URL = process.env.BACKEND_API_URL ?? 'http://localhost:3000';
+import { backendFetchAuthorized } from '@/lib/auth';
 
 // Same "isolated dynamic island" pattern as api/session/route.ts — proxies
 // the authenticated backend call so FavoritesProvider (a client component)
-// never needs the access token itself.
+// never needs the access token itself. `backendFetchAuthorized` transparently
+// refreshes an expired access token once before giving up, so a long-lived
+// tab doesn't start reporting "no favorites" the moment the token goes stale.
 export async function GET() {
-  const token = await getAccessToken();
-  if (!token) {
-    return NextResponse.json([]);
-  }
-
-  const res = await fetch(`${BACKEND_API_URL}/me/favorites/ids`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
+  const res = await backendFetchAuthorized('/me/favorites/ids');
+  if (!res?.ok) {
     return NextResponse.json([]);
   }
 

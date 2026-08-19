@@ -4,7 +4,6 @@
 // is read directly from `process.env` rather than threaded through
 // `NEXT_PUBLIC_*`/Expo's `extra` mechanism the other two client apps use.
 import type {
-  FavoriteListResponse,
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
@@ -87,17 +86,4 @@ export async function getReviewsForRestaurant(
     `/restaurants/${restaurantId}/reviews?page=${page}&pageSize=10`,
     LISTING_REVALIDATE_SECONDS,
   );
-}
-
-// Authenticated, uncached — per-user data, unlike everything else in this
-// file which is public and revalidate-cached.
-export async function getFavorites(accessToken: string, page: number): Promise<FavoriteListResponse> {
-  const res = await fetch(`${BACKEND_API_URL}/me/favorites?page=${page}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    throw new Error(`Backend request failed: GET /me/favorites -> ${res.status}`);
-  }
-  return res.json() as Promise<FavoriteListResponse>;
 }

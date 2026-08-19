@@ -4,10 +4,10 @@
 // Deliberately minimal per this module's scope decision (overriding
 // docs/build-prompts/09-public-web.md's "no web auth" boundary with the
 // smallest possible version): sign-in/out + showing the signed-in email in
-// the header, nothing else. No silent access-token refresh, no
-// middleware-level route protection — there is no protected page yet for
-// either to matter for. The access token going stale after 15 minutes has
-// zero functional impact today since no page makes an authenticated API call.
+// the header, plus (see `backendFetchAuthorized`) the one silent
+// access-token refresh the favorites feature actually needs now that it
+// makes authenticated backend calls — no middleware-level route protection,
+// there is still no protected *page* for that to matter for.
 import { cookies } from 'next/headers';
 import type { AuthResponse } from '@foodmap/shared-types';
 
@@ -27,29 +27,88 @@ export interface Session {
 
 /** Reads and validates the session cookie. Never throws — malformed/missing cookie just means "signed out". */
 export async function getSession(): Promise<Session | null> {
+  const parsed = await readSessionCookie();
+  return parsed?.email ? { email: parsed.email } : null;
+}
+
+async function readSessionCookie(): Promise<SessionCookiePayload | null> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as SessionCookiePayload;
-    if (!parsed.email) return null;
-    return { email: parsed.email };
+    return JSON.parse(raw) as SessionCookiePayload;
   } catch {
     return null;
   }
 }
 
-/** Server-only: the raw access token, for routes/handlers that call the backend on the user's behalf. Never expose this to the client. */
-export async function getAccessToken(): Promise<string | null> {
+async function writeSessionCookie(payload: SessionCookiePayload): Promise<void> {
   const store = await cookies();
-  const raw = store.get(SESSION_COOKIE)?.value;
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as SessionCookiePayload;
-    return parsed.accessToken ?? null;
-  } catch {
+  store.set(SESSION_COOKIE, JSON.stringify(payload), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  });
+}
+
+/**
+ * Rotates the session's tokens via `POST /auth/refresh` (same backend
+ * contract the mobile app's API client uses) and persists the new pair.
+ * Returns the new access token, or `null` if the refresh token itself is
+ * invalid/expired/revoked — in which case the session is truly over and the
+ * cookie is cleared rather than left pointing at dead tokens.
+ */
+async function refreshSession(): Promise<string | null> {
+  const current = await readSessionCookie();
+  if (!current) return null;
+
+  const res = await fetch(`${BACKEND_API_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: current.refreshToken }),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const store = await cookies();
+    store.delete(SESSION_COOKIE);
     return null;
   }
+
+  const body = (await res.json()) as AuthResponse;
+  await writeSessionCookie({ accessToken: body.accessToken, refreshToken: body.refreshToken, email: body.user.email });
+  return body.accessToken;
+}
+
+/**
+ * Server-only: calls the backend on the signed-in user's behalf, attaching
+ * the current access token. A `401` (the 15-minute access token has gone
+ * stale — normal, not an error) triggers exactly one `refreshSession()` +
+ * retry, mirroring `mobile/src/api/client.ts`'s single-retry pattern, so a
+ * long-lived browser tab doesn't silently start dropping favorites the
+ * moment the access token expires. Returns `null` if there's no session at
+ * all, or if the retried request still 401s (refresh token also dead —
+ * caller should treat this exactly like "signed out").
+ */
+export async function backendFetchAuthorized(path: string, init: RequestInit = {}): Promise<Response | null> {
+  const session = await readSessionCookie();
+  if (!session) return null;
+
+  const attempt = (token: string) =>
+    fetch(`${BACKEND_API_URL}${path}`, {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+
+  let res = await attempt(session.accessToken);
+  if (res.status === 401) {
+    const refreshedToken = await refreshSession();
+    if (!refreshedToken) return res;
+    res = await attempt(refreshedToken);
+  }
+  return res;
 }
 
 export type LoginResult = { ok: true } | { ok: false; error: string };
@@ -71,20 +130,7 @@ export async function login(email: string, password: string): Promise<LoginResul
   }
 
   const body = (await res.json()) as AuthResponse;
-  const payload: SessionCookiePayload = {
-    accessToken: body.accessToken,
-    refreshToken: body.refreshToken,
-    email: body.user.email,
-  };
-
-  const store = await cookies();
-  store.set(SESSION_COOKIE, JSON.stringify(payload), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
+  await writeSessionCookie({ accessToken: body.accessToken, refreshToken: body.refreshToken, email: body.user.email });
   return { ok: true };
 }
 

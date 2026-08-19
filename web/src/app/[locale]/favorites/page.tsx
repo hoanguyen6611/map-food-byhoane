@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getAccessToken } from '@/lib/auth';
-import { getFavorites } from '@/lib/api';
+import type { FavoriteListResponse } from '@foodmap/shared-types';
+import { backendFetchAuthorized } from '@/lib/auth';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Link } from '@/i18n/navigation';
 
@@ -18,16 +18,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function FavoritesPage({ searchParams }: PageProps) {
-  const token = await getAccessToken();
-  if (!token) {
-    redirect('/login');
-  }
-
   const search = await searchParams;
   const page = Number(search.page ?? '1') || 1;
 
+  // `backendFetchAuthorized` refreshes an expired access token once before
+  // giving up — a `null` here means there's truly no session (never logged
+  // in, or the refresh token itself is dead), which is the actual "go log
+  // in" case, not just "the 15-minute access token happened to be stale."
+  const res = await backendFetchAuthorized(`/me/favorites?page=${page}`);
+  if (!res) {
+    redirect('/login');
+  }
+  if (!res.ok) {
+    throw new Error(`Backend request failed: GET /me/favorites -> ${res.status}`);
+  }
+
   const [t, tCommon] = await Promise.all([getTranslations('favorites'), getTranslations('common')]);
-  const result = await getFavorites(token, page);
+  const result = (await res.json()) as FavoriteListResponse;
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
