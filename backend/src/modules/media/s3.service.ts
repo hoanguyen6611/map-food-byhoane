@@ -35,19 +35,24 @@ export class S3Service {
     this.bucket = this.config.get<string>('S3_BUCKET', 'foodmap-media');
     this.publicBaseUrl = this.config.get<string>('S3_PUBLIC_BASE_URL', '').replace(/\/$/, '');
     const forcePathStyle = this.config.get<string>('S3_FORCE_PATH_STYLE', 'false') === 'true';
+    // MinIO ignores this value entirely, but it's still part of the SigV4
+    // signature the SDK computes — a provider that DOES check it (R2 requires
+    // exactly 'auto') would fail every request with SignatureDoesNotMatch if
+    // this were left hardcoded to a fixed region.
+    const region = this.config.get<string>('S3_REGION', 'us-east-1');
     const credentials = {
       accessKeyId: this.config.get<string>('S3_ACCESS_KEY_ID', ''),
       secretAccessKey: this.config.get<string>('S3_SECRET_ACCESS_KEY', ''),
     };
     this.client = new S3Client({
       endpoint: this.config.get<string>('S3_ENDPOINT'),
-      region: 'us-east-1', // MinIO ignores this; required by the SDK client shape.
+      region,
       forcePathStyle,
       credentials,
     });
     this.presignClient = new S3Client({
       endpoint: this.config.get<string>('S3_PUBLIC_ENDPOINT') || this.config.get<string>('S3_ENDPOINT'),
-      region: 'us-east-1',
+      region,
       forcePathStyle,
       credentials,
     });

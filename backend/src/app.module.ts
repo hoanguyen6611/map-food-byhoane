@@ -39,6 +39,19 @@ import { AdminModule } from './modules/admin/admin.module';
           connection: {
             host: redisUrl.hostname,
             port: Number(redisUrl.port || 6379),
+            // Local Redis needs neither of these, but a managed provider
+            // (e.g. Upstash) requires both — dropping them silently broke
+            // BullMQ's connection against any such REDIS_URL while /health
+            // still reported redis:true (it pings a separately-configured
+            // client, see RedisService, which parses the full URL correctly).
+            username: redisUrl.username || undefined,
+            password: redisUrl.password || undefined,
+            tls: redisUrl.protocol === 'rediss:' ? {} : undefined,
+            // BullMQ's own requirement for any worker connection — without
+            // this, ioredis's default retry limit can throw
+            // MaxRetriesPerRequestError under the blocking commands BullMQ's
+            // workers rely on.
+            maxRetriesPerRequest: null,
           },
         };
       },
