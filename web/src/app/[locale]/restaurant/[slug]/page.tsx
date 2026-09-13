@@ -7,6 +7,8 @@ import { formatPriceRange, formatVndFull } from '@/lib/format';
 import { FACILITY_EMOJI } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { WriteReviewForm } from '@/components/WriteReviewForm';
+import { getSession } from '@/lib/auth';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const REVIEWS_PAGE_SIZE = 10;
@@ -70,18 +72,23 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
     notFound();
   }
 
-  const [t, tCommon, tLabels] = await Promise.all([
+  const [t, tCommon, tLabels, tWriteReview] = await Promise.all([
     getTranslations('restaurant'),
     getTranslations('common'),
     getTranslations('labels'),
+    getTranslations('writeReview'),
   ]);
 
   const reviewPage = Number(reviewPageParam ?? '1') || 1;
-  const reviewsResponse =
-    restaurant.reviewCount > 0 ? await getReviewsForRestaurant(restaurant.id, reviewPage) : null;
-  const reviewTotalPages = reviewsResponse
-    ? Math.max(1, Math.ceil(reviewsResponse.total / REVIEWS_PAGE_SIZE))
-    : 1;
+  // Always fetched (not just when reviewCount > 0) — the backend computes
+  // `ratingBreakdown` (criteria codes + labels) unconditionally, and the
+  // write-review form below needs that list even for a restaurant with zero
+  // reviews so far.
+  const [reviewsResponse, session] = await Promise.all([
+    getReviewsForRestaurant(restaurant.id, reviewPage),
+    getSession(),
+  ]);
+  const reviewTotalPages = Math.max(1, Math.ceil(reviewsResponse.total / REVIEWS_PAGE_SIZE));
 
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
   const firstMenu = restaurant.menus[0];
@@ -270,7 +277,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
       )}
 
       <h2 className="section-title">{t('reviewsHeading')}</h2>
-      {!reviewsResponse || reviewsResponse.items.length === 0 ? (
+      {reviewsResponse.items.length === 0 ? (
         <p className="empty-state">{t('noReviews')}</p>
       ) : (
         <>
@@ -303,6 +310,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             </nav>
           ) : null}
         </>
+      )}
+
+      {session ? (
+        <WriteReviewForm
+          restaurantId={restaurant.id}
+          slug={restaurant.slug}
+          criteria={reviewsResponse.ratingBreakdown.map((c) => ({ code: c.code, label: c.label }))}
+        />
+      ) : (
+        <p className="write-review-login-prompt">
+          <Link href="/login">{tWriteReview('loginToReview')}</Link>
+        </p>
       )}
     </div>
   );

@@ -104,7 +104,10 @@
     "signOut": "Sign out",
     "genericError": "Incorrect email or password.",
     "greeting": "Hi, {email}",
-    "favoritesLink": "Favorites"
+    "favoritesLink": "Favorites",
+    "profileLink": "Profile",
+    "notificationsLink": "Notifications",
+    "addRestaurantLink": "Add a restaurant"
   },
   "favorites": {
     "title": "Favorite restaurants",
@@ -154,5 +157,81 @@
       "5": "Friday",
       "6": "Saturday"
     }
+  },
+  "writeReview": {
+    "heading": "Write a review",
+    "overallLabel": "Overall rating",
+    "commentLabel": "Comment (optional)",
+    "commentPlaceholder": "What did you like or dislike?",
+    "submit": "Submit review",
+    "submitting": "Submitting…",
+    "validationError": "Please give an overall rating and rate at least one category.",
+    "duplicateError": "You've already reviewed this restaurant recently.",
+    "unauthorizedError": "Your session has expired — please sign in again.",
+    "genericError": "Something went wrong submitting your review. Please try again.",
+    "publishedTitle": "Review published!",
+    "publishedBody": "Thanks for sharing — your review is now live.",
+    "pendingTitle": "Review submitted",
+    "pendingBody": "Your review is queued for a quick moderation check before it goes live.",
+    "loginToReview": "Sign in to write a review"
+  },
+  "profile": {
+    "title": "My profile",
+    "reviewCountLabel": "Reviews written",
+    "displayNameLabel": "Display name",
+    "homeCityLabel": "Home city",
+    "bioLabel": "Bio",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved!",
+    "saveError": "Something went wrong saving your profile. Please try again.",
+    "unauthorizedError": "Your session has expired — please sign in again.",
+    "myReviewsHeading": "My reviews",
+    "noReviews": "You haven't written any reviews yet.",
+    "status": {
+      "pending": "Pending review",
+      "rejected": "Rejected",
+      "hidden": "Hidden"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You have no notifications yet.",
+    "markRead": "Mark as read"
+  },
+  "addRestaurant": {
+    "title": "Add a restaurant",
+    "intro": "Know a great spot that's not on the map yet? Add it below — a quick moderation check runs before it goes live.",
+    "nameLabel": "Name",
+    "descriptionLabel": "Description (optional)",
+    "categoryLabel": "Category",
+    "priceRangeLabel": "Price range (optional)",
+    "cuisineLabel": "Cuisine (optional)",
+    "phoneLabel": "Phone (optional)",
+    "addressLineLabel": "Street address",
+    "wardLabel": "Ward",
+    "provinceLabel": "Province / city",
+    "locationLabel": "Coordinates",
+    "latPlaceholder": "Latitude",
+    "lngPlaceholder": "Longitude",
+    "useMyLocation": "Use my current location",
+    "photosLabel": "Photos (at least 1)",
+    "selectPlaceholder": "Select…",
+    "addPhoto": "Add photo",
+    "uploading": "Uploading…",
+    "removePhoto": "Remove photo",
+    "photoUploadError": "Couldn't upload that photo. Please try again.",
+    "submit": "Submit for review",
+    "submitting": "Submitting…",
+    "submitAnyway": "Submit anyway, it's different",
+    "backToEdit": "Back to edit",
+    "unauthorizedError": "Your session has expired — please sign in again.",
+    "genericError": "Something went wrong submitting this restaurant. Please try again.",
+    "duplicateTitle": "This looks similar to an existing restaurant",
+    "duplicateBody": "We found some nearby restaurants with a similar name. If yours is genuinely different, you can submit anyway.",
+    "publishedTitle": "Restaurant added!",
+    "publishedBody": "Thanks for the contribution — it's now live on the map.",
+    "pendingTitle": "Submitted for review",
+    "pendingBody": "Your submission is queued for a quick moderation check before it goes live."
   }
 }

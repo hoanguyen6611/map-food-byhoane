@@ -57,6 +57,9 @@ export function AuthStatus() {
   return (
     <span className="auth-status">
       <Link href="/favorites">{t('favoritesLink')}</Link>
+      <Link href="/profile">{t('profileLink')}</Link>
+      <Link href="/notifications">{t('notificationsLink')}</Link>
+      <Link href="/add-restaurant">{t('addRestaurantLink')}</Link>
       {t('greeting', { email: session.email })}
       <button type="button" className="auth-signout-button" onClick={handleLogout}>
         {t('signOut')}

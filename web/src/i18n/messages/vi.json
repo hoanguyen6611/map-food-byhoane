@@ -104,7 +104,10 @@
     "signOut": "Đăng xuất",
     "genericError": "Email hoặc mật khẩu không đúng.",
     "greeting": "Xin chào, {email}",
-    "favoritesLink": "Yêu thích"
+    "favoritesLink": "Yêu thích",
+    "profileLink": "Hồ sơ",
+    "notificationsLink": "Thông báo",
+    "addRestaurantLink": "Thêm nhà hàng"
   },
   "favorites": {
     "title": "Quán yêu thích",
@@ -154,5 +157,81 @@
       "5": "Thứ Sáu",
       "6": "Thứ Bảy"
     }
+  },
+  "writeReview": {
+    "heading": "Viết đánh giá",
+    "overallLabel": "Đánh giá tổng thể",
+    "commentLabel": "Bình luận (không bắt buộc)",
+    "commentPlaceholder": "Bạn thích hoặc không thích điều gì?",
+    "submit": "Gửi đánh giá",
+    "submitting": "Đang gửi…",
+    "validationError": "Vui lòng chọn điểm tổng thể và ít nhất một tiêu chí.",
+    "duplicateError": "Bạn đã đánh giá quán này gần đây rồi.",
+    "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
+    "genericError": "Có lỗi khi gửi đánh giá. Vui lòng thử lại.",
+    "publishedTitle": "Đã đăng đánh giá!",
+    "publishedBody": "Cảm ơn bạn đã chia sẻ — đánh giá của bạn đã hiển thị công khai.",
+    "pendingTitle": "Đã gửi đánh giá",
+    "pendingBody": "Đánh giá của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai.",
+    "loginToReview": "Đăng nhập để viết đánh giá"
+  },
+  "profile": {
+    "title": "Hồ sơ của tôi",
+    "reviewCountLabel": "Đánh giá đã viết",
+    "displayNameLabel": "Tên hiển thị",
+    "homeCityLabel": "Thành phố",
+    "bioLabel": "Giới thiệu",
+    "save": "Lưu thay đổi",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu!",
+    "saveError": "Có lỗi khi lưu hồ sơ. Vui lòng thử lại.",
+    "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
+    "myReviewsHeading": "Đánh giá của tôi",
+    "noReviews": "Bạn chưa viết đánh giá nào.",
+    "status": {
+      "pending": "Đang chờ duyệt",
+      "rejected": "Đã từ chối",
+      "hidden": "Đã ẩn"
+    }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "empty": "Bạn chưa có thông báo nào.",
+    "markRead": "Đánh dấu đã đọc"
+  },
+  "addRestaurant": {
+    "title": "Thêm nhà hàng",
+    "intro": "Biết một quán ngon chưa có trên bản đồ? Thêm vào bên dưới — hệ thống sẽ kiểm duyệt nhanh trước khi hiển thị công khai.",
+    "nameLabel": "Tên quán",
+    "descriptionLabel": "Mô tả (không bắt buộc)",
+    "categoryLabel": "Danh mục",
+    "priceRangeLabel": "Khoảng giá (không bắt buộc)",
+    "cuisineLabel": "Ẩm thực (không bắt buộc)",
+    "phoneLabel": "Số điện thoại (không bắt buộc)",
+    "addressLineLabel": "Địa chỉ",
+    "wardLabel": "Phường/Xã",
+    "provinceLabel": "Tỉnh/Thành phố",
+    "locationLabel": "Toạ độ",
+    "latPlaceholder": "Vĩ độ",
+    "lngPlaceholder": "Kinh độ",
+    "useMyLocation": "Dùng vị trí hiện tại của tôi",
+    "photosLabel": "Ảnh (ít nhất 1)",
+    "selectPlaceholder": "Chọn…",
+    "addPhoto": "Thêm ảnh",
+    "uploading": "Đang tải lên…",
+    "removePhoto": "Xoá ảnh",
+    "photoUploadError": "Không tải được ảnh này. Vui lòng thử lại.",
+    "submit": "Gửi để duyệt",
+    "submitting": "Đang gửi…",
+    "submitAnyway": "Vẫn gửi, đây là quán khác",
+    "backToEdit": "Quay lại chỉnh sửa",
+    "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
+    "genericError": "Có lỗi khi gửi thông tin quán. Vui lòng thử lại.",
+    "duplicateTitle": "Có vẻ giống một quán đã có sẵn",
+    "duplicateBody": "Chúng tôi tìm thấy vài quán gần đó có tên tương tự. Nếu quán của bạn thực sự khác, bạn có thể vẫn gửi.",
+    "publishedTitle": "Đã thêm nhà hàng!",
+    "publishedBody": "Cảm ơn đóng góp của bạn — quán đã hiển thị công khai trên bản đồ.",
+    "pendingTitle": "Đã gửi để duyệt",
+    "pendingBody": "Thông tin của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai."
   }
 }
