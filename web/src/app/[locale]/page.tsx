@@ -8,7 +8,12 @@ import { Link, getPathname } from '@/i18n/navigation';
 import type { RestaurantCategoryCode } from '@foodmap/shared-types';
 
 export const metadata: Metadata = {
-  title: undefined, // uses the default from layout.tsx's template
+  // No `title` key here at all — Next.js only inherits a parent segment's
+  // title when the field is omitted entirely. Explicitly setting
+  // `title: undefined` (the previous code here) still counts as this
+  // segment defining `title`, which blanks it out for the WHOLE app instead
+  // of falling back to layout.tsx's default/template — no <title> tag was
+  // being rendered at all as a result.
   alternates: { canonical: '/' },
 };
 
