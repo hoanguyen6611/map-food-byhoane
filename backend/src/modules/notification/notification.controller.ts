@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { NotificationDto, NotificationListResponse } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -6,6 +7,8 @@ import type { RequestUser } from '../auth/auth.types';
 import { NotificationService } from './notification.service';
 import { NotificationListQueryDto } from './dto/notification-list-query.dto';
 
+@ApiTags('Notifications')
+@ApiBearerAuth('access-token')
 @Controller('me/notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationController {

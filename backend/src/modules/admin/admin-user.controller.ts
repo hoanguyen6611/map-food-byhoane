@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AdminUserDetailDto, AdminUserListItemDto, Paginated } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -13,6 +14,8 @@ import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 // comment. `admin`/`moderator` can both list; suspend/reactivate/role-change
 // are admin-only (moderator gets 403), matching the Security Checklist item
 // and the PRD §10.11 business rule verbatim.
+@ApiTags('Admin: Users')
+@ApiBearerAuth('access-token')
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'moderator')

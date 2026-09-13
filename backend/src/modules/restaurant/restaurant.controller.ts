@@ -1,9 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import type { AISummaryResponseDto, RestaurantDetailDto, RestaurantSitemapEntryDto, RestaurantSummaryDto } from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { BoundsQueryDto } from './dto/bounds-query.dto';
 
+@ApiTags('Restaurants')
 @Controller('restaurants')
 export class RestaurantController {
   constructor(private readonly restaurantService: RestaurantService) {}

@@ -63,7 +63,29 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
             <header className="site-header">
               <div className="container">
                 <Link href="/" className="logo" aria-label={t('homeAriaLabel')}>
-                  🍜 {SITE_NAME}
+                  {/* Chopstick Pin mark ("1c" in the "Food Map Logo Icon" design
+                      canvas) — a map pin outline with two crossed chopsticks.
+                      Brand-orange stroke (matches the design's own icon+wordmark
+                      pairing) while the wordmark itself keeps .logo's neutral
+                      text color. */}
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 64 64"
+                    fill="none"
+                    stroke="#E4572E"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                    style={{ verticalAlign: -4 }}
+                  >
+                    <path
+                      d="M32 7c-11 0-19.9 8.8-19.9 19.6 0 6.6 4.1 13.1 8.6 18.1 3.6 4 7.4 7.2 9.3 8.7.5.4 1.3.4 1.8 0 1.9-1.5 5.7-4.7 9.3-8.7 4.5-5 8.6-11.5 8.6-18.1C51.9 15.8 43 7 32 7Z"
+                      strokeWidth={6}
+                    />
+                    <path d="M24 33 40.5 20.5" strokeWidth={5.5} />
+                    <path d="M24 26 40.5 13.5" strokeWidth={5.5} />
+                  </svg>{' '}
+                  {SITE_NAME}
                 </Link>
                 <nav aria-label={t('mainNav')}>
                   <Link href="/search">{t('findRestaurants')}</Link>

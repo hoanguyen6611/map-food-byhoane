@@ -6,6 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import type { AuthResponse } from '@foodmap/shared-types';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -17,6 +18,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RateLimit } from './decorators/rate-limit.decorator';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 
+@ApiTags('Auth')
 @Controller('auth')
 @UseGuards(RateLimitGuard)
 export class AuthController {

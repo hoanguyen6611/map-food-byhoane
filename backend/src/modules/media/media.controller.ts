@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CreateUploadUrlResponse, PhotoDto } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -9,6 +10,8 @@ import { ConfirmUploadDto } from './dto/confirm-upload.dto';
 
 // Real signed-upload pipeline (build-prompts/07) — any authenticated user
 // may upload; ownership is checked per-photo in-service, not via @Roles.
+@ApiTags('Media')
+@ApiBearerAuth('access-token')
 @Controller('media')
 @UseGuards(JwtAuthGuard)
 export class MediaController {

@@ -1,10 +1,12 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ApiTags } from '@nestjs/swagger';
 import type { Paginated, RestaurantSummaryDto } from '@foodmap/shared-types';
 import type { JwtPayload } from '../auth/auth.types';
 import { SearchQueryDto } from './dto/search-query.dto';
 import { SearchService } from './search.service';
 
+@ApiTags('Search')
 @Controller()
 export class SearchController {
   constructor(

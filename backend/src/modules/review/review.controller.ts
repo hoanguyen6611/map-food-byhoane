@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { MyReviewListResponse, ReviewDto, ReviewListResponse } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../auth/guards/rate-limit.guard';
@@ -23,6 +24,8 @@ import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewListQueryDto } from './dto/review-list-query.dto';
 import { MyReviewListQueryDto } from './dto/my-review-list-query.dto';
 
+@ApiTags('Reviews')
+@ApiBearerAuth('access-token')
 @Controller('reviews')
 export class ReviewController {
   constructor(private readonly reviewService: ReviewService) {}
@@ -58,6 +61,7 @@ export class ReviewController {
 // Separate controller (not nested under RestaurantController) so
 // RestaurantModule doesn't need to depend on ReviewModule for this one
 // route — public, no auth required.
+@ApiTags('Reviews')
 @Controller('restaurants/:restaurantId/reviews')
 export class RestaurantReviewController {
   constructor(private readonly reviewService: ReviewService) {}
@@ -74,6 +78,8 @@ export class RestaurantReviewController {
 // Separate controller (not nested under `reviews`) for the same reason
 // FavoriteController/NotificationController live at `me/...` paths — this
 // is a profile-scoped route, not a review-resource route.
+@ApiTags('My Reviews')
+@ApiBearerAuth('access-token')
 @Controller('me/reviews')
 @UseGuards(JwtAuthGuard)
 export class MyReviewController {

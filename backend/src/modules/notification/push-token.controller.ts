@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
+@ApiTags('Push Tokens')
+@ApiBearerAuth('access-token')
 @Controller('me/push-tokens')
 @UseGuards(JwtAuthGuard)
 export class PushTokenController {

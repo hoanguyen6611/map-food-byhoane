@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
   AdminRestaurantDetailDto,
   AdminRestaurantListItemDto,
@@ -36,6 +37,8 @@ import { AttachPhotoDto } from './dto/attach-photo.dto';
 // `admin` and `moderator` share every action here EXCEPT hard delete
 // (see the DELETE :id handler below) — that split is the explicit
 // Definition-of-Done requirement in docs/build-prompts/05.
+@ApiTags('Admin: Restaurants')
+@ApiBearerAuth('access-token')
 @Controller('admin/restaurants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'moderator')

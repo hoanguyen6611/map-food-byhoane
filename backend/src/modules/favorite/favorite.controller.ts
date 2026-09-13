@@ -1,4 +1,5 @@
 import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FavoriteListResponse, FavoriteStatusDto } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -6,6 +7,8 @@ import type { RequestUser } from '../auth/auth.types';
 import { FavoriteService } from './favorite.service';
 import { FavoriteListQueryDto } from './dto/favorite-list-query.dto';
 
+@ApiTags('Favorites')
+@ApiBearerAuth('access-token')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class FavoriteController {

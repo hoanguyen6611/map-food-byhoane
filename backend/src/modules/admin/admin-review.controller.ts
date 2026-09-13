@@ -1,4 +1,5 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AdminReviewListItemDto, Paginated } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -11,6 +12,8 @@ import { AdminReviewQueryDto } from './dto/admin-review-query.dto';
 // Admin Review Management (docs/04-screen-list.md §32). `admin`/`moderator`
 // can both browse; hide/restore/delete are admin-only per the screen spec's
 // "(chỉ admin)" note — mirrors AdminUserController's split.
+@ApiTags('Admin: Reviews')
+@ApiBearerAuth('access-token')
 @Controller('admin/reviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'moderator')

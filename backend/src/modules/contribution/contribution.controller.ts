@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
   ContributionListResponse,
   CreateEditSuggestionResponse,
@@ -21,6 +22,8 @@ import { ContributionListQueryDto } from './dto/contribution-list-query.dto';
 // Community-facing contribution flow (build-prompts/07) — distinct from
 // Module 5's admin-facing /admin/restaurants create. Any authenticated user
 // (role 'user') may submit; no @Roles restriction anywhere here.
+@ApiTags('Contributions')
+@ApiBearerAuth('access-token')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ContributionController {

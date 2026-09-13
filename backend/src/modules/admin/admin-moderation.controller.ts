@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AdminModerationQueueItemDto, Paginated, ReportDto } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -14,6 +15,8 @@ import { ResolveReportDto } from '../moderation/dto/resolve-report.dto';
 // Both `admin` and `moderator` can list/decide/resolve here — no
 // method-level @Roles override, unlike AdminRestaurantController's hard
 // delete (per build-prompts/07: moderators fully own this queue).
+@ApiTags('Admin: Moderation')
+@ApiBearerAuth('access-token')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'moderator')
