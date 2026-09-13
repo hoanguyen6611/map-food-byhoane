@@ -26,6 +26,14 @@ WORKDIR /app
 # `prisma generate` fetch the engine matching what's actually on the image.
 RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
+# npm workspaces doesn't always hoist every dependency to the root
+# node_modules — a version conflict can force npm to nest a package inside
+# the workspace that needs it instead (e.g. expo-server-sdk ends up at
+# backend/node_modules/expo-server-sdk, not node_modules/expo-server-sdk).
+# The line above alone silently drops any such nested package, breaking
+# `nest build`'s module resolution with a "Cannot find module" TS2307 even
+# though `npm ci` installed it correctly in the deps stage.
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY . .
 RUN npx prisma generate --schema=backend/prisma/schema.prisma
 RUN npm run build --workspace=backend
@@ -38,6 +46,10 @@ ENV NODE_ENV=production
 # present at runtime too, not just at generate-time.
 RUN apk add --no-cache openssl
 COPY --from=build /app/node_modules ./node_modules
+# Same nested-dependency caveat as the build stage above — a package not
+# hoisted to the root node_modules must be copied from its actual workspace
+# location too, or it's missing at runtime even though the build succeeded.
+COPY --from=build /app/backend/node_modules ./backend/node_modules
 COPY --from=build /app/packages/shared-types ./packages/shared-types
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/backend/tsconfig.json ./backend/tsconfig.json
