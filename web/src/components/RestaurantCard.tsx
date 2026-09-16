@@ -1,16 +1,19 @@
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
-import type { RestaurantSummaryDto } from '@foodmap/shared-types';
-import { formatPriceRange } from '@/lib/format';
+import type { RestaurantCategoryCode, RestaurantSummaryDto } from '@foodmap/shared-types';
+import { formatPriceRange, placeTileClass } from '@/lib/format';
 import { Link } from '@/i18n/navigation';
 import { FavoriteButton } from './FavoriteButton';
+import { OpenBadge } from './OpenBadge';
+import { StarIcon } from './icons';
 
 // Structural subset — deliberately loose so both RestaurantSummaryDto (search
 // results) and FavoriteRestaurantSummaryDto (the favorites page) satisfy it
 // without an adapter, same pattern mobile's RestaurantCard already uses for
-// the same two DTOs. isOpenNow is absent on the favorites DTO, so it's
-// optional here and the badge only renders when it's actually known.
-interface RestaurantCardData {
+// the same two DTOs. isOpenNow/categoryCode are absent on the favorites DTO,
+// so they're optional here and only render when actually known. Exported so
+// PlaceRow (list-row variant, same source data) can reuse the same shape.
+export interface RestaurantCardData {
   id: string;
   slug: string;
   name: string;
@@ -19,6 +22,7 @@ interface RestaurantCardData {
   reviewCount: number;
   priceRange: RestaurantSummaryDto['priceRange'];
   isOpenNow?: boolean;
+  categoryCode?: RestaurantCategoryCode;
 }
 
 interface Props {
@@ -30,8 +34,8 @@ export async function RestaurantCard({ restaurant }: Props) {
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
 
   return (
-    <Link href={`/restaurant/${restaurant.slug}`} className="restaurant-card">
-      <div className="thumb">
+    <Link href={`/restaurant/${restaurant.slug}`} className="place-card">
+      <div className={`place-card-photo ${restaurant.thumbnailUrl ? '' : placeTileClass(restaurant.id)}`}>
         <FavoriteButton restaurantId={restaurant.id} />
         {restaurant.thumbnailUrl ? (
           <Image
@@ -42,26 +46,37 @@ export async function RestaurantCard({ restaurant }: Props) {
             sizes="(max-width: 640px) 45vw, 260px"
           />
         ) : (
-          <span aria-hidden="true">🍽️</span>
+          <span className="place-card-photo-glyph" aria-hidden="true">🍽️</span>
         )}
-      </div>
-      <div className="body">
-        <p className="name">{restaurant.name}</p>
-        <div className="meta">
-          <span>
-            {restaurant.compositeScore !== null
-              ? `★ ${restaurant.compositeScore.toFixed(1)} (${restaurant.reviewCount})`
-              : tCommon('noRating')}
+        {restaurant.compositeScore !== null ? (
+          <span className="score-pill font-num">
+            <StarIcon size={11} />
+            {restaurant.compositeScore.toFixed(1)}
           </span>
-          {priceLabel ? <span>· {priceLabel}đ</span> : null}
-        </div>
-        {restaurant.isOpenNow !== undefined ? (
-          <div className="meta" style={{ marginTop: 6 }}>
-            <span className={`badge ${restaurant.isOpenNow ? 'badge-open' : 'badge-closed'}`}>
-              {restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')}
-            </span>
-          </div>
         ) : null}
+        {restaurant.isOpenNow !== undefined ? (
+          <OpenBadge
+            isOpen={restaurant.isOpenNow}
+            label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')}
+          />
+        ) : null}
+      </div>
+      <div className="place-card-body">
+        <p className="place-card-name">{restaurant.name}</p>
+        <div className="place-card-meta">
+          {priceLabel ? `${priceLabel}đ` : ''}
+        </div>
+        <div className="place-card-foot">
+          {restaurant.compositeScore !== null ? (
+            <>
+              <StarIcon size={12} />
+              {restaurant.compositeScore.toFixed(1)}
+              <span className="place-card-review-count">({restaurant.reviewCount})</span>
+            </>
+          ) : (
+            <span className="place-card-review-count">{tCommon('noRating')}</span>
+          )}
+        </div>
       </div>
     </Link>
   );

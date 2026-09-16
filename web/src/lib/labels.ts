@@ -13,6 +13,18 @@ export const CATEGORY_OPTIONS: RestaurantCategoryCode[] = [
   'quan_bar',
 ];
 
+// 24x24-viewBox outline icon path + tile color index (globals.css's
+// `.cat-tile-N`) per category, in `CATEGORY_OPTIONS` order — paths lifted
+// verbatim from the design's prototype `cats` array.
+export const CATEGORY_ICON_PATH: Record<RestaurantCategoryCode, string> = {
+  quan_an: 'M7 4v16M17 4v6a3 3 0 0 1-3 3h-1M12 4v6',
+  quan_ca_phe: 'M5 6h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM16 8h2a2 2 0 0 1 0 4h-2M4 21h13',
+  nha_hang: 'M4 10h16v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6zM8 6l1-2M12 6l1-2M16 6l1-2',
+  xe_day: 'M4 8h11v7H4zM15 11h3l2 4h-5zM7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+  quan_via_he: 'M3 10h18l-2-4H5zM5 10v10M19 10v10M9 20v-5h6v5',
+  quan_bar: 'M5 5h14l-7 7v7M9 19h6',
+};
+
 export const CUISINE_OPTIONS: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
 
 export const FACILITY_OPTIONS: FacilityType[] = [
@@ -27,18 +39,20 @@ export const FACILITY_OPTIONS: FacilityType[] = [
   'private_room',
 ];
 
-// Web uses a plain emoji instead of an icon-library dependency, same as
-// before — the emoji itself isn't translated (kept here, not in messages).
-export const FACILITY_EMOJI: Record<FacilityType, string> = {
-  wifi: '📶',
-  parking_car: '🚗',
-  parking_motorbike: '🏍️',
-  air_conditioner: '❄️',
-  outdoor_seating: '☀️',
-  kid_friendly: '🧒',
-  pet_friendly: '🐾',
-  card_payment: '💳',
-  private_room: '🔒',
+// 24x24-viewBox outline icon path data for each facility, matching the
+// Claude Design redesign spec (icons.tsx's <Base> wrapper renders these) —
+// paths lifted verbatim from the design's prototype `FAC` map. Replaces the
+// previous plain-emoji approach; still no icon-library dependency.
+export const FACILITY_ICON_PATH: Record<FacilityType, string> = {
+  wifi: 'M5 12a10 10 0 0 1 14 0M8 15.5a5.5 5.5 0 0 1 8 0M12 19h.01',
+  parking_car: 'M5 16v2M19 16v2M4 16h16v-4l-2-4H6l-2 4zM7.5 13h.01M16.5 13h.01',
+  parking_motorbike: 'M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 15h6l-3-6H9M15 9h3',
+  air_conditioner: 'M12 3v18M4.5 7.5l15 9M19.5 7.5l-15 9',
+  outdoor_seating: 'M12 17v4M4 12h16l-8-8-8 8z',
+  kid_friendly: 'M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 20c0-3.3 3.1-6 7-6s7 2.7 7 6',
+  pet_friendly: 'M12 21c-3 0-5-2-5-4s2-3 5-3 5 1 5 3-2 4-5 4zM7 8a1.5 2 0 1 0 0-4 1.5 2 0 0 0 0 4zM17 8a1.5 2 0 1 0 0-4 1.5 2 0 0 0 0 4z',
+  card_payment: 'M3 7h18v10H3zM3 11h18',
+  private_room: 'M6 11V8a6 6 0 1 1 12 0v3M5 11h14v9H5z',
 };
 
 export interface PriceBucket {

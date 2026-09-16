@@ -134,6 +134,28 @@ export async function login(email: string, password: string): Promise<LoginResul
   return { ok: true };
 }
 
+/** Calls the backend directly (server-to-server, same as `login`). Mirrors `POST /auth/register`'s real contract — the design's sign-up tab is wired to this, not decorative. */
+export async function register(email: string, password: string): Promise<LoginResult> {
+  const res = await fetch(`${BACKEND_API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    // 409 = email already registered; anything else is a generic failure.
+    return {
+      ok: false,
+      error: res.status === 409 ? 'Email này đã được đăng ký.' : 'Không thể tạo tài khoản. Vui lòng thử lại.',
+    };
+  }
+
+  const body = (await res.json()) as AuthResponse;
+  await writeSessionCookie({ accessToken: body.accessToken, refreshToken: body.refreshToken, email: body.user.email });
+  return { ok: true };
+}
+
 export async function logout(): Promise<void> {
   const store = await cookies();
   store.delete(SESSION_COOKIE);

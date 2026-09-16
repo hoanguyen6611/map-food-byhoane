@@ -5,7 +5,7 @@
     "homeAriaLabel": "The Food Map of Vietnam — go to homepage",
     "mainNav": "Main navigation",
     "findRestaurants": "Find restaurants",
-    "footerCta": "Want to write a review? Use The Food Map of Vietnam mobile app.",
+    "footerCta": "",
     "favoriteAdd": "Save to favorites",
     "favoriteRemove": "Remove from favorites",
     "languageSwitcherLabel": "Choose language",
@@ -21,7 +21,19 @@
     "closedNow": "Closed now",
     "seeAllRestaurants": "See all restaurants",
     "priceOver": "Over",
-    "priceUnder": "Under"
+    "priceUnder": "Under",
+    "searchAriaLabel": "Search restaurants, dishes, areas…",
+    "footerExploreHeading": "Explore",
+    "footerAreasHeading": "Areas",
+    "clearSearch": "Clear search",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
+    "activeFiltersLabel": "Filtering by:",
+    "clearAllFilters": "Clear all",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "mapNavLink": "Map",
+    "aboutNavLink": "How scoring works"
   },
   "home": {
     "heroTitle": "Find the right place, not just the nearest one",
@@ -29,17 +41,35 @@
     "searchPlaceholder": "Search by restaurant name, dish...",
     "searchAriaLabel": "Search keyword",
     "searchButton": "Search",
+    "searchButtonShort": "Search",
     "categoriesHeading": "Categories",
     "areasHeading": "Areas",
     "featuredHeading": "Featured restaurants",
-    "emptyFeatured": "No restaurants have been published yet."
+    "emptyFeatured": "No restaurants have been published yet.",
+    "heroBadge": "Ho Chi Minh City · {count} restaurants reviewed",
+    "heroArea": "Ho Chi Minh City",
+    "heroChipsLabel": "Popular searches:",
+    "heroChips": ["Cafes in District 3", "Late-night cơm tấm", "Vegetarian", "Bún bò Huế"],
+    "mapTeaserTitle": "Browse the map",
+    "mapTeaserSub": "Filter by area, price, and facilities right on the map",
+    "mapTeaserCta": "Open map",
+    "statRestaurants": "Restaurants reviewed",
+    "statCriteria": "Rating criteria",
+    "seeAllLink": "See all restaurants →",
+    "areasCaption": "Tap to view an area page",
+    "featuredCaption": "Sorted by rating"
   },
   "search": {
     "titleAll": "Search restaurants",
     "titleQuery": "Results for \"{query}\"",
     "titleForDistrict": "Restaurants in {district}",
     "metaDescription": "Find restaurants, cafes, and eateries in Ho Chi Minh City by name, dish, area, or filters.",
-    "emptyTitle": "No matching restaurants found."
+    "emptyTitle": "No matching restaurants found.",
+    "searchPlaceholder": "Search restaurants, dishes, areas…",
+    "searchAriaLabel": "Search keyword",
+    "emptyBody": "Try removing a filter or searching a different keyword.",
+    "clearFiltersCta": "Clear filters",
+    "shownAllLine": "Showing all {count} matching restaurants"
   },
   "filterForm": {
     "ariaLabel": "Restaurant search filters",
@@ -50,19 +80,30 @@
     "areaLabel": "Area",
     "areaPlaceholder": "e.g. District 1",
     "price": "Price range",
-    "openNowLabel": "Open now",
+    "openNowLabel": "Open now only",
+    "openNowSub": "Based on the current time",
     "cuisineLabel": "Cuisine",
     "facilitiesLabel": "Facilities",
     "apply": "Apply filters",
-    "clear": "Clear filters"
+    "clear": "Clear filters",
+    "title": "Filters",
+    "clearAll": "Clear all"
   },
   "district": {
     "notFoundTitle": "Area not found",
     "metaTitle": "Restaurants in {name}",
     "metaDescription": "Restaurants, cafes, and eateries in {name} — real reviews from The Food Map of Vietnam community.",
-    "heading": "Restaurants in {name}",
+    "heading": "What to eat in {name}",
     "empty": "No restaurants have been published in {name} yet.",
-    "filterMoreLink": "Filter further by cuisine, price, facilities…"
+    "filterMoreLink": "Filter further by cuisine, price, facilities…",
+    "areasCrumb": "Areas",
+    "blurb": "{count} restaurants reviewed.",
+    "blurbWithTop": "{count} restaurants reviewed, most commonly {topCategory}.",
+    "statsHeading": "{name} by the numbers",
+    "statCount": "Restaurants",
+    "statAvg": "Average score",
+    "statTop": "Most common",
+    "viewOnMap": "View on map"
   },
   "restaurant": {
     "notFoundTitle": "Restaurant not found",
@@ -84,7 +125,15 @@
     "photoAlt": "Photo {index} of {name}",
     "noPhotos": "No photos for this restaurant yet.",
     "ratingSummary": "★ {score} ({count} reviews)",
-    "reviewsPaginationLabel": "Reviews pagination"
+    "reviewsPaginationLabel": "Reviews pagination",
+    "infoTab": "Info",
+    "reviewsTab": "Reviews ({count})",
+    "directions": "Directions",
+    "similarHeading": "Similar restaurants",
+    "reportLabel": "Report",
+    "helpfulLabel": "Helpful",
+    "openUntil": "until {time}",
+    "reviewCountShort": "{count, plural, one {# review} other {# reviews}}"
   },
   "notFound": {
     "title": "Page not found",
@@ -107,7 +156,23 @@
     "favoritesLink": "Favorites",
     "profileLink": "Profile",
     "notificationsLink": "Notifications",
-    "addRestaurantLink": "Add a restaurant"
+    "addRestaurantLink": "Add a restaurant",
+    "createAccount": "Create account",
+    "emailInvalid": "That email doesn't look right",
+    "forgotPassword": "Forgot password?",
+    "passwordPlaceholder": "At least 6 characters",
+    "submitting": "Working…",
+    "continue": "Continue",
+    "or": "or",
+    "agreeText": "I agree to write honest reviews based on my real experience.",
+    "pwStrength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
+    },
+    "welcomeTitle": "Welcome back",
+    "welcomeSub": "Sign in to save restaurants, mark reviews as helpful, and sync with the mobile app.",
+    "footnote": "Rating and posting photos happens in the mobile app. One account works for both web and app."
   },
   "favorites": {
     "title": "Favorite restaurants",
@@ -177,6 +242,7 @@
   },
   "profile": {
     "title": "My profile",
+    "editHeading": "Edit profile",
     "reviewCountLabel": "Reviews written",
     "displayNameLabel": "Display name",
     "homeCityLabel": "Home city",
@@ -198,6 +264,69 @@
     "title": "Notifications",
     "empty": "You have no notifications yet.",
     "markRead": "Mark as read"
+  },
+  "map": {
+    "pageTitle": "Restaurant map",
+    "title": "Restaurant map",
+    "searchPlaceholder": "Search the list…",
+    "layerAll": "All",
+    "layerOpen": "Open now",
+    "layerTop": "Rated ≥ 4.5",
+    "layerCheap": "Under 50k",
+    "viewDetail": "View restaurant →",
+    "locateError": "Couldn't get your location"
+  },
+  "about": {
+    "pageTitle": "How scoring works",
+    "footerHeading": "About",
+    "navEyebrow": "Contents",
+    "nav": {
+      "cach-cham-diem": "How scoring works",
+      "tieu-chi": "The 7 criteria",
+      "kiem-duyet": "Review moderation",
+      "du-lieu": "Data sources"
+    },
+    "score": {
+      "title": "How a restaurant's score is calculated",
+      "body": "The score shown on a restaurant page isn't a simple average of every review. It uses a damped-average formula: the more reviews a restaurant has, the more its score reflects the real experience there; a brand-new restaurant with only one or two reviews gets pulled toward the sitewide average, so a couple of extreme early reviews (too harsh or too generous) can't swing the score on their own.",
+      "factRestaurants": "Restaurants in the system",
+      "factThreshold": "Reviews before the score settles",
+      "factCriteria": "Criteria you can also rate",
+      "calloutTitle": "Why not a simple average",
+      "calloutBody": "A brand-new restaurant rated 5 stars a few times by friends shouldn't automatically top the rankings. This formula makes scores more trustworthy while a restaurant still has few reviews, and lets them settle into the real experience as more people rate it."
+    },
+    "axes": {
+      "title": "The 7 rating criteria",
+      "body": "Alongside the overall rating, reviewers can also rate 7 individual criteria — shown as a breakdown chart on the restaurant page so you can see where a place is strong or weak. These criteria are not factored into the overall score at the top of the page — that score comes only from the overall rating. Reviewers can skip any criterion they didn't experience.",
+      "items": {
+        "food_quality": { "label": "Food quality", "note": "Taste, freshness, consistency across visits." },
+        "space": { "label": "Atmosphere", "note": "Noise level, seating, lighting, how open the space feels." },
+        "price": { "label": "Price", "note": "How the price compares to what you get." },
+        "service": { "label": "Service", "note": "Attitude, how fast orders come out, handling mistakes." },
+        "hygiene": { "label": "Cleanliness", "note": "Tables, utensils, and any visible prep area." },
+        "wifi": { "label": "Wifi", "note": "Only applies when the restaurant has wifi." },
+        "parking": { "label": "Parking", "note": "Whether there's space, an attendant, or a fee." }
+      }
+    },
+    "moderation": {
+      "title": "How reviews get moderated",
+      "body": "The goal is keeping reviews real, not keeping a restaurant's score flattering.",
+      "steps": {
+        "1": { "title": "Signed-in users only", "body": "Each account can only re-review the same restaurant after a minimum of 24 hours since its last review, to limit spam." },
+        "2": { "title": "Automatic filtering", "body": "Every review gets a risk score (ad links, spam phrases, rapid-fire posting…) — high-risk reviews are held for a moderator to check before they go live." },
+        "3": { "title": "Community reports", "body": "Anyone can report a review or incorrect restaurant information; the moderation team reviews it and decides." }
+      }
+    },
+    "data": {
+      "title": "Where the data comes from",
+      "body": "Restaurant information is contributed and kept current by the community. Opening hours, phone numbers, and facilities can change — if you spot something wrong, submit an update right from the restaurant page in the mobile app.",
+      "sourcesTitle": "Two main sources",
+      "source1Name": "App users",
+      "source1Body": "ratings, photos, comments, and status reports (hours changed, closed down, wrong info) on existing restaurants.",
+      "source2Name": "New restaurant submissions",
+      "source2Body": "anyone can add a restaurant that's not on the map yet — a quick moderation check runs before it goes live.",
+      "disclaimer": "Restaurant data shown here may not yet cover every restaurant in Ho Chi Minh City — the system grows as the community contributes."
+    }
   },
   "addRestaurant": {
     "title": "Add a restaurant",

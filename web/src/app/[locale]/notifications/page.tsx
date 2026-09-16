@@ -1,14 +1,21 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import type { NotificationListResponse } from '@foodmap/shared-types';
+import type { NotificationListResponse, NotificationType } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { Link } from '@/i18n/navigation';
+import { AlertIcon, CheckIcon, CameraIcon } from '@/components/icons';
 import { markNotificationReadAction } from './actions';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
 }
+
+const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
+  moderation_result: <AlertIcon size={17} />,
+  report_resolved: <CheckIcon size={17} />,
+  contribution_status: <CameraIcon size={17} />,
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
@@ -30,26 +37,31 @@ export default async function NotificationsPage({ params }: PageProps) {
   const [t, tCommon] = await Promise.all([getTranslations('notifications'), getTranslations('common')]);
 
   return (
-    <div className="container" style={{ paddingTop: 32 }}>
-      <h1 className="section-title" style={{ marginTop: 0 }}>
-        {t('title')}
-      </h1>
+    <div className="container page-sections">
+      <div className="page-header">
+        <h1 className="section-title" style={{ margin: 0 }}>
+          {t('title')}
+        </h1>
+      </div>
 
       {data.items.length === 0 ? (
         <p className="empty-state">{t('empty')}</p>
       ) : (
-        data.items.map((notification) => (
-          <div
-            key={notification.id}
-            className={`notification-item ${!notification.isRead ? 'notification-item-unread' : ''}`}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-              <div>
-                <div>{notification.payload.title}</div>
-                <p>{notification.payload.body}</p>
-                <p style={{ fontSize: 11 }}>
+        <div className="section-block-tight" style={{ marginTop: 0 }}>
+          {data.items.map((notification) => (
+            <div
+              key={notification.id}
+              className={`notification-item ${!notification.isRead ? 'notification-item-unread' : ''}`}
+            >
+              <span className={`notification-icon notification-icon-${notification.type}`} aria-hidden="true">
+                {NOTIFICATION_ICON[notification.type]}
+              </span>
+              <div className="notification-body">
+                <span className="notification-title">{notification.payload.title}</span>
+                <p className="notification-text">{notification.payload.body}</p>
+                <span className="notification-time">
                   {new Date(notification.createdAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'vi-VN')}
-                </p>
+                </span>
               </div>
               {!notification.isRead ? (
                 <form action={markNotificationReadAction.bind(null, notification.id)}>
@@ -59,10 +71,10 @@ export default async function NotificationsPage({ params }: PageProps) {
                 </form>
               ) : null}
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
-      <p style={{ marginTop: 24 }}>
+      <p style={{ marginTop: 20 }}>
         <Link href="/">{tCommon('home')}</Link>
       </p>
     </div>

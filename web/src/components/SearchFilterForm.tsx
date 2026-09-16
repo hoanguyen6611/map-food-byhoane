@@ -1,175 +1,210 @@
-'use client';
+import { getTranslations } from 'next-intl/server';
+import type { RestaurantCategoryCode } from '@foodmap/shared-types';
+import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { DISTRICTS } from '@/lib/districts';
+import { Link, getPathname } from '@/i18n/navigation';
+import { FacilityIcon } from './icons';
 
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import type { CuisineCode, FacilityType, RestaurantCategoryCode } from '@foodmap/shared-types';
-import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_EMOJI, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import { useRouter } from '@/i18n/navigation';
+export type SearchParamsRecord = Record<string, string | undefined>;
 
-export interface SearchFilterValues {
-  q?: string;
-  category?: string;
-  district?: string;
-  cuisine?: string;
-  facilities?: string;
-  priceMin?: string;
-  priceMax?: string;
-  openNow?: string;
+/**
+ * Every sidebar control here is a pure server-rendered `<Link>` that mutates
+ * the URL's query string — no client JS, no "Apply" step. This replaces the
+ * previous accumulate-then-submit client component: single-value filters
+ * (category/district/price/openNow) are just a URL change, and multi-value
+ * filters (facilities/cuisine) are computed server-side into the same
+ * comma-joined query value the backend expects (`GET /search`'s
+ * `facilities=wifi,air_conditioner` contract) — the original client-side
+ * requirement ("native form can't produce a joined value from checkboxes")
+ * doesn't apply once each pill computes its own target URL directly.
+ */
+function buildHref(search: SearchParamsRecord, overrides: SearchParamsRecord): string {
+  const usp = new URLSearchParams();
+  const merged: SearchParamsRecord = { ...search, ...overrides, page: undefined };
+  for (const [key, value] of Object.entries(merged)) {
+    if (value) usp.set(key, value);
+  }
+  const qs = usp.toString();
+  return `/search${qs ? `?${qs}` : ''}`;
+}
+
+function toggleInCsv(csv: string | undefined, value: string): string | undefined {
+  const list = csv ? csv.split(',') : [];
+  const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+  return next.length > 0 ? next.join(',') : undefined;
 }
 
 interface Props {
-  initial: SearchFilterValues;
+  search: SearchParamsRecord;
+  categoryCounts: { code: RestaurantCategoryCode; count: number }[];
+  totalCount: number;
+  locale: string;
 }
 
-function toggleInList(list: string[], value: string): string[] {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
+export async function SearchFilterForm({ search, categoryCounts, totalCount, locale }: Props) {
+  const [t, tLabels] = await Promise.all([getTranslations('filterForm'), getTranslations('labels')]);
 
-/**
- * Client Component wrapping the filter controls only — the results
- * themselves stay a plain server-rendered list in `page.tsx`. Needed as a
- * Client Component (not a plain GET `<form>`) specifically because
- * `facilities`/`cuisine` are multi-select and the backend's
- * `GET /search` expects them as ONE comma-joined query value
- * (`facilities=wifi,air_conditioner`), which a native HTML form submitting
- * several same-named checkboxes cannot produce (it would send
- * `facilities=wifi&facilities=air_conditioner` instead) — see
- * backend/src/modules/search/dto/search-query.dto.ts's `Transform`.
- */
-export function SearchFilterForm({ initial }: Props) {
-  const router = useRouter();
-  const t = useTranslations('filterForm');
-  const tLabels = useTranslations('labels');
-  const [q, setQ] = useState(initial.q ?? '');
-  const [category, setCategory] = useState(initial.category ?? '');
-  const [district, setDistrict] = useState(initial.district ?? '');
-  const [cuisine, setCuisine] = useState<string[]>(initial.cuisine ? initial.cuisine.split(',') : []);
-  const [facilities, setFacilities] = useState<string[]>(
-    initial.facilities ? initial.facilities.split(',') : [],
+  const priceBucket = PRICE_BUCKETS.find(
+    (b) => String(b.min) === search.priceMin && (b.max ? String(b.max) : '') === (search.priceMax ?? ''),
   );
-  const [priceCode, setPriceCode] = useState(
-    PRICE_BUCKETS.find((b) => String(b.min) === initial.priceMin && (b.max ? String(b.max) : '') === (initial.priceMax ?? ''))
-      ?.code ?? '',
-  );
-  const [openNow, setOpenNow] = useState(initial.openNow === 'true');
-
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    const params = new URLSearchParams();
-    if (q.trim()) params.set('q', q.trim());
-    if (category) params.set('category', category);
-    if (district.trim()) params.set('district', district.trim());
-    if (cuisine.length > 0) params.set('cuisine', cuisine.join(','));
-    if (facilities.length > 0) params.set('facilities', facilities.join(','));
-    const bucket = PRICE_BUCKETS.find((b) => b.code === priceCode);
-    if (bucket) {
-      params.set('priceMin', String(bucket.min));
-      if (bucket.max !== undefined) params.set('priceMax', String(bucket.max));
-    }
-    if (openNow) params.set('openNow', 'true');
-    router.push(`/search?${params.toString()}`);
-  }
-
-  function handleClear() {
-    router.push('/search');
-  }
+  const searchActionPath = getPathname({ href: '/search', locale });
 
   return (
-    <form onSubmit={handleSubmit} className="filter-form" aria-label={t('ariaLabel')}>
-      <div className="filter-row">
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('searchPlaceholder')}
-          aria-label={t('searchAriaLabel')}
-          className="filter-text-input"
-        />
+    <div className="filter-card">
+      <div className="filter-card-head">
+        <span className="filter-card-title">{t('title')}</span>
+        <Link href="/search" className="filter-clear-link">
+          {t('clearAll')}
+        </Link>
       </div>
 
-      <div className="filter-row filter-row-inline">
-        <label className="filter-field">
-          <span>{t('category')}</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">{t('all')}</option>
-            {(CATEGORY_OPTIONS as RestaurantCategoryCode[]).map((code) => (
-              <option key={code} value={code}>
-                {tLabels(`category.${code}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+      <form action={searchActionPath} className="filter-section" role="search" aria-label={t('ariaLabel')}>
+        {/* Hidden fields preserve every other active filter when the text query is submitted. */}
+        {Object.entries(search)
+          .filter(([key]) => key !== 'q' && key !== 'page')
+          .map(([key, value]) =>
+            value ? <input key={key} type="hidden" name={key} value={value} /> : null,
+          )}
+        <div className="search-input-wrap" style={{ height: 42 }}>
+          <input type="text" name="q" defaultValue={search.q ?? ''} placeholder={t('searchPlaceholder')} aria-label={t('searchAriaLabel')} />
+        </div>
+      </form>
 
-        <label className="filter-field">
-          <span>{t('areaLabel')}</span>
-          <input
-            type="text"
-            value={district}
-            onChange={(e) => setDistrict(e.target.value)}
-            placeholder={t('areaPlaceholder')}
-          />
-        </label>
+      <div className="filter-section">
+        <span className="filter-section-title">{t('category')}</span>
+        <Link href={buildHref(search, { category: undefined })} className="radio-row">
+          <span className={`radio-dot ${!search.category ? 'radio-dot-selected' : ''}`}>
+            {!search.category ? <span className="radio-dot-inner" /> : null}
+          </span>
+          <span className={`radio-label ${!search.category ? 'radio-label-selected' : ''}`}>{t('all')}</span>
+          <span className="radio-count">{totalCount}</span>
+        </Link>
+        {categoryCounts.map(({ code, count }) => {
+          const active = search.category === code;
+          return (
+            <Link key={code} href={buildHref(search, { category: active ? undefined : code })} className="radio-row">
+              <span className={`radio-dot ${active ? 'radio-dot-selected' : ''}`}>
+                {active ? <span className="radio-dot-inner" /> : null}
+              </span>
+              <span className={`radio-label ${active ? 'radio-label-selected' : ''}`}>{tLabels(`category.${code}`)}</span>
+              <span className="radio-count">{count}</span>
+            </Link>
+          );
+        })}
+      </div>
 
-        <label className="filter-field">
-          <span>{t('price')}</span>
-          <select value={priceCode} onChange={(e) => setPriceCode(e.target.value)}>
-            <option value="">{t('all')}</option>
-            {PRICE_BUCKETS.map((bucket) => (
-              <option key={bucket.code} value={bucket.code}>
+      <hr className="filter-rule" />
+
+      <div className="filter-section">
+        <span className="filter-section-title">{t('areaLabel')}</span>
+        <div className="chip-row">
+          <Link href={buildHref(search, { district: undefined })} className={`pill ${!search.district ? 'pill-selected' : ''}`}>
+            {t('all')}
+          </Link>
+          {DISTRICTS.map((d) => {
+            const active = search.district === d.name;
+            return (
+              <Link
+                key={d.slug}
+                href={buildHref(search, { district: active ? undefined : d.name })}
+                className={`pill ${active ? 'pill-selected' : ''}`}
+              >
+                {d.name}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <hr className="filter-rule" />
+
+      <div className="filter-section">
+        <span className="filter-section-title">{t('price')}</span>
+        <div className="chip-row">
+          <Link
+            href={buildHref(search, { priceMin: undefined, priceMax: undefined })}
+            className={`pill ${!priceBucket ? 'pill-selected' : ''}`}
+          >
+            {t('all')}
+          </Link>
+          {PRICE_BUCKETS.map((bucket) => {
+            const active = priceBucket?.code === bucket.code;
+            return (
+              <Link
+                key={bucket.code}
+                href={buildHref(search, {
+                  priceMin: active ? undefined : String(bucket.min),
+                  priceMax: active || bucket.max === undefined ? undefined : String(bucket.max),
+                })}
+                className={`pill ${active ? 'pill-selected' : ''}`}
+              >
                 {tLabels(`priceBucket.${bucket.code}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="filter-field filter-checkbox-field">
-          <input type="checkbox" checked={openNow} onChange={(e) => setOpenNow(e.target.checked)} />
-          <span>{t('openNowLabel')}</span>
-        </label>
-      </div>
-
-      <div className="filter-row">
-        <span className="filter-label">{t('cuisineLabel')}</span>
-        <div className="chip-row">
-          {(CUISINE_OPTIONS as CuisineCode[]).map((code) => (
-            <button
-              type="button"
-              key={code}
-              onClick={() => setCuisine((prev) => toggleInList(prev, code))}
-              className={`chip chip-toggle${cuisine.includes(code) ? ' chip-selected' : ''}`}
-              aria-pressed={cuisine.includes(code)}
-            >
-              {tLabels(`cuisine.${code}`)}
-            </button>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      <div className="filter-row">
-        <span className="filter-label">{t('facilitiesLabel')}</span>
+      <hr className="filter-rule" />
+
+      <div className="filter-section">
+        <span className="filter-section-title">{t('cuisineLabel')}</span>
         <div className="chip-row">
-          {(FACILITY_OPTIONS as FacilityType[]).map((code) => (
-            <button
-              type="button"
-              key={code}
-              onClick={() => setFacilities((prev) => toggleInList(prev, code))}
-              className={`chip chip-toggle${facilities.includes(code) ? ' chip-selected' : ''}`}
-              aria-pressed={facilities.includes(code)}
-            >
-              {FACILITY_EMOJI[code]} {tLabels(`facilityLabel.${code}`)}
-            </button>
-          ))}
+          {CUISINE_OPTIONS.map((code) => {
+            const active = (search.cuisine?.split(',') ?? []).includes(code);
+            return (
+              <Link
+                key={code}
+                href={buildHref(search, { cuisine: toggleInCsv(search.cuisine, code) })}
+                className={`pill ${active ? 'pill-selected' : ''}`}
+              >
+                {tLabels(`cuisine.${code}`)}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      <div className="filter-row filter-actions">
-        <button type="submit" className="filter-submit">
-          {t('apply')}
-        </button>
-        <button type="button" onClick={handleClear} className="filter-reset">
-          {t('clear')}
-        </button>
+      <hr className="filter-rule" />
+
+      <div className="filter-section">
+        <span className="filter-section-title">{t('facilitiesLabel')}</span>
+        <div className="chip-row">
+          {FACILITY_OPTIONS.map((code) => {
+            const active = (search.facilities?.split(',') ?? []).includes(code);
+            return (
+              <Link
+                key={code}
+                href={buildHref(search, { facilities: toggleInCsv(search.facilities, code) })}
+                className={`pill ${active ? 'pill-selected' : ''}`}
+              >
+                <FacilityIcon path={FACILITY_ICON_PATH[code]} size={13} />
+                {tLabels(`facilityLabel.${code}`)}
+              </Link>
+            );
+          })}
+        </div>
       </div>
-    </form>
+
+      <hr className="filter-rule" />
+
+      <div className="filter-toggle-row">
+        <div className="filter-toggle-text">
+          <span className="filter-toggle-title">{t('openNowLabel')}</span>
+          <span className="filter-toggle-sub">{t('openNowSub')}</span>
+        </div>
+        <Link
+          href={buildHref(search, { openNow: search.openNow === 'true' ? undefined : 'true' })}
+          className={`toggle-switch ${search.openNow === 'true' ? 'toggle-switch-on' : 'toggle-switch-off'}`}
+          aria-label={t('openNowLabel')}
+          role="switch"
+          aria-checked={search.openNow === 'true'}
+        >
+          <span className="toggle-knob" />
+        </Link>
+      </div>
+    </div>
   );
 }
+
+export { buildHref as buildSearchHref, toggleInCsv };

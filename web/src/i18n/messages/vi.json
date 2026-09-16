@@ -5,7 +5,7 @@
     "homeAriaLabel": "The Food Map of Vietnam — về trang chủ",
     "mainNav": "Điều hướng chính",
     "findRestaurants": "Tìm quán ăn",
-    "footerCta": "Muốn viết đánh giá? Dùng ứng dụng di động The Food Map of Vietnam.",
+    "footerCta": "",
     "favoriteAdd": "Lưu vào yêu thích",
     "favoriteRemove": "Bỏ khỏi yêu thích",
     "languageSwitcherLabel": "Chọn ngôn ngữ",
@@ -21,7 +21,19 @@
     "closedNow": "Đã đóng cửa",
     "seeAllRestaurants": "Xem tất cả quán ăn",
     "priceOver": "Trên",
-    "priceUnder": "Dưới"
+    "priceUnder": "Dưới",
+    "searchAriaLabel": "Tìm quán ăn, món ăn, khu vực…",
+    "footerExploreHeading": "Khám phá",
+    "footerAreasHeading": "Khu vực",
+    "clearSearch": "Xoá từ khoá",
+    "viewList": "Xem dạng danh sách",
+    "viewGrid": "Xem dạng lưới",
+    "activeFiltersLabel": "Đang lọc:",
+    "clearAllFilters": "Xoá hết",
+    "share": "Chia sẻ",
+    "linkCopied": "Đã sao chép liên kết",
+    "mapNavLink": "Bản đồ",
+    "aboutNavLink": "Cách chấm điểm"
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
@@ -29,17 +41,35 @@
     "searchPlaceholder": "Tìm theo tên quán, món ăn...",
     "searchAriaLabel": "Từ khoá tìm kiếm",
     "searchButton": "Tìm kiếm",
+    "searchButtonShort": "Tìm",
     "categoriesHeading": "Danh mục",
     "areasHeading": "Khu vực",
     "featuredHeading": "Quán nổi bật",
-    "emptyFeatured": "Chưa có quán nào được đăng."
+    "emptyFeatured": "Chưa có quán nào được đăng.",
+    "heroBadge": "TP. Hồ Chí Minh · {count} quán đã được đánh giá",
+    "heroArea": "TP. Hồ Chí Minh",
+    "heroChipsLabel": "Đang tìm nhiều:",
+    "heroChips": ["Cà phê Quận 3", "Cơm tấm đêm", "Quán chay", "Bún bò Huế"],
+    "mapTeaserTitle": "Xem theo bản đồ",
+    "mapTeaserSub": "Lọc theo khu vực, giá và tiện ích ngay trên bản đồ",
+    "mapTeaserCta": "Mở bản đồ",
+    "statRestaurants": "Quán đã đánh giá",
+    "statCriteria": "Tiêu chí chấm điểm",
+    "seeAllLink": "Xem tất cả quán →",
+    "areasCaption": "Bấm để xem trang khu vực",
+    "featuredCaption": "Sắp theo điểm đánh giá"
   },
   "search": {
     "titleAll": "Tìm kiếm quán ăn",
     "titleQuery": "Kết quả cho \"{query}\"",
     "titleForDistrict": "Quán ăn ở {district}",
     "metaDescription": "Tìm quán ăn, quán cà phê, nhà hàng ở TP. Hồ Chí Minh theo tên, món ăn, khu vực hoặc bộ lọc.",
-    "emptyTitle": "Không tìm thấy quán nào phù hợp."
+    "emptyTitle": "Không tìm thấy quán nào phù hợp.",
+    "searchPlaceholder": "Tìm quán, món, khu vực…",
+    "searchAriaLabel": "Từ khoá tìm kiếm",
+    "emptyBody": "Thử bỏ bớt bộ lọc hoặc tìm bằng từ khoá khác.",
+    "clearFiltersCta": "Xoá bộ lọc",
+    "shownAllLine": "Đã hiển thị hết {count} quán khớp bộ lọc"
   },
   "filterForm": {
     "ariaLabel": "Bộ lọc tìm kiếm quán ăn",
@@ -50,19 +80,30 @@
     "areaLabel": "Khu vực",
     "areaPlaceholder": "VD: Quận 1",
     "price": "Mức giá",
-    "openNowLabel": "Đang mở cửa",
+    "openNowLabel": "Chỉ quán đang mở",
+    "openNowSub": "Theo giờ hiện tại",
     "cuisineLabel": "Món ăn",
     "facilitiesLabel": "Tiện ích",
     "apply": "Áp dụng bộ lọc",
-    "clear": "Xoá bộ lọc"
+    "clear": "Xoá bộ lọc",
+    "title": "Bộ lọc",
+    "clearAll": "Xoá tất cả"
   },
   "district": {
     "notFoundTitle": "Không tìm thấy khu vực",
     "metaTitle": "Quán ăn ở {name}",
     "metaDescription": "Danh sách quán ăn, quán cà phê, nhà hàng ở {name} — đánh giá thật từ cộng đồng The Food Map of Vietnam.",
-    "heading": "Quán ăn ở {name}",
+    "heading": "Ăn gì ở {name}",
     "empty": "Chưa có quán nào được đăng ở {name}.",
-    "filterMoreLink": "Lọc thêm theo món ăn, giá, tiện ích…"
+    "filterMoreLink": "Lọc thêm theo món ăn, giá, tiện ích…",
+    "areasCrumb": "Khu vực",
+    "blurb": "{count} quán đã có đánh giá.",
+    "blurbWithTop": "{count} quán đã có đánh giá, nhiều nhất là {topCategory}.",
+    "statsHeading": "{name} theo số liệu",
+    "statCount": "Số quán",
+    "statAvg": "Điểm trung bình",
+    "statTop": "Nhiều nhất",
+    "viewOnMap": "Xem trên bản đồ"
   },
   "restaurant": {
     "notFoundTitle": "Không tìm thấy quán",
@@ -84,7 +125,15 @@
     "photoAlt": "Ảnh {index} của {name}",
     "noPhotos": "Chưa có ảnh cho quán này.",
     "ratingSummary": "★ {score} ({count} đánh giá)",
-    "reviewsPaginationLabel": "Phân trang đánh giá"
+    "reviewsPaginationLabel": "Phân trang đánh giá",
+    "infoTab": "Thông tin",
+    "reviewsTab": "Đánh giá ({count})",
+    "directions": "Chỉ đường",
+    "similarHeading": "Quán tương tự",
+    "reportLabel": "Báo cáo",
+    "helpfulLabel": "Hữu ích",
+    "openUntil": "đến {time}",
+    "reviewCountShort": "{count} đánh giá"
   },
   "notFound": {
     "title": "Không tìm thấy trang",
@@ -107,7 +156,23 @@
     "favoritesLink": "Yêu thích",
     "profileLink": "Hồ sơ",
     "notificationsLink": "Thông báo",
-    "addRestaurantLink": "Thêm nhà hàng"
+    "addRestaurantLink": "Thêm nhà hàng",
+    "createAccount": "Tạo tài khoản",
+    "emailInvalid": "Email chưa đúng định dạng",
+    "forgotPassword": "Quên mật khẩu?",
+    "passwordPlaceholder": "Ít nhất 6 ký tự",
+    "submitting": "Đang xử lý…",
+    "continue": "Tiếp tục",
+    "or": "hoặc",
+    "agreeText": "Tôi đồng ý viết đánh giá trung thực dựa trên trải nghiệm thật của mình.",
+    "pwStrength": {
+      "weak": "Yếu",
+      "medium": "Trung bình",
+      "strong": "Mạnh"
+    },
+    "welcomeTitle": "Chào mừng trở lại",
+    "welcomeSub": "Đăng nhập để lưu quán, đánh dấu đánh giá hữu ích và đồng bộ với app điện thoại.",
+    "footnote": "Việc chấm điểm và đăng ảnh diễn ra trên app điện thoại. Tài khoản dùng chung cho cả web và app."
   },
   "favorites": {
     "title": "Quán yêu thích",
@@ -177,6 +242,7 @@
   },
   "profile": {
     "title": "Hồ sơ của tôi",
+    "editHeading": "Chỉnh sửa hồ sơ",
     "reviewCountLabel": "Đánh giá đã viết",
     "displayNameLabel": "Tên hiển thị",
     "homeCityLabel": "Thành phố",
@@ -198,6 +264,69 @@
     "title": "Thông báo",
     "empty": "Bạn chưa có thông báo nào.",
     "markRead": "Đánh dấu đã đọc"
+  },
+  "map": {
+    "pageTitle": "Bản đồ quán ăn",
+    "title": "Bản đồ quán ăn",
+    "searchPlaceholder": "Tìm trong danh sách…",
+    "layerAll": "Tất cả",
+    "layerOpen": "Đang mở",
+    "layerTop": "Điểm ≥ 4,5",
+    "layerCheap": "Dưới 50k",
+    "viewDetail": "Xem trang quán →",
+    "locateError": "Không lấy được vị trí của bạn"
+  },
+  "about": {
+    "pageTitle": "Cách chấm điểm",
+    "footerHeading": "Về chúng tôi",
+    "navEyebrow": "Nội dung",
+    "nav": {
+      "cach-cham-diem": "Cách chấm điểm",
+      "tieu-chi": "7 tiêu chí",
+      "kiem-duyet": "Kiểm duyệt đánh giá",
+      "du-lieu": "Nguồn dữ liệu"
+    },
+    "score": {
+      "title": "Điểm của một quán được tính thế nào",
+      "body": "Điểm hiển thị trên trang quán không phải trung bình cộng đơn giản của mọi đánh giá. Hệ thống dùng công thức trung bình có điều chỉnh: quán càng có nhiều đánh giá thì điểm càng phản ánh sát trải nghiệm thật; quán mới chỉ có 1-2 đánh giá sẽ được kéo gần về mức trung bình chung của toàn hệ thống, để vài đánh giá đầu tiên (có thể quá khắt khe hoặc quá dễ dãi) không đẩy điểm lên hoặc xuống quá đà.",
+      "factRestaurants": "Quán trong hệ thống",
+      "factThreshold": "Đánh giá để điểm bắt đầu ổn định",
+      "factCriteria": "Tiêu chí có thể chấm thêm",
+      "calloutTitle": "Vì sao không chỉ lấy trung bình cộng",
+      "calloutBody": "Một quán vừa mở, được vài người quen ghé chấm 5 sao, không nên nghiễm nhiên đứng đầu bảng xếp hạng ngay. Công thức này giúp điểm số đáng tin hơn khi quán còn ít đánh giá, và dần phản ánh đúng trải nghiệm thật khi có nhiều người đánh giá hơn."
+    },
+    "axes": {
+      "title": "7 tiêu chí đánh giá",
+      "body": "Ngoài điểm tổng thể, người đánh giá có thể chấm thêm theo 7 tiêu chí riêng — hiển thị dưới dạng biểu đồ trên trang quán để bạn biết quán mạnh/yếu ở đâu. Các tiêu chí này không được tính vào điểm tổng ở đầu trang — điểm tổng chỉ đến từ đánh giá tổng thể. Người đánh giá có thể bỏ qua tiêu chí không dùng tới.",
+      "items": {
+        "food_quality": { "label": "Chất lượng món ăn", "note": "Vị, độ tươi, độ ổn định giữa các lần ghé." },
+        "space": { "label": "Không gian", "note": "Độ ồn, chỗ ngồi, ánh sáng, độ thoáng." },
+        "price": { "label": "Giá cả", "note": "Tương quan giữa giá và phần ăn nhận được." },
+        "service": { "label": "Phục vụ", "note": "Thái độ, tốc độ ra món, xử lý khi sai order." },
+        "hygiene": { "label": "Vệ sinh", "note": "Bàn ghế, chén đũa, khu chế biến nhìn thấy được." },
+        "wifi": { "label": "Wifi", "note": "Chỉ áp dụng khi quán có wifi." },
+        "parking": { "label": "Chỗ để xe", "note": "Có chỗ, có người trông, mất phí hay không." }
+      }
+    },
+    "moderation": {
+      "title": "Đánh giá được kiểm duyệt ra sao",
+      "body": "Mục tiêu là giữ đánh giá thật, không phải giữ điểm đẹp cho quán.",
+      "steps": {
+        "1": { "title": "Chỉ người đã đăng nhập", "body": "Mỗi tài khoản chỉ đánh giá lại cùng một quán sau tối thiểu 24 giờ kể từ lần gần nhất, để hạn chế spam." },
+        "2": { "title": "Lọc tự động", "body": "Hệ thống chấm điểm rủi ro cho từng đánh giá (link quảng cáo, cụm từ spam, đăng dồn dập…) — đánh giá rủi ro cao được giữ lại để người kiểm duyệt xem trước khi hiển thị công khai." },
+        "3": { "title": "Cộng đồng báo cáo", "body": "Người dùng có thể báo cáo đánh giá hoặc thông tin quán sai lệch; đội kiểm duyệt xem xét và quyết định." }
+      }
+    },
+    "data": {
+      "title": "Dữ liệu đến từ đâu",
+      "body": "Thông tin quán do cộng đồng đóng góp và cập nhật liên tục. Giờ mở cửa, số điện thoại và tiện ích có thể thay đổi — nếu bạn thấy sai, gửi cập nhật ngay trên trang quán qua ứng dụng di động.",
+      "sourcesTitle": "Hai nguồn chính",
+      "source1Name": "Người dùng app",
+      "source1Body": "điểm số, ảnh, nhận xét, và báo cáo thay đổi (giờ mở cửa, đã đóng cửa, thông tin sai) cho quán đã có sẵn.",
+      "source2Name": "Đóng góp quán mới",
+      "source2Body": "ai cũng có thể thêm một quán chưa có trên bản đồ — hệ thống kiểm duyệt nhanh trước khi hiển thị công khai.",
+      "disclaimer": "Dữ liệu quán hiển thị có thể chưa đầy đủ với mọi quán tại TP. Hồ Chí Minh — hệ thống phát triển dần theo đóng góp của cộng đồng."
+    }
   },
   "addRestaurant": {
     "title": "Thêm nhà hàng",

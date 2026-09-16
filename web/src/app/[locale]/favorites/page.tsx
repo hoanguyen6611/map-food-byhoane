@@ -5,6 +5,7 @@ import type { FavoriteListResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Link } from '@/i18n/navigation';
+import { BookmarkIcon } from '@/components/icons';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
@@ -38,15 +39,22 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
-    <div className="container" style={{ paddingTop: 32 }}>
-      <h1 className="section-title" style={{ marginTop: 0 }}>
-        {t('title')}
-      </h1>
+    <div className="container page-sections">
+      <div className="page-header">
+        <h1 className="section-title" style={{ margin: 0 }}>
+          {t('title')}
+        </h1>
+      </div>
 
       {result.items.length === 0 ? (
         <div className="empty-state">
-          <p>{t('empty')}</p>
-          <Link href="/search">{tCommon('seeAllRestaurants')}</Link>
+          <span className="empty-state-icon">
+            <BookmarkIcon size={26} />
+          </span>
+          <p className="empty-state-title">{t('empty')}</p>
+          <Link href="/search" className="btn-dark btn-dark-lg">
+            {tCommon('seeAllRestaurants')}
+          </Link>
         </div>
       ) : (
         <>

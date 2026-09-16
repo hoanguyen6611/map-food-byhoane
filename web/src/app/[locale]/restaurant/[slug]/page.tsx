@@ -2,12 +2,19 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant } from '@/lib/api';
-import { formatPriceRange, formatVndFull } from '@/lib/format';
-import { FACILITY_EMOJI } from '@/lib/labels';
+import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant, searchRestaurants } from '@/lib/api';
+import { formatPriceRange, formatVndFull, placeTileClass } from '@/lib/format';
+import { FACILITY_ICON_PATH } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { ShareButton } from '@/components/ShareButton';
 import { WriteReviewForm } from '@/components/WriteReviewForm';
+import { Stars } from '@/components/Stars';
+import { OpenBadge } from '@/components/OpenBadge';
+import { AxisBars } from '@/components/AxisBars';
+import { ReviewCard } from '@/components/ReviewCard';
+import { MapCanvas } from '@/components/MapCanvas';
+import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, CameraIcon } from '@/components/icons';
 import { getSession } from '@/lib/auth';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
@@ -15,7 +22,7 @@ const REVIEWS_PAGE_SIZE = 10;
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams: Promise<{ reviewPage?: string }>;
+  searchParams: Promise<{ reviewPage?: string; tab?: string }>;
 }
 
 async function loadRestaurant(slug: string) {
@@ -66,7 +73,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function RestaurantDetailPage({ params, searchParams }: PageProps) {
   const { locale, slug } = await params;
-  const { reviewPage: reviewPageParam } = await searchParams;
+  const { reviewPage: reviewPageParam, tab } = await searchParams;
   const restaurant = await loadRestaurant(slug);
   if (!restaurant) {
     notFound();
@@ -80,19 +87,30 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
   ]);
 
   const reviewPage = Number(reviewPageParam ?? '1') || 1;
+  const activeTab = tab === 'reviews' ? 'reviews' : 'info';
+
   // Always fetched (not just when reviewCount > 0) — the backend computes
   // `ratingBreakdown` (criteria codes + labels) unconditionally, and the
   // write-review form below needs that list even for a restaurant with zero
   // reviews so far.
-  const [reviewsResponse, session] = await Promise.all([
+  const [reviewsResponse, session, similarResult] = await Promise.all([
     getReviewsForRestaurant(restaurant.id, reviewPage),
     getSession(),
+    searchRestaurants({ category: restaurant.categoryCode, pageSize: 4 }),
   ]);
   const reviewTotalPages = Math.max(1, Math.ceil(reviewsResponse.total / REVIEWS_PAGE_SIZE));
+  const similar = similarResult.items.filter((r) => r.id !== restaurant.id).slice(0, 3);
 
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
   const firstMenu = restaurant.menus[0];
   const categoryLabel = tLabels(`category.${restaurant.categoryCode}`);
+
+  const todayIndex = new Date().getDay();
+  const todayHours = restaurant.openingHours.find((h) => h.dayOfWeek === todayIndex);
+  const openNote =
+    restaurant.isOpenNow && todayHours && !todayHours.isClosed && todayHours.closeTime
+      ? t('openUntil', { time: todayHours.closeTime })
+      : undefined;
 
   // schema.org/Restaurant structured data — the concrete SEO artifact this
   // module exists to produce (build-prompts/09-public-web.md), not optional
@@ -154,11 +172,16 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
   };
 
   function reviewPageHref(targetPage: number): string {
-    return `/restaurant/${slug}?reviewPage=${targetPage}`;
+    return `/restaurant/${slug}?tab=reviews&reviewPage=${targetPage}`;
+  }
+  function tabHref(target: 'info' | 'reviews'): string {
+    return `/restaurant/${slug}${target === 'reviews' ? '?tab=reviews' : ''}`;
   }
 
+  const directionsHref = `https://www.google.com/maps/dir/?api=1&destination=${restaurant.location.lat},${restaurant.location.lng}`;
+
   return (
-    <div className="container" style={{ paddingTop: 24 }}>
+    <div className="container" style={{ paddingBottom: 48 }}>
       {/* eslint-disable-next-line react/no-danger -- JSON.stringify'd structured data, not user input */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd) }} />
       {/* eslint-disable-next-line react/no-danger -- JSON.stringify'd structured data, not user input */}
@@ -166,14 +189,14 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
       <nav aria-label={tCommon('breadcrumbLabel')} className="breadcrumb">
         <Link href="/">{tCommon('home')}</Link>
-        <span aria-hidden="true"> › </span>
+        <span aria-hidden="true">›</span>
         <Link href={`/search?category=${restaurant.categoryCode}`}>{categoryLabel}</Link>
-        <span aria-hidden="true"> › </span>
+        <span aria-hidden="true">›</span>
         <span aria-current="page">{restaurant.name}</span>
       </nav>
 
       {restaurant.photos.length > 0 ? (
-        <div className="detail-photos">
+        <div className="detail-photos" style={{ marginTop: 16 }}>
           {restaurant.photos.map((photo, index) => (
             <Image
               key={photo.id}
@@ -187,142 +210,242 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
           ))}
         </div>
       ) : (
-        <div className="empty-state" style={{ padding: 24 }}>
-          {t('noPhotos')}
+        <div className="detail-photo-empty" style={{ marginTop: 16 }}>
+          <CameraIcon size={30} style={{ color: 'var(--color-ink-disabled)' }} />
+          <span className="detail-photo-empty-text">{t('noPhotos')}</span>
         </div>
       )}
 
-      <div className="detail-header">
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <h1 style={{ margin: '0 0 8px' }}>{restaurant.name}</h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
-            {categoryLabel}
-            {priceLabel ? ` · ${priceLabel}đ` : ''}
-          </p>
-          <p style={{ fontSize: 14 }}>
-            {restaurant.reviewCount > 0
-              ? t('ratingSummary', { score: restaurant.compositeScore?.toFixed(1) ?? '—', count: restaurant.reviewCount })
-              : tCommon('noRating')}
-          </p>
-          <span className={`badge ${restaurant.isOpenNow ? 'badge-open' : 'badge-closed'}`}>
-            {restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')}
-          </span>
-        </div>
-        <FavoriteButton restaurantId={restaurant.id} />
-      </div>
-
-      <div className="cta-banner">
-        <strong>{t('ctaTitle')}</strong>
-        {t('ctaBody')}
-      </div>
-
-      <h2 className="section-title">{t('infoHeading')}</h2>
-      <div className="info-row">
-        <span className="label">{t('addressLabel')}</span>
-        <span>{restaurant.address.fullAddressText}</span>
-      </div>
-      {restaurant.phone ? (
-        <div className="info-row">
-          <span className="label">{t('phoneLabel')}</span>
-          <span>
-            <a href={`tel:${restaurant.phone}`}>{restaurant.phone}</a>
-          </span>
-        </div>
-      ) : null}
-      {restaurant.facilities.length > 0 ? (
-        <div className="info-row">
-          <span className="label">{t('facilitiesLabel')}</span>
-          <span>
-            {restaurant.facilities.map((f) => (
-              <span key={f}>
-                <span aria-hidden="true">{FACILITY_EMOJI[f]}</span> {tLabels(`facilityLabel.${f}`)}
-                {'  '}
+      <div className="detail-layout" style={{ marginTop: 20 }}>
+        <div className="detail-main">
+          <h1 className="detail-title">{restaurant.name}</h1>
+          <div className="detail-meta-row">
+            {restaurant.reviewCount > 0 ? (
+              <span className="detail-score">
+                <StarIcon size={16} />
+                <span className="detail-score-value">{restaurant.compositeScore?.toFixed(1) ?? '—'}</span>
+                <span className="detail-score-count">({t('reviewCountShort', { count: restaurant.reviewCount })})</span>
               </span>
-            ))}
-          </span>
-        </div>
-      ) : null}
-
-      <h2 className="section-title">{t('hoursHeading')}</h2>
-      {restaurant.openingHours.map((hour) => (
-        <div className="info-row" key={hour.dayOfWeek}>
-          <span className="label">{tLabels(`day.${hour.dayOfWeek}`)}</span>
-          <span>{hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}</span>
-        </div>
-      ))}
-
-      <h2 className="section-title">{t('menuHeading')}</h2>
-      {!firstMenu || firstMenu.items.length === 0 ? (
-        <p className="empty-state">{t('noMenu')}</p>
-      ) : (
-        <table className="menu-table">
-          <caption className="sr-only">{t('menuCaption', { name: restaurant.name })}</caption>
-          <tbody>
-            {firstMenu.items.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  {item.name}
-                  {item.isPopular ? (
-                    <>
-                      {' '}
-                      <span aria-label={t('popularDish')}>🔥</span>
-                    </>
-                  ) : null}
-                </td>
-                <td className="price">{formatVndFull(item.priceVnd, locale)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2 className="section-title">{t('reviewsHeading')}</h2>
-      {reviewsResponse.items.length === 0 ? (
-        <p className="empty-state">{t('noReviews')}</p>
-      ) : (
-        <>
-          <div className="chip-row" style={{ marginBottom: 16 }}>
-            {reviewsResponse.ratingBreakdown
-              .filter((c) => c.ratingCount > 0)
-              .map((c) => (
-                <span key={c.code} className="chip">
-                  {c.label}: {c.averageScore?.toFixed(1)}★
-                </span>
-              ))}
+            ) : (
+              <span className="detail-meta-text">{tCommon('noRating')}</span>
+            )}
+            <span className="detail-divider" aria-hidden="true" />
+            <span className="detail-meta-text">
+              {categoryLabel}
+              {priceLabel ? ` · ${priceLabel}đ` : ''} · {restaurant.address.district}
+            </span>
+            <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
           </div>
-          {reviewsResponse.items.map((review) => (
-            <div className="review-item" key={review.id}>
-              <div className="review-header">
-                <span className="author">{review.author.displayName}</span>
-                <span>★ {review.overallRating}</span>
+
+          <div className="tab-segment">
+            <Link href={tabHref('info')} className={`tab-segment-btn ${activeTab === 'info' ? 'tab-segment-btn-active' : ''}`}>
+              {t('infoTab')}
+            </Link>
+            <Link href={tabHref('reviews')} className={`tab-segment-btn ${activeTab === 'reviews' ? 'tab-segment-btn-active' : ''}`}>
+              {t('reviewsTab', { count: restaurant.reviewCount })}
+            </Link>
+          </div>
+
+          {activeTab === 'info' ? (
+            <>
+              <div className="info-card">
+                <h2 className="info-card-title">{t('infoHeading')}</h2>
+                <div className="info-grid">
+                  <div className="info-item">
+                    <span className="info-item-icon">
+                      <MapPinIcon size={18} />
+                    </span>
+                    <div className="info-item-body">
+                      <span className="info-item-label">{t('addressLabel')}</span>
+                      <span className="info-item-value">{restaurant.address.fullAddressText}</span>
+                    </div>
+                  </div>
+                  {restaurant.phone ? (
+                    <div className="info-item">
+                      <span className="info-item-icon">
+                        <PhoneIcon size={18} />
+                      </span>
+                      <div className="info-item-body">
+                        <span className="info-item-label">{t('phoneLabel')}</span>
+                        <a href={`tel:${restaurant.phone}`} className="info-item-value info-item-value-link">
+                          {restaurant.phone}
+                        </a>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                {restaurant.facilities.length > 0 ? (
+                  <>
+                    <hr className="filter-rule" />
+                    <div>
+                      <span className="info-item-label">{t('facilitiesLabel')}</span>
+                      <div className="chip-row" style={{ marginTop: 9 }}>
+                        {restaurant.facilities.map((f) => (
+                          <span key={f} className="facility-pill">
+                            <FacilityIcon path={FACILITY_ICON_PATH[f]} size={14} />
+                            {tLabels(`facilityLabel.${f}`)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
               </div>
-              {review.comment ? <p style={{ margin: 0 }}>{review.comment}</p> : null}
+
+              <div className="info-card">
+                <h2 className="info-card-title">{t('hoursHeading')}</h2>
+                {restaurant.openingHours.map((hour) => (
+                  <div key={hour.dayOfWeek} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13 }}>
+                    <span>{tLabels(`day.${hour.dayOfWeek}`)}</span>
+                    <span className="font-num" style={{ color: 'var(--color-ink-muted)' }}>
+                      {hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {!firstMenu || firstMenu.items.length === 0 ? (
+                <div className="no-menu-card">
+                  <MenuFolderIcon size={26} />
+                  <span className="no-menu-title">{t('noMenu')}</span>
+                </div>
+              ) : (
+                <div className="info-card">
+                  <h2 className="info-card-title">{t('menuHeading')}</h2>
+                  <table className="menu-table">
+                    <caption className="sr-only">{t('menuCaption', { name: restaurant.name })}</caption>
+                    <tbody>
+                      {firstMenu.items.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            {item.name}
+                            {item.isPopular ? (
+                              <>
+                                {' '}
+                                <span aria-label={t('popularDish')}>🔥</span>
+                              </>
+                            ) : null}
+                          </td>
+                          <td className="price">{formatVndFull(item.priceVnd, locale)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {reviewsResponse.items.length === 0 ? (
+                <p className="empty-state">{t('noReviews')}</p>
+              ) : (
+                <>
+                  <div className="reviews-summary-card">
+                    <div className="reviews-summary-left">
+                      <div className="reviews-summary-score">
+                        <span className="reviews-summary-score-value">{restaurant.compositeScore?.toFixed(1) ?? '—'}</span>
+                        <Stars value={restaurant.compositeScore ?? 0} size={14} />
+                        <span className="reviews-summary-score-count">{t('reviewCountShort', { count: restaurant.reviewCount })}</span>
+                      </div>
+                    </div>
+                    <div className="reviews-summary-axis">
+                      <AxisBars items={reviewsResponse.ratingBreakdown} />
+                    </div>
+                  </div>
+
+                  {reviewsResponse.items.map((review) => (
+                    <ReviewCard key={review.id} review={review} locale={locale} reportLabel={t('reportLabel')} helpfulLabel={t('helpfulLabel')} />
+                  ))}
+
+                  {reviewTotalPages > 1 ? (
+                    <nav className="pagination" aria-label={t('reviewsPaginationLabel')}>
+                      {reviewPage > 1 ? <Link href={reviewPageHref(reviewPage - 1)}>{tCommon('prev')}</Link> : null}
+                      <span>{tCommon('pageOf', { page: reviewPage, totalPages: reviewTotalPages })}</span>
+                      {reviewPage < reviewTotalPages ? <Link href={reviewPageHref(reviewPage + 1)}>{tCommon('next')}</Link> : null}
+                    </nav>
+                  ) : null}
+                </>
+              )}
+
+              {session ? (
+                <WriteReviewForm
+                  restaurantId={restaurant.id}
+                  slug={restaurant.slug}
+                  criteria={reviewsResponse.ratingBreakdown.map((c) => ({ code: c.code, label: c.label }))}
+                />
+              ) : (
+                <p className="write-review-login-prompt">
+                  <Link href="/login">{tWriteReview('loginToReview')}</Link>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="detail-sidebar">
+          <div className="action-card">
+            <div className="action-row">
+              <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="action-primary">
+                <MapPinIcon size={16} />
+                {t('directions')}
+              </a>
+              <FavoriteButton restaurantId={restaurant.id} />
+              <ShareButton title={restaurant.name} />
             </div>
-          ))}
+            <div className="mini-map">
+              <MapCanvas
+                pins={[
+                  {
+                    id: restaurant.id,
+                    lat: restaurant.location.lat,
+                    lng: restaurant.location.lng,
+                    score: restaurant.compositeScore?.toFixed(1) ?? '—',
+                    selected: true,
+                  },
+                ]}
+              />
+            </div>
+          </div>
 
-          {reviewTotalPages > 1 ? (
-            <nav className="pagination" aria-label={t('reviewsPaginationLabel')}>
-              {reviewPage > 1 ? <Link href={reviewPageHref(reviewPage - 1)}>{tCommon('prev')}</Link> : null}
-              <span>{tCommon('pageOf', { page: reviewPage, totalPages: reviewTotalPages })}</span>
-              {reviewPage < reviewTotalPages ? (
-                <Link href={reviewPageHref(reviewPage + 1)}>{tCommon('next')}</Link>
-              ) : null}
-            </nav>
+          <div className="hours-card">
+            <div className="hours-card-head">
+              <span className="filter-section-title" style={{ padding: 0 }}>
+                {t('hoursHeading')}
+              </span>
+              {openNote ? <span className="hours-open-note">{openNote}</span> : null}
+            </div>
+            {restaurant.openingHours.map((hour) => (
+              <div key={hour.dayOfWeek} className={`hours-row ${hour.dayOfWeek === todayIndex ? 'hours-row-highlight' : ''}`}>
+                <span className="hours-day">{tLabels(`day.${hour.dayOfWeek}`)}</span>
+                <span className="hours-time">{hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}</span>
+              </div>
+            ))}
+          </div>
+
+          {similar.length > 0 ? (
+            <div className="similar-card">
+              <span className="filter-section-title" style={{ padding: 0 }}>
+                {t('similarHeading')}
+              </span>
+              {similar.map((s) => (
+                <Link key={s.id} href={`/restaurant/${s.slug}`} className="similar-item">
+                  <span className={`similar-tile ${s.thumbnailUrl ? '' : placeTileClass(s.id)}`}>
+                    {s.thumbnailUrl ? <Image src={s.thumbnailUrl} alt="" width={44} height={44} /> : null}
+                  </span>
+                  <span>
+                    <span className="similar-name" style={{ display: 'block' }}>
+                      {s.name}
+                    </span>
+                    <span className="similar-meta">
+                      {s.compositeScore !== null ? `★ ${s.compositeScore.toFixed(1)}` : tCommon('noRating')}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
           ) : null}
-        </>
-      )}
-
-      {session ? (
-        <WriteReviewForm
-          restaurantId={restaurant.id}
-          slug={restaurant.slug}
-          criteria={reviewsResponse.ratingBreakdown.map((c) => ({ code: c.code, label: c.label }))}
-        />
-      ) : (
-        <p className="write-review-login-prompt">
-          <Link href="/login">{tWriteReview('loginToReview')}</Link>
-        </p>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

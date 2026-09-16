@@ -21,7 +21,7 @@ export default function GlobalError({
       <div className="empty-state" role="alert">
         <h1 style={{ fontSize: 22, marginBottom: 8 }}>{t('title')}</h1>
         <p style={{ marginBottom: 20 }}>{t('body')}</p>
-        <button type="button" className="filter-submit" onClick={() => reset()}>
+        <button type="button" className="btn-dark btn-dark-lg" onClick={() => reset()}>
           {t('retry')}
         </button>
       </div>

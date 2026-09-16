@@ -22,11 +22,13 @@ export default async function AddRestaurantPage() {
   const t = await getTranslations('addRestaurant');
 
   return (
-    <div className="container" style={{ paddingTop: 32, maxWidth: 640 }}>
-      <h1 className="section-title" style={{ marginTop: 0 }}>
-        {t('title')}
-      </h1>
-      <p style={{ color: 'var(--color-text-secondary)' }}>{t('intro')}</p>
+    <div className="container page-sections" style={{ maxWidth: 640 }}>
+      <div className="page-header">
+        <h1 className="section-title" style={{ margin: 0 }}>
+          {t('title')}
+        </h1>
+        <p className="page-header-sub">{t('intro')}</p>
+      </div>
       <AddRestaurantForm />
     </div>
   );

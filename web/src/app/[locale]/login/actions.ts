@@ -1,6 +1,6 @@
 'use server';
 
-import { login, logout } from '@/lib/auth';
+import { login, logout, register } from '@/lib/auth';
 
 // No `redirect()` here on purpose (see LoginForm.tsx / AuthStatus.tsx) — a
 // Server Action invoked from a hydrated client only ever produces a soft,
@@ -12,6 +12,11 @@ export type LoginActionResult = { ok: true } | { ok: false; error: string };
 
 export async function loginAction(email: string, password: string): Promise<LoginActionResult> {
   const result = await login(email, password);
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
+
+export async function registerAction(email: string, password: string): Promise<LoginActionResult> {
+  const result = await register(email, password);
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
 

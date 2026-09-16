@@ -1,16 +1,25 @@
 import type { Metadata, Viewport } from 'next';
+import { Archivo, Figtree, Inter_Tight } from 'next/font/google';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
-import { Link } from '@/i18n/navigation';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { AuthStatus } from '@/components/AuthStatus';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
+import { SiteTopBar } from '@/components/SiteTopBar';
+import { SiteFooter } from '@/components/SiteFooter';
 import '../globals.css';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const SITE_NAME = 'The Food Map of Vietnam';
+
+// next/font/google self-hosts at build time (fetches once, serves from this
+// app's own domain) — satisfies the redesign's "self-host in production"
+// note without a checked-in variable-TTF file. CSS variables are consumed by
+// globals.css (`--font-archivo`/`--font-inter-tight`/`--font-figtree`).
+const archivo = Archivo({ subsets: ['latin', 'latin-ext', 'vietnamese'], weight: ['400', '500', '600', '700'], variable: '--font-archivo' });
+const interTight = Inter_Tight({ subsets: ['latin', 'latin-ext', 'vietnamese'], weight: ['500', '600', '700'], variable: '--font-inter-tight' });
+// Figtree has no dedicated "vietnamese" subset upstream — "latin-ext" already covers Vietnamese diacritics for this font.
+const figtree = Figtree({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600'], variable: '--font-figtree' });
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -39,7 +48,7 @@ export async function generateMetadata({ params }: LayoutProps): Promise<Metadat
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#e4572e',
+  themeColor: '#003cff',
 };
 
 export default async function LocaleLayout({ children, params }: LayoutProps) {
@@ -53,56 +62,20 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
   const t = await getTranslations('common');
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${archivo.variable} ${interTight.variable} ${figtree.variable}`}>
       <body>
         <NextIntlClientProvider>
           <FavoritesProvider>
             <a href="#main-content" className="skip-link">
               {t('skipToContent')}
             </a>
-            <header className="site-header">
-              <div className="container">
-                <Link href="/" className="logo" aria-label={t('homeAriaLabel')}>
-                  {/* Chopstick Pin mark ("1c" in the "Food Map Logo Icon" design
-                      canvas) — a map pin outline with two crossed chopsticks.
-                      Brand-orange stroke (matches the design's own icon+wordmark
-                      pairing) while the wordmark itself keeps .logo's neutral
-                      text color. */}
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 64 64"
-                    fill="none"
-                    stroke="#E4572E"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                    style={{ verticalAlign: -4 }}
-                  >
-                    <path
-                      d="M32 7c-11 0-19.9 8.8-19.9 19.6 0 6.6 4.1 13.1 8.6 18.1 3.6 4 7.4 7.2 9.3 8.7.5.4 1.3.4 1.8 0 1.9-1.5 5.7-4.7 9.3-8.7 4.5-5 8.6-11.5 8.6-18.1C51.9 15.8 43 7 32 7Z"
-                      strokeWidth={6}
-                    />
-                    <path d="M24 33 40.5 20.5" strokeWidth={5.5} />
-                    <path d="M24 26 40.5 13.5" strokeWidth={5.5} />
-                  </svg>{' '}
-                  {SITE_NAME}
-                </Link>
-                <nav aria-label={t('mainNav')}>
-                  <Link href="/search">{t('findRestaurants')}</Link>
-                  <AuthStatus />
-                  <LanguageSwitcher />
-                </nav>
-              </div>
-            </header>
-            <main id="main-content">{children}</main>
-            <footer className="site-footer">
-              <div className="container">
-                <span>
-                  © {new Date().getFullYear()} {SITE_NAME}
-                </span>
-                <span>{t('footerCta')}</span>
-              </div>
-            </footer>
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+              <SiteTopBar />
+              <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {children}
+              </main>
+              <SiteFooter />
+            </div>
           </FavoritesProvider>
         </NextIntlClientProvider>
       </body>

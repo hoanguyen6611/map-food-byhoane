@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { logoutAction } from '@/app/[locale]/login/actions';
+import { initialsOf } from '@/lib/format';
 
 interface Session {
   email: string;
@@ -51,16 +52,33 @@ export function AuthStatus() {
   }
 
   if (!session) {
-    return <Link href="/login">{t('title')}</Link>;
+    return (
+      <Link href="/login" className="topbar-login-cta">
+        {t('title')}
+      </Link>
+    );
   }
 
   return (
     <span className="auth-status">
-      <Link href="/favorites">{t('favoritesLink')}</Link>
-      <Link href="/profile">{t('profileLink')}</Link>
-      <Link href="/notifications">{t('notificationsLink')}</Link>
-      <Link href="/add-restaurant">{t('addRestaurantLink')}</Link>
-      {t('greeting', { email: session.email })}
+      <Link href="/favorites" className="nav-link">
+        {t('favoritesLink')}
+      </Link>
+      <Link href="/profile" className="nav-link">
+        {t('profileLink')}
+      </Link>
+      <Link href="/notifications" className="nav-link">
+        {t('notificationsLink')}
+      </Link>
+      <Link href="/add-restaurant" className="nav-link">
+        {t('addRestaurantLink')}
+      </Link>
+      <span className="account-pill" title={session.email}>
+        <span className="account-monogram" aria-hidden="true">
+          {initialsOf(session.email.split('@')[0])}
+        </span>
+        {session.email}
+      </span>
       <button type="button" className="auth-signout-button" onClick={handleLogout}>
         {t('signOut')}
       </button>
