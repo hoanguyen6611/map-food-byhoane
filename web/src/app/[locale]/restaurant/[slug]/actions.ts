@@ -15,6 +15,7 @@ export async function submitReviewAction(
     overallRating: number;
     ratings: ReviewRatingInput[];
     comment?: string;
+    photoUrls?: string[];
   },
 ): Promise<SubmitReviewResult> {
   const res = await backendFetchAuthorized('/reviews', {

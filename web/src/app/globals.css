@@ -161,11 +161,45 @@ textarea:focus-visible {
   padding-top: 10px;
   padding-bottom: 10px;
 }
+/* Without the search pill (removed — "Tìm quán ăn" nav link covers the same
+   destination), the remaining logo + nav + account content's real minimum
+   width is ~920px (measured — nothing left in this row can shrink further),
+   so nowrap only kicks in above that; forcing it lower just clips/overflows
+   the row instead of actually fitting. Below it, still wraps — there's no
+   hamburger/mobile nav to fall back to yet. */
+@media (min-width: 960px) {
+  .site-topbar .container {
+    flex-wrap: nowrap;
+  }
+}
+/* Below 768px the wrapped multi-line nav row gets cramped, so it collapses
+   behind a hamburger toggle instead (TopBarNav owns the open/close state and
+   closes it automatically on navigation). 768px is a fresh convention here —
+   nothing else in this file defines a general phone breakpoint yet — chosen
+   as the standard phone/tablet split, distinct from the topbar's own
+   measured 960px "everything fits on one line" threshold above. */
+.topbar-menu-btn {
+  display: none;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.topbar-menu-btn:hover {
+  background: var(--color-border-hairline);
+}
 .topbar-logo {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   white-space: nowrap;
   color: var(--color-ink);
@@ -180,28 +214,12 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
 }
-.topbar-search {
-  flex: 1 1 220px;
-  max-width: 520px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border-radius: var(--radius-md);
-  background: var(--color-canvas);
-  border: 1px solid var(--color-border);
-  color: var(--color-ink-subtle);
-  font-size: 13px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 .topbar-right {
   margin-left: auto;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 6px;
 }
 .nav-link {
@@ -210,7 +228,7 @@ textarea:focus-visible {
   align-items: center;
   padding: 0 12px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink-muted);
 }
@@ -228,6 +246,38 @@ textarea:focus-visible {
   background: var(--color-border);
   margin: 0 4px;
 }
+/* Placed after the base .topbar-right/.nav-link/.topbar-divider rules above
+   — a media-query block earlier in source order than the unconditional
+   rules it needs to override loses the cascade at equal specificity
+   regardless of which one's condition matches, so it must come after them. */
+@media (max-width: 767px) {
+  .topbar-menu-btn {
+    display: flex;
+  }
+  .topbar-right {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    margin-left: 0;
+    gap: 2px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border-hairline);
+  }
+  .topbar-right-open {
+    display: flex;
+  }
+  .topbar-right .nav-link {
+    width: 100%;
+  }
+  .topbar-right .topbar-divider {
+    display: none;
+  }
+  .topbar-right .lang-switcher,
+  .topbar-right .auth-status {
+    width: 100%;
+  }
+}
 .account-pill {
   display: inline-flex;
   align-items: center;
@@ -236,7 +286,7 @@ textarea:focus-visible {
   padding: 0 12px 0 4px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border-hairline);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink);
   background: none;
@@ -251,7 +301,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   flex: none;
 }
@@ -281,7 +331,7 @@ textarea:focus-visible {
   background: #dd00d8;
   color: #fff;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -319,7 +369,7 @@ textarea:focus-visible {
   background: none;
   width: 100%;
   text-align: left;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink);
   cursor: pointer;
@@ -342,7 +392,7 @@ textarea:focus-visible {
   background: var(--gradient-ink);
   color: #fff;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -358,7 +408,7 @@ textarea:focus-visible {
   background: transparent;
   padding: 5px 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink-subtle);
   cursor: pointer;
@@ -387,13 +437,13 @@ textarea:focus-visible {
 }
 .footer-brand-desc {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--color-ink-subtle);
   max-width: 240px;
 }
 .footer-col-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -409,7 +459,7 @@ textarea:focus-visible {
   gap: 8px;
 }
 .footer-col a {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-muted);
 }
 .footer-col a:hover {
@@ -419,7 +469,7 @@ textarea:focus-visible {
   border-top: 1px solid var(--color-border-hairline);
   padding: 16px clamp(16px, 4vw, 40px);
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-faint);
 }
 
@@ -433,7 +483,10 @@ textarea:focus-visible {
   padding-top: clamp(36px, 6vw, 72px);
   padding-bottom: clamp(36px, 6vw, 72px);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  /* min(300px, 100%), not a bare 300px — otherwise sub-320px viewports (the
+     container's real content width dips under 300px once padding is
+     subtracted) get a hard 300px track floor and overflow horizontally. */
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: clamp(28px, 5vw, 56px);
   align-items: center;
 }
@@ -459,7 +512,7 @@ textarea:focus-visible {
   background: var(--color-cream);
   border: 1px solid var(--color-cream-border);
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -470,7 +523,7 @@ textarea:focus-visible {
   background: var(--color-cream-border);
 }
 .hero-title {
-  font-size: clamp(32px, 4.4vw, 52px);
+  font-size: clamp(34px, 4.4vw, 54px);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -478,7 +531,7 @@ textarea:focus-visible {
   text-wrap: pretty;
 }
 .hero-subhead {
-  font-size: clamp(14px, 1.3vw, 17px);
+  font-size: clamp(16px, 1.3vw, 19px);
   line-height: 1.55;
   color: var(--color-ink-muted);
   max-width: 460px;
@@ -538,24 +591,12 @@ textarea:focus-visible {
   outline: none;
   background: transparent;
   font-family: var(--font-archivo), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
 .search-field input::placeholder {
   color: var(--color-ink-subtle);
-}
-.search-field-select {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--font-archivo), sans-serif;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  color: var(--color-ink);
-  cursor: pointer;
 }
 .search-submit {
   flex: none;
@@ -566,7 +607,7 @@ textarea:focus-visible {
   background: var(--gradient-primary);
   color: #fff;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -597,7 +638,7 @@ textarea:focus-visible {
 }
 .hero-chips-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
 }
 .pill-plain {
@@ -608,7 +649,7 @@ textarea:focus-visible {
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink);
 }
@@ -649,13 +690,13 @@ textarea:focus-visible {
   gap: 2px;
 }
 .map-teaser-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .map-teaser-sub {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .btn-dark {
@@ -668,14 +709,14 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   border: none;
   cursor: pointer;
 }
 .btn-dark-lg {
   height: 42px;
-  font-size: 14px;
+  font-size: 16px;
   padding: 0 18px;
 }
 
@@ -697,14 +738,14 @@ textarea:focus-visible {
   gap: 3px;
 }
 .stat-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-family: var(--font-inter-tight), sans-serif;
 }
 .stat-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 
@@ -730,18 +771,18 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 .section-title {
-  font-size: clamp(20px, 2.2vw, 26px);
+  font-size: clamp(22px, 2.2vw, 28px);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
 .section-caption {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
 }
 .section-link {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-primary-hover);
 }
@@ -795,13 +836,13 @@ textarea:focus-visible {
   background: #fff0fb;
 }
 .cat-card-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .cat-card-count {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 
@@ -840,13 +881,13 @@ textarea:focus-visible {
   border-color: var(--color-ink-disabled);
 }
 .area-card-name {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .area-card-meta {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-muted);
 }
 
@@ -875,18 +916,18 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 .activity-text {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
   letter-spacing: -0.01em;
   text-wrap: pretty;
 }
 .activity-time {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-faint);
 }
 
@@ -914,7 +955,7 @@ textarea:focus-visible {
   padding: 0 8px;
   border-radius: 6px;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -999,7 +1040,7 @@ textarea:focus-visible {
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   backdrop-filter: blur(20px) saturate(140%);
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--color-ink);
 }
@@ -1015,7 +1056,7 @@ textarea:focus-visible {
   gap: 5px;
 }
 .place-card-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
@@ -1025,20 +1066,20 @@ textarea:focus-visible {
 }
 .place-card-meta {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .place-card-foot {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   font-family: var(--font-inter-tight), sans-serif;
 }
 .place-card-foot .place-card-review-count {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--color-ink-subtle);
 }
@@ -1082,6 +1123,14 @@ textarea:focus-visible {
 /* ---------- PlaceRow ---------- */
 
 .place-row {
+  /* Grid items (this is `.result-grid-*`'s track content) default to
+     `min-width: auto`, i.e. their own min-content size — which for a flex
+     row can exceed the 1fr track's actual available width and force the
+     whole grid wider than its container. `.place-row-body`/`.place-row-name`
+     already opt out of the same default so ellipsis/shrinking works
+     *within* this row; this opts the row itself out so the grid track
+     honors the container's width instead of the row's intrinsic content. */
+  min-width: 0;
   display: flex;
   gap: 14px;
   padding: 14px;
@@ -1124,7 +1173,7 @@ textarea:focus-visible {
 .place-row-name {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
   overflow: hidden;
@@ -1136,7 +1185,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .place-row-score {
   font-family: var(--font-inter-tight), sans-serif;
@@ -1144,11 +1193,11 @@ textarea:focus-visible {
 }
 .place-row-score-meta {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .place-row-blurb {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   margin: 0;
@@ -1161,7 +1210,7 @@ textarea:focus-visible {
 }
 .place-row-price {
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 .facility-chip {
@@ -1184,7 +1233,7 @@ textarea:focus-visible {
   border-radius: var(--radius-pill);
   background: var(--color-canvas);
   border: 1px solid var(--color-border-hairline);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink);
 }
@@ -1228,7 +1277,7 @@ textarea:focus-visible {
   background: #fff;
   color: var(--color-ink);
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   box-shadow: var(--shadow-pin);
   white-space: nowrap;
@@ -1285,7 +1334,7 @@ textarea:focus-visible {
   padding: 0 11px;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   transition: all 120ms var(--ease-standard);
   background: var(--color-surface);
@@ -1301,7 +1350,7 @@ textarea:focus-visible {
 .pill-tab {
   height: 36px;
   padding: 0 15px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .chip-row {
   display: flex;
@@ -1320,7 +1369,7 @@ textarea:focus-visible {
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink-muted);
   cursor: pointer;
@@ -1384,13 +1433,13 @@ textarea:focus-visible {
   color: var(--color-ink-disabled);
 }
 .empty-state-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
 .empty-state-body {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   max-width: 300px;
@@ -1414,7 +1463,7 @@ textarea:focus-visible {
   align-items: center;
   gap: 7px;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
   flex-wrap: wrap;
   margin-top: 20px;
@@ -1451,6 +1500,17 @@ textarea:focus-visible {
   flex-direction: column;
   gap: 16px;
 }
+/* Once flex-wrap stacks the sidebar above the results (viewports too narrow
+   for both min-widths to fit), sticky would pin the whole filter card over
+   the results as the page scrolls — appropriate for the two-column desktop
+   layout, not for a single stacked column. */
+@media (max-width: 767px) {
+  .search-sidebar {
+    position: static;
+    max-width: none;
+    width: 100%;
+  }
+}
 .filter-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-hairline);
@@ -1467,12 +1527,12 @@ textarea:focus-visible {
   justify-content: space-between;
 }
 .filter-card-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .filter-clear-link {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-primary-hover);
   background: none;
@@ -1486,7 +1546,7 @@ textarea:focus-visible {
   gap: 9px;
 }
 .filter-section-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1532,7 +1592,7 @@ textarea:focus-visible {
 .radio-label {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 15px;
   text-align: left;
 }
 .radio-label-selected {
@@ -1540,7 +1600,7 @@ textarea:focus-visible {
 }
 .radio-count {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-faint);
 }
 .filter-toggle-row {
@@ -1556,13 +1616,13 @@ textarea:focus-visible {
   min-width: 0;
 }
 .filter-toggle-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .filter-toggle-sub {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 
@@ -1596,7 +1656,7 @@ textarea:focus-visible {
   outline: none;
   background: transparent;
   font-family: var(--font-archivo), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
@@ -1624,7 +1684,7 @@ textarea:focus-visible {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink);
 }
@@ -1663,7 +1723,7 @@ textarea:focus-visible {
 }
 .active-filter-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
 }
 .active-filter-chip {
@@ -1676,7 +1736,7 @@ textarea:focus-visible {
   background: var(--color-chip-selected-bg);
   border: 1px solid var(--color-chip-selected-border);
   color: var(--color-chip-selected-fg);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .active-filter-clear-all {
@@ -1685,7 +1745,7 @@ textarea:focus-visible {
   align-items: center;
   padding: 0 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink-muted);
   background: none;
@@ -1704,7 +1764,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 .result-count-text {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -1720,7 +1780,7 @@ textarea:focus-visible {
 }
 .result-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 14px;
 }
 .result-footer-line {
@@ -1730,7 +1790,7 @@ textarea:focus-visible {
   gap: 10px;
   padding-top: 4px;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
 }
 
@@ -1746,7 +1806,7 @@ textarea:focus-visible {
   padding: 8px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* ---------- Detail page ---------- */
@@ -1765,12 +1825,12 @@ textarea:focus-visible {
 }
 .detail-photo-empty-text {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-subtle);
 }
 .detail-photo-empty-sub {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-faint);
 }
 .detail-photos {
@@ -1809,8 +1869,17 @@ textarea:focus-visible {
   position: sticky;
   top: 88px;
 }
+/* Stacks below .detail-main once flex-wrap kicks in — same reasoning as
+   .search-sidebar's mobile override just above. */
+@media (max-width: 767px) {
+  .detail-sidebar {
+    position: static;
+    max-width: none;
+    width: 100%;
+  }
+}
 .detail-title {
-  font-size: clamp(26px, 3.2vw, 38px);
+  font-size: clamp(28px, 3.2vw, 40px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -1829,12 +1898,12 @@ textarea:focus-visible {
 }
 .detail-score-value {
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
 }
 .detail-score-count {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-subtle);
 }
 .detail-divider {
@@ -1843,7 +1912,7 @@ textarea:focus-visible {
   background: var(--color-border);
 }
 .detail-meta-text {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-muted);
 }
 
@@ -1864,7 +1933,7 @@ textarea:focus-visible {
   padding: 0 16px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
   border: none;
@@ -1889,7 +1958,7 @@ textarea:focus-visible {
   gap: 14px;
 }
 .info-card-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
@@ -1918,11 +1987,11 @@ textarea:focus-visible {
 }
 .info-item-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .info-item-value {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   letter-spacing: -0.01em;
   text-wrap: pretty;
@@ -1945,14 +2014,14 @@ textarea:focus-visible {
   text-align: center;
 }
 .no-menu-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
 .no-menu-body {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
   max-width: 300px;
   line-height: 1.5;
@@ -1961,7 +2030,7 @@ textarea:focus-visible {
 table.menu-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 16px;
 }
 table.menu-table td {
   padding: 8px 0;
@@ -2000,7 +2069,7 @@ table.menu-table td.price {
   gap: 6px;
 }
 .reviews-summary-score-value {
-  font-size: 44px;
+  font-size: 46px;
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1;
@@ -2008,7 +2077,7 @@ table.menu-table td.price {
 }
 .reviews-summary-score-count {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .histogram {
@@ -2027,7 +2096,7 @@ table.menu-table td.price {
   width: 8px;
   flex: none;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .histogram-track {
@@ -2048,7 +2117,7 @@ table.menu-table td.price {
   flex: none;
   text-align: right;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-ink-faint);
 }
 .reviews-summary-axis {
@@ -2069,7 +2138,7 @@ table.menu-table td.price {
 .axis-label {
   width: 112px;
   flex: none;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2093,7 +2162,7 @@ table.menu-table td.price {
   flex: none;
   text-align: right;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -2130,7 +2199,7 @@ table.menu-table td.price {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 .review-card-headtext {
@@ -2141,18 +2210,38 @@ table.menu-table td.price {
   gap: 1px;
 }
 .review-card-author {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .review-card-when {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 .review-card-body {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
   margin: 0;
+}
+.review-card-photos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.review-card-photo {
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border-hairline);
+  flex: none;
+  display: block;
+}
+.review-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .review-card-footer {
   display: flex;
@@ -2163,7 +2252,7 @@ table.menu-table td.price {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-muted);
 }
 
@@ -2192,7 +2281,7 @@ table.menu-table td.price {
   gap: 7px;
   color: #fff;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   border: none;
   cursor: pointer;
@@ -2236,7 +2325,7 @@ table.menu-table td.price {
 }
 .hours-open-note {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-open-fg);
 }
@@ -2246,7 +2335,7 @@ table.menu-table td.price {
   justify-content: space-between;
   padding: 9px 16px;
   border-top: 1px solid var(--color-border-hairline);
-  font-size: 13px;
+  font-size: 15px;
 }
 .hours-row-highlight {
   background: var(--color-cream);
@@ -2294,13 +2383,13 @@ table.menu-table td.price {
   object-fit: cover;
 }
 .similar-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .similar-meta {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
 }
 
@@ -2314,12 +2403,12 @@ table.menu-table td.price {
   gap: 9px;
 }
 .cta-card-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .cta-card-body {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--color-cream-ink);
   text-wrap: pretty;
@@ -2341,7 +2430,7 @@ table.menu-table td.price {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-ink-muted);
 }
@@ -2349,7 +2438,7 @@ table.menu-table td.price {
   padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 400;
   font-family: inherit;
   color: var(--color-ink);
@@ -2363,7 +2452,7 @@ table.menu-table td.price {
 .star-button {
   border: none;
   background: none;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   padding: 2px;
   color: var(--color-star-empty);
@@ -2375,14 +2464,14 @@ table.menu-table td.price {
 .write-review-error {
   margin: 0;
   color: var(--color-error);
-  font-size: 13px;
+  font-size: 15px;
 }
 .write-review-submit {
   align-self: flex-start;
   padding: 10px 20px;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: #fff;
   background: var(--gradient-primary);
@@ -2402,10 +2491,10 @@ table.menu-table td.price {
 .write-review-done p {
   margin: 6px 0 0;
   color: var(--color-ink-muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 .write-review-login-prompt {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* ---------- Skeleton (search/loading) ---------- */
@@ -2476,13 +2565,13 @@ table.menu-table td.price {
   justify-content: center;
 }
 .login-heading {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
 .login-sub {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   max-width: 320px;
@@ -2514,7 +2603,7 @@ table.menu-table td.price {
   justify-content: center;
   border-radius: 7px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   transition: all 120ms var(--ease-standard);
   border: none;
@@ -2535,7 +2624,7 @@ table.menu-table td.price {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-ink-muted);
 }
@@ -2549,20 +2638,64 @@ table.menu-table td.price {
   padding: 10px 13px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   color: var(--color-ink);
   background: #fff;
   resize: vertical;
   box-sizing: border-box;
 }
+.searchable-select {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.searchable-select input {
+  width: 100%;
+}
+.searchable-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card-md);
+  padding: 4px;
+}
+.searchable-select-empty {
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--color-ink-subtle);
+}
+.searchable-select-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.searchable-select-option-active {
+  background: var(--color-canvas);
+}
+
 .login-field-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
 }
 .login-field-link {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-primary-hover);
 }
@@ -2587,7 +2720,7 @@ table.menu-table td.price {
   outline: none;
   background: transparent;
   font-family: var(--font-archivo), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
@@ -2596,7 +2729,7 @@ table.menu-table td.price {
   align-items: center;
   gap: 6px;
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-error);
 }
 .pw-strength-row {
@@ -2619,7 +2752,7 @@ table.menu-table td.price {
 }
 .pw-strength-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
   min-width: 60px;
   text-align: right;
@@ -2654,7 +2787,7 @@ table.menu-table td.price {
 }
 .login-checkbox-text {
   flex: 1;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   text-wrap: pretty;
@@ -2667,7 +2800,7 @@ table.menu-table td.price {
   justify-content: center;
   cursor: pointer;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 500;
   border: none;
   /* Default (no .login-submit-enabled/-disabled modifier — today's
@@ -2699,7 +2832,7 @@ table.menu-table td.price {
 }
 .login-divider-text {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-faint);
 }
 .login-social-row {
@@ -2717,7 +2850,7 @@ table.menu-table td.price {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink);
 }
@@ -2726,7 +2859,7 @@ table.menu-table td.price {
 }
 .login-footnote {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--color-ink-faint);
   text-align: center;
@@ -2735,7 +2868,7 @@ table.menu-table td.price {
 .login-error {
   margin: 0;
   color: var(--color-error);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .auth-status {
@@ -2749,7 +2882,7 @@ table.menu-table td.price {
   border: none;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-ink-muted);
   cursor: pointer;
@@ -2794,7 +2927,7 @@ table.menu-table td.price {
   border-bottom: 1px solid var(--color-border-hairline);
 }
 .map-page-panel-title {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -2815,7 +2948,7 @@ table.menu-table td.price {
   outline: none;
   background: transparent;
   font-family: var(--font-archivo), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
@@ -2890,6 +3023,25 @@ table.menu-table td.price {
   height: 100%;
   object-fit: cover;
 }
+/* Unlike search/detail/about's flex-wrap layouts, this one has no wrap at
+   all (panel + canvas both have real minimum content widths that add up to
+   far more than a phone viewport) — it needs an actual axis flip, not just
+   a wrap, so the list and the map stack instead of squeezing side by side. */
+@media (max-width: 767px) {
+  .map-page {
+    flex-direction: column;
+  }
+  .map-page-panel {
+    flex: 0 0 42%;
+    width: 100%;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .map-page-canvas-wrap {
+    flex: 1 1 auto;
+  }
+}
 
 /* ---------- About page ---------- */
 
@@ -2912,7 +3064,7 @@ table.menu-table td.price {
   top: 88px;
 }
 .about-nav-eyebrow {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2927,7 +3079,7 @@ table.menu-table td.price {
   padding: 0 12px;
   border-radius: 9px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   transition: all 120ms var(--ease-standard);
   background: none;
   border: none;
@@ -2950,14 +3102,14 @@ table.menu-table td.price {
   gap: 18px;
 }
 .about-section-title {
-  font-size: clamp(26px, 3.2vw, 38px);
+  font-size: clamp(28px, 3.2vw, 40px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
   margin: 0 0 10px;
 }
 .about-section-body {
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.6;
   color: var(--color-ink-muted);
   max-width: 620px;
@@ -2981,13 +3133,13 @@ table.menu-table td.price {
   min-width: 0;
 }
 .about-fact-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .about-fact-label {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-subtle);
   text-wrap: pretty;
 }
@@ -3001,12 +3153,12 @@ table.menu-table td.price {
   gap: 8px;
 }
 .about-callout-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .about-callout-body {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--color-cream-ink);
   text-wrap: pretty;
@@ -3032,14 +3184,14 @@ table.menu-table td.price {
 .axis-doc-label {
   flex: 1 1 140px;
   min-width: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .axis-doc-note {
   flex: 2 1 200px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   text-wrap: pretty;
@@ -3054,7 +3206,7 @@ table.menu-table td.price {
   background: var(--color-canvas);
   border: 1px solid var(--color-border-hairline);
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 .mod-step-list {
@@ -3082,7 +3234,7 @@ table.menu-table td.price {
   align-items: center;
   justify-content: center;
   font-family: var(--font-inter-tight), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 .mod-step-body {
@@ -3093,12 +3245,12 @@ table.menu-table td.price {
   gap: 4px;
 }
 .mod-step-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .mod-step-text {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--color-ink-muted);
   text-wrap: pretty;
@@ -3114,7 +3266,7 @@ table.menu-table td.price {
   gap: 12px;
 }
 .data-sources-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -3124,7 +3276,7 @@ table.menu-table td.price {
   gap: 10px;
 }
 .data-sources-item {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--color-ink-muted);
   text-wrap: pretty;
@@ -3139,7 +3291,7 @@ table.menu-table td.price {
   background: var(--color-canvas);
   border: 1px solid var(--color-border-hairline);
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--color-ink-subtle);
   text-wrap: pretty;
@@ -3157,8 +3309,25 @@ table.menu-table td.price {
 }
 .page-header-sub {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-subtle);
+}
+
+.favorites-page-header {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.favorites-header-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--gradient-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profile-header {
@@ -3177,7 +3346,7 @@ table.menu-table td.price {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   font-family: var(--font-inter-tight), sans-serif;
 }
@@ -3212,34 +3381,36 @@ table.menu-table td.price {
   gap: 8px;
 }
 .my-review-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .my-review-score {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .my-review-comment {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--color-ink-muted);
   margin: 0;
 }
 .my-review-bill {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
 }
 .status-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   text-transform: uppercase;
 }
-.status-badge-pending {
+.status-badge-pending,
+.status-badge-in_review,
+.status-badge-edit_requested {
   background: var(--color-cream);
   color: var(--color-cream-ink);
 }
@@ -3249,10 +3420,67 @@ table.menu-table td.price {
   color: var(--color-error);
 }
 
+.notifications-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.notification-mark-all-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.notification-mark-all-btn:hover {
+  color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+.notification-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.notification-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+.notification-tab-active {
+  background: var(--color-ink);
+  color: #fff;
+}
+.notification-tab-count {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.06);
+}
+.notification-tab-active .notification-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+}
 .notification-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  width: 100%;
   padding: 16px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-hairline);
@@ -3260,23 +3488,29 @@ table.menu-table td.price {
   box-shadow: var(--shadow-card);
 }
 .notification-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex: none;
   border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
 }
 .notification-icon-moderation_result {
-  background: var(--color-primary);
+  background: #e3f5ec;
+  color: var(--color-open-dot);
 }
 .notification-icon-report_resolved {
-  background: var(--color-open-dot);
+  background: #e6ecfd;
+  color: var(--color-primary);
 }
 .notification-icon-contribution_status {
-  background: #dd00d8;
+  background: #fbe6fb;
+  color: #dd00d8;
+}
+.notification-icon-moderation_queue_new {
+  background: var(--color-cream);
+  color: var(--color-cream-ink);
 }
 .notification-body {
   flex: 1;
@@ -3284,9 +3518,17 @@ table.menu-table td.price {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  color: inherit;
+  text-decoration: none;
+}
+.notification-body-link {
+  cursor: pointer;
+}
+.notification-body-link:hover .notification-title {
+  text-decoration: underline;
 }
 .notification-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 .notification-item-unread .notification-title {
@@ -3294,28 +3536,21 @@ table.menu-table td.price {
 }
 .notification-text {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-ink-muted);
 }
 .notification-time {
   font-family: var(--font-figtree), sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-ink-faint);
 }
-.notification-mark-read {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-  cursor: pointer;
-}
-.notification-mark-read:hover {
-  color: var(--color-ink);
-  border-color: var(--color-ink);
+.notification-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dd00d8;
+  margin-top: 4px;
 }
 
 .edit-profile-form {
@@ -3328,7 +3563,7 @@ table.menu-table td.price {
 .edit-profile-saved {
   margin: 0;
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -3361,7 +3596,7 @@ table.menu-table td.price {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 }
@@ -3373,7 +3608,7 @@ table.menu-table td.price {
   height: 84px;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-ink-subtle);
   text-align: center;
   cursor: pointer;

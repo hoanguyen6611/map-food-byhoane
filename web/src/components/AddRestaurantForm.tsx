@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { VN_PROVINCES, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
 
@@ -16,6 +17,7 @@ type Phase =
 export function AddRestaurantForm() {
   const t = useTranslations('addRestaurant');
   const tLabels = useTranslations('labels');
+  const tCommon = useTranslations('common');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -45,6 +47,11 @@ export function AddRestaurantForm() {
   }
 
   const selectedProvince = useMemo(() => VN_PROVINCES.find((p) => p.code === provinceCode), [provinceCode]);
+  const provinceOptions = useMemo(() => VN_PROVINCES.map((p) => ({ value: p.code, label: p.shortName })), []);
+  const wardOptions = useMemo(
+    () => (selectedProvince?.wards ?? []).map((w) => ({ value: w.code, label: w.shortName })),
+    [selectedProvince],
+  );
 
   function handleProvinceChange(code: string) {
     setProvinceCode(code);
@@ -206,25 +213,24 @@ export function AddRestaurantForm() {
       </label>
       <label className="login-field">
         <span>{t('provinceLabel')}</span>
-        <select value={provinceCode} onChange={(e) => handleProvinceChange(e.target.value)} required>
-          <option value="">{t('selectPlaceholder')}</option>
-          {VN_PROVINCES.map((p) => (
-            <option key={p.code} value={p.code}>
-              {p.shortName}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+          value={provinceCode}
+          onChange={handleProvinceChange}
+          options={provinceOptions}
+          placeholder={t('selectPlaceholder')}
+          noResultsText={tCommon('noResultsFound')}
+        />
       </label>
       <label className="login-field">
         <span>{t('wardLabel')}</span>
-        <select value={wardCode} onChange={(e) => setWardCode(e.target.value)} disabled={!selectedProvince} required>
-          <option value="">{selectedProvince ? t('selectPlaceholder') : t('selectProvinceFirst')}</option>
-          {(selectedProvince?.wards ?? []).map((w) => (
-            <option key={w.code} value={w.code}>
-              {w.shortName}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+          value={wardCode}
+          onChange={setWardCode}
+          options={wardOptions}
+          placeholder={selectedProvince ? t('selectPlaceholder') : t('selectProvinceFirst')}
+          noResultsText={tCommon('noResultsFound')}
+          disabled={!selectedProvince}
+        />
       </label>
 
       <div className="login-field">

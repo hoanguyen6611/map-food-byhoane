@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitReviewAction } from '@/app/[locale]/restaurant/[slug]/actions';
+import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import type { ReviewCriteriaCode } from '@foodmap/shared-types';
 
 interface Criterion {
@@ -59,6 +60,7 @@ export function WriteReviewForm({ restaurantId, slug, criteria }: Props) {
   const [overallRating, setOverallRating] = useState(0);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
 
   const ratedCriteriaCount = Object.values(ratings).filter((v) => v > 0).length;
   const canSubmit = overallRating >= 1 && ratedCriteriaCount >= 1;
@@ -73,6 +75,7 @@ export function WriteReviewForm({ restaurantId, slug, criteria }: Props) {
         .filter(([, score]) => score > 0)
         .map(([code, score]) => ({ criteriaCode: code as ReviewCriteriaCode, score })),
       comment: comment.trim() || undefined,
+      photoUrls: photos.length > 0 ? photos.map((p) => p.url) : undefined,
     });
     if (!result.ok) {
       if (result.error === 'duplicate') return { phase: 'error', message: t('duplicateError') };
@@ -128,6 +131,11 @@ export function WriteReviewForm({ restaurantId, slug, criteria }: Props) {
           placeholder={t('commentPlaceholder')}
         />
       </label>
+
+      <div className="write-review-field">
+        <span>{t('photosLabel')}</span>
+        <PhotoUploadField photos={photos} onChange={setPhotos} ownerType="review" maxPhotos={6} />
+      </div>
 
       <button type="submit" className="write-review-submit" disabled={isPending || !canSubmit}>
         {isPending ? t('submitting') : t('submit')}

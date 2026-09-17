@@ -7,6 +7,7 @@ import type {
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
+  RestaurantSlugLookupDto,
   RestaurantSummaryDto,
   ReviewListResponse,
 } from '@foodmap/shared-types';
@@ -73,6 +74,24 @@ export async function searchRestaurants(params: SearchParams): Promise<Paginated
 
 export async function getRestaurantBySlug(slug: string): Promise<RestaurantDetailDto> {
   return apiFetch<RestaurantDetailDto>(`/restaurants/slug/${encodeURIComponent(slug)}`, DETAIL_REVALIDATE_SECONDS);
+}
+
+/**
+ * Resolves restaurant ids (e.g. from a batch of notifications' deep links)
+ * to their public slugs, in a single request — a `Map` since ids that don't
+ * (yet, or ever) resolve are simply absent, which is the common/expected
+ * case for a still-pending, rejected, or deleted contribution (the backend
+ * only returns published restaurants, same visibility rule as
+ * `getRestaurantBySlug`). One call handling N ids replaces what used to be
+ * N separate `GET /restaurants/:id` calls each fetching (and discarding)
+ * the full detail payload just to read `.slug` — see the notifications page,
+ * the one caller of this.
+ */
+export async function getRestaurantSlugsByIds(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const qs = ids.map(encodeURIComponent).join(',');
+  const rows = await apiFetch<RestaurantSlugLookupDto[]>(`/restaurants/slugs?ids=${qs}`, DETAIL_REVALIDATE_SECONDS);
+  return new Map(rows.map((r) => [r.id, r.slug]));
 }
 
 export async function listSitemapEntries(): Promise<RestaurantSitemapEntryDto[]> {

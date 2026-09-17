@@ -8,6 +8,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   Max,
   MaxLength,
@@ -74,4 +75,10 @@ export class UpdateReviewDto {
   @ArrayMaxSize(6)
   @IsUUID(undefined, { each: true })
   photoIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsUrl({}, { each: true })
+  photoUrls?: string[];
 }

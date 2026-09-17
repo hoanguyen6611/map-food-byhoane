@@ -1,14 +1,22 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { isUUID } from 'class-validator';
 import type {
   AISummaryResponseDto,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
+  RestaurantSlugLookupDto,
   RestaurantSummaryDto,
 } from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { BoundsQueryDto } from './dto/bounds-query.dto';
+import { SlugsQueryDto } from './dto/slugs-query.dto';
+
+// Blunt safety cap on top of SlugsQueryDto's whole-string MaxLength — the
+// one real caller (web's notifications page) never needs more than a page's
+// worth of distinct restaurant ids at once.
+const MAX_SLUG_LOOKUP_IDS = 50;
 
 @ApiTags('Restaurants')
 @Controller('restaurants')
@@ -51,6 +59,13 @@ export class RestaurantController {
   @Get('slug/:slug')
   getDetailBySlug(@Param('slug') slug: string): Promise<RestaurantDetailDto> {
     return this.restaurantService.getDetailBySlug(slug);
+  }
+
+  // Also a literal route, also must stay before ':id' — see comment above.
+  @Get('slugs')
+  getSlugsByIds(@Query() query: SlugsQueryDto): Promise<RestaurantSlugLookupDto[]> {
+    const ids = [...new Set(query.ids.split(',').map((id) => id.trim()).filter((id) => isUUID(id)))].slice(0, MAX_SLUG_LOOKUP_IDS);
+    return this.restaurantService.findSlugsByIds(ids);
   }
 
   @Get(':id')

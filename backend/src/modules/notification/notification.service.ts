@@ -99,6 +99,13 @@ export class NotificationService {
     );
   }
 
+  async markAllRead(userId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
+  }
+
   async markRead(
     userId: string,
     notificationId: string,

@@ -143,8 +143,10 @@ export class AdminModerationService {
         sideEffect.contributorUserId,
         notificationType,
         {
-          title: this.decisionTitle(dto.decision),
-          body: dto.reason ?? this.decisionDefaultBody(dto.decision),
+          title: this.decisionTitle(dto.decision, sideEffect.restaurantName),
+          body:
+            dto.reason ??
+            this.decisionDefaultBody(dto.decision, sideEffect.restaurantName),
           deepLink: sideEffect.deepLink,
         },
       );
@@ -167,11 +169,17 @@ export class AdminModerationService {
   ): Promise<{
     contributorUserId: string;
     deepLink: NotificationDeepLink;
+    // The restaurant this decision is actually about — lets the
+    // notification say "your review of Cà Phê Phin Cũ was approved"
+    // instead of a generic "your content was approved" with no way to tell
+    // which of the user's several submissions it refers to.
+    restaurantName?: string;
   } | null> {
     switch (moderationResult.targetType) {
       case 'review': {
         const review = await this.prisma.review.findUnique({
           where: { id: moderationResult.targetId },
+          include: { restaurant: { select: { name: true } } },
         });
         if (!review) return null;
         const status =
@@ -190,11 +198,13 @@ export class AdminModerationService {
         return {
           contributorUserId: review.userId,
           deepLink: { screen: 'Reviews', restaurantId: review.restaurantId },
+          restaurantName: review.restaurant.name,
         };
       }
       case 'contribution': {
         const contribution = await this.prisma.contribution.findUnique({
           where: { id: moderationResult.targetId },
+          include: { targetRestaurant: { select: { name: true } } },
         });
         if (!contribution) return null;
         await this.contributionFinalizeService.applyModeratorDecision(
@@ -211,7 +221,14 @@ export class AdminModerationService {
           deepLink: {
             screen: 'SubmissionStatus',
             contributionId: contribution.id,
+            // Lets a client resolve straight to the restaurant's detail
+            // page (once published) instead of only a submission-status
+            // screen — GET /restaurants/:id only returns it once its own
+            // publicationStatus is 'published', so a rejected/still-pending
+            // one naturally 404s there rather than needing a separate check.
+            restaurantId: contribution.targetRestaurantId ?? undefined,
           },
+          restaurantName: contribution.targetRestaurant?.name,
         };
       }
       case 'photo': {
@@ -245,27 +262,49 @@ export class AdminModerationService {
     }
   }
 
-  private decisionTitle(decision: ModerationDecision): string {
+  private decisionTitle(
+    decision: ModerationDecision,
+    restaurantName?: string,
+  ): string {
+    if (!restaurantName) {
+      // Target was deleted/unresolvable by the time the notification was
+      // built — fall back to the old generic wording rather than a title
+      // with a visible gap in it.
+      switch (decision) {
+        case 'approved':
+          return 'Nội dung của bạn đã được duyệt';
+        case 'rejected':
+          return 'Nội dung của bạn đã bị từ chối';
+        case 'edit_requested':
+          return 'Nội dung của bạn cần chỉnh sửa';
+        default:
+          return 'Cập nhật trạng thái nội dung';
+      }
+    }
     switch (decision) {
       case 'approved':
-        return 'Nội dung của bạn đã được duyệt';
+        return `Nội dung của bạn về ${restaurantName} đã được duyệt`;
       case 'rejected':
-        return 'Nội dung của bạn đã bị từ chối';
+        return `Nội dung của bạn về ${restaurantName} đã bị từ chối`;
       case 'edit_requested':
-        return 'Nội dung của bạn cần chỉnh sửa';
+        return `Nội dung của bạn về ${restaurantName} cần chỉnh sửa`;
       default:
-        return 'Cập nhật trạng thái nội dung';
+        return `Cập nhật trạng thái nội dung về ${restaurantName}`;
     }
   }
 
-  private decisionDefaultBody(decision: ModerationDecision): string {
+  private decisionDefaultBody(
+    decision: ModerationDecision,
+    restaurantName?: string,
+  ): string {
+    const place = restaurantName ? ` cho ${restaurantName}` : '';
     switch (decision) {
       case 'approved':
-        return 'Nội dung bạn gửi đã được kiểm duyệt và duyệt thành công.';
+        return `Nội dung bạn gửi${place} đã được kiểm duyệt và duyệt thành công.`;
       case 'rejected':
-        return 'Nội dung bạn gửi không đáp ứng tiêu chuẩn cộng đồng.';
+        return `Nội dung bạn gửi${place} không đáp ứng tiêu chuẩn cộng đồng.`;
       case 'edit_requested':
-        return 'Vui lòng chỉnh sửa và gửi lại nội dung.';
+        return `Vui lòng chỉnh sửa và gửi lại nội dung${place}.`;
       default:
         return '';
     }

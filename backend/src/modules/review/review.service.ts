@@ -60,7 +60,7 @@ type ReviewPatchInput = Partial<
     | 'waitTimeMinutes'
     | 'wouldReturn'
   >
-> & { photoIds?: string[] };
+> & { photoIds?: string[]; photoUrls?: string[] };
 
 @Injectable()
 export class ReviewService {
@@ -137,6 +137,14 @@ export class ReviewService {
         dto.photoIds,
         'review',
         created.id,
+      );
+    }
+    if (dto.photoUrls && dto.photoUrls.length > 0) {
+      await this.mediaService.attachExternalUrls(
+        userId,
+        'review',
+        created.id,
+        dto.photoUrls,
       );
     }
 
@@ -402,6 +410,14 @@ export class ReviewService {
         patch.photoIds,
         'review',
         existing.id,
+      );
+    }
+    if (patch.photoUrls && patch.photoUrls.length > 0) {
+      await this.mediaService.attachExternalUrls(
+        existing.userId,
+        'review',
+        existing.id,
+        patch.photoUrls,
       );
     }
 

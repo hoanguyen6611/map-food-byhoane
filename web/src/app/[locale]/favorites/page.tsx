@@ -40,10 +40,16 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
 
   return (
     <div className="container page-sections">
-      <div className="page-header">
-        <h1 className="section-title" style={{ margin: 0 }}>
-          {t('title')}
-        </h1>
+      <div className="page-header favorites-page-header">
+        <span className="favorites-header-icon" aria-hidden="true">
+          <BookmarkIcon size={20} />
+        </span>
+        <div>
+          <h1 className="section-title" style={{ margin: 0 }}>
+            {t('title')}
+          </h1>
+          <p className="page-header-sub">{t('subtitle', { count: result.total })}</p>
+        </div>
       </div>
 
       {result.items.length === 0 ? (
@@ -52,6 +58,7 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
             <BookmarkIcon size={26} />
           </span>
           <p className="empty-state-title">{t('empty')}</p>
+          <p className="empty-state-body">{t('emptyBody')}</p>
           <Link href="/search" className="btn-dark btn-dark-lg">
             {tCommon('seeAllRestaurants')}
           </Link>

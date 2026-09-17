@@ -24,7 +24,7 @@ export async function SiteFooter() {
     <footer className="site-footer">
       <div className="footer-main">
         <div className="footer-brand">
-          <span className="topbar-logo" style={{ fontSize: 14 }}>
+          <span className="topbar-logo" style={{ fontSize: 16 }}>
             <span className="topbar-logo-tile" style={{ width: 28, height: 28, borderRadius: 7 }} aria-hidden="true">
               <MapLogoIcon size={16} style={{ color: '#fff' }} />
             </span>

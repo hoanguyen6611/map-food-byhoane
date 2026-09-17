@@ -32,12 +32,22 @@ export function ReviewCard({ review, locale, reportLabel, helpfulLabel }: Props)
         <Stars value={review.overallRating} size={14} />
       </div>
       {review.comment ? <p className="review-card-body">{review.comment}</p> : null}
+      {review.photos.length > 0 ? (
+        <div className="review-card-photos">
+          {review.photos.map((photo) => (
+            <a key={photo.id} href={photo.url} target="_blank" rel="noreferrer" className="review-card-photo">
+              {/* eslint-disable-next-line @next/next/no-img-element -- ImageKit-hosted review photos, same rationale as PhotoUploadField's previews */}
+              <img src={photo.url} alt="" />
+            </a>
+          ))}
+        </div>
+      ) : null}
       <div className="review-card-footer">
         <span className="review-card-helpful">
           <ThumbsUpIcon size={15} />
           {helpfulLabel}
         </span>
-        <span className="font-meta" style={{ fontSize: 12, color: 'var(--color-ink-subtle)' }}>
+        <span className="font-meta" style={{ fontSize: 14, color: 'var(--color-ink-subtle)' }}>
           {reportLabel}
         </span>
       </div>

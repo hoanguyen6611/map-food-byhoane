@@ -10,6 +10,7 @@ import type {
   RestaurantCategoryCode,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
+  RestaurantSlugLookupDto,
   RestaurantSummaryDto,
   ReviewCriteriaCode,
   ReviewDto,
@@ -160,6 +161,23 @@ export class RestaurantService {
       slug: r.slug,
       updatedAt: r.updatedAt.toISOString(),
     }));
+  }
+
+  /**
+   * Batch id->slug lookup for callers that only need a URL to link to (e.g.
+   * the web app resolving notification deep-links) — a single cheap
+   * `select`-only query instead of N callers each hitting `getDetail`'s full
+   * multi-relation include just to read `.slug`. Same "published,
+   * non-deleted only" visibility as every other public lookup here; ids
+   * that don't resolve are simply absent from the result, not an error.
+   */
+  async findSlugsByIds(ids: string[]): Promise<RestaurantSlugLookupDto[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.restaurant.findMany({
+      where: { id: { in: ids }, deletedAt: null, status: { publicationStatus: 'published' } },
+      select: { id: true, slug: true },
+    });
+    return rows;
   }
 
   /**

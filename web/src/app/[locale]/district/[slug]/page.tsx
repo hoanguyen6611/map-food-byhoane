@@ -129,7 +129,7 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
         <div className="detail-main">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             <h1 className="detail-title">{t('heading', { name: district.name })}</h1>
-            <p style={{ fontSize: 15, lineHeight: 1.55, color: 'var(--color-ink-muted)', margin: 0 }}>
+            <p style={{ fontSize: 17, lineHeight: 1.55, color: 'var(--color-ink-muted)', margin: 0 }}>
               {topCategoryLabel ? t('blurbWithTop', { count: result.total, topCategory: topCategoryLabel }) : t('blurb', { count: result.total })}
             </p>
           </div>
@@ -179,21 +179,21 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-ink-muted)' }}>{t('statCount')}</span>
-                <span className="font-num" style={{ fontSize: 13, fontWeight: 600 }}>
+                <span style={{ fontSize: 14, color: 'var(--color-ink-muted)' }}>{t('statCount')}</span>
+                <span className="font-num" style={{ fontSize: 15, fontWeight: 600 }}>
                   {statsResult.total}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-ink-muted)' }}>{t('statAvg')}</span>
-                <span className="font-num" style={{ fontSize: 13, fontWeight: 600 }}>
+                <span style={{ fontSize: 14, color: 'var(--color-ink-muted)' }}>{t('statAvg')}</span>
+                <span className="font-num" style={{ fontSize: 15, fontWeight: 600 }}>
                   {avgScore !== null ? avgScore.toFixed(1) : tCommon('noRating')}
                 </span>
               </div>
               {topCategoryLabel ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: 'var(--color-ink-muted)' }}>{t('statTop')}</span>
-                  <span className="font-num" style={{ fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ fontSize: 14, color: 'var(--color-ink-muted)' }}>{t('statTop')}</span>
+                  <span className="font-num" style={{ fontSize: 15, fontWeight: 600 }}>
                     {topCategoryLabel}
                   </span>
                 </div>

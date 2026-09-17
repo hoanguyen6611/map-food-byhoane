@@ -33,6 +33,10 @@ export interface CreateReviewRequest {
   // Ids of photos already uploaded via MediaModule (build-prompts/07) — the
   // server reparents these onto the created review, enforcing the 6-photo cap.
   photoIds?: string[];
+  // URLs already hosted on ImageKit (the web app's direct-upload flow) — the
+  // server attaches these onto the created review, same 6-photo cap as
+  // photoIds. Same pattern as CreateRestaurantContributionRequest.photoUrls.
+  photoUrls?: string[];
 }
 
 // Same field set as create, all optional (PATCH semantics) — `ratings`, when
@@ -48,6 +52,7 @@ export interface UpdateReviewRequest {
   waitTimeMinutes?: number;
   wouldReturn?: boolean;
   photoIds?: string[];
+  photoUrls?: string[];
 }
 
 export interface ReviewAuthorDto {

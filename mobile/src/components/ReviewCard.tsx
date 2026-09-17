@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { ReviewDto } from '@foodmap/shared-types';
@@ -57,6 +57,14 @@ export function ReviewCard({ review, compact = false }: ReviewCardProps) {
         <Text style={styles.comment} numberOfLines={compact ? 3 : undefined}>
           {review.comment}
         </Text>
+      ) : null}
+
+      {!compact && review.photos.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosRow}>
+          {review.photos.map((photo) => (
+            <Image key={photo.id} source={{ uri: photo.url }} style={styles.photoThumb} />
+          ))}
+        </ScrollView>
       ) : null}
 
       {!compact ? (
@@ -119,6 +127,8 @@ const createStyles = (colors: ThemeColors) =>
     badgeText: { fontSize: 10, fontFamily: FONT_FAMILY.bodyBold, color: colors.warning },
     editedText: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', fontFamily: FONT_FAMILY.meta },
     comment: { fontSize: 13, color: colors.textPrimary, marginTop: 6, lineHeight: 19, fontFamily: FONT_FAMILY.body },
+    photosRow: { marginTop: 8 },
+    photoThumb: { width: 72, height: 72, borderRadius: 8, marginRight: 8, backgroundColor: colors.surfaceAlt },
     tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
     tag: { backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
     tagText: { fontSize: 11, color: colors.textSecondary, fontFamily: FONT_FAMILY.meta },

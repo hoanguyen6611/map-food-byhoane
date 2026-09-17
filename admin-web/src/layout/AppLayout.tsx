@@ -9,8 +9,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Tổng quan' },
-  { to: '/restaurants', label: 'Quản lý Nhà hàng' },
-  { to: '/moderation', label: 'Hàng đợi Kiểm duyệt' },
+  { to: '/restaurants', label: 'Quản lý Địa điểm' },
+  { to: '/moderation', label: 'Danh sách Phê duyệt' },
   { to: '/reviews', label: 'Quản lý Đánh giá' },
   { to: '/users', label: 'Quản lý Người dùng' },
 ]

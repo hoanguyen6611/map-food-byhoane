@@ -6,7 +6,7 @@ import { MapCanvas } from '@/components/MapCanvas';
 import { HomeProvinceSelect } from '@/components/HomeProvinceSelect';
 import { CATEGORY_ICON_PATH, CATEGORY_OPTIONS } from '@/lib/labels';
 import { DISTRICTS } from '@/lib/districts';
-import { getHomeProvince, HCMC_LEGACY_PROVINCE_NAME } from '@/lib/home-province';
+import { getHomeProvince, HCMC_LEGACY_PROVINCE_NAME, HCMC_DATASET_CODE } from '@/lib/home-province';
 import { Link, getPathname } from '@/i18n/navigation';
 import { SearchIcon, MapPinIcon } from '@/components/icons';
 import { VN_PROVINCES } from '@foodmap/shared-types';
@@ -15,7 +15,6 @@ import { VN_PROVINCES } from '@foodmap/shared-types';
 // see HCMC_LEGACY_PROVINCE_NAME's doc comment (home-province.ts) for why a
 // second, correctly-named-but-currently-empty "Hồ Chí Minh" entry would
 // just be a confusing near-duplicate of the one that actually has data.
-const HCMC_DATASET_CODE = '79';
 const OTHER_PROVINCES = VN_PROVINCES.filter((p) => p.code !== HCMC_DATASET_CODE);
 
 export const metadata: Metadata = {
@@ -100,6 +99,7 @@ export default async function HomePage({ params }: PageProps) {
                   defaultLabel={t('heroArea')}
                   options={OTHER_PROVINCES}
                   ariaLabel={t('heroArea')}
+                  noResultsText={tCommon('noResultsFound')}
                 />
               </span>
               <button type="submit" className="search-submit">

@@ -17,6 +17,7 @@ import type {
 } from '@foodmap/shared-types'
 import { VN_PROVINCES, findVnProvinceByName, findVnWardByName } from '@foodmap/shared-types'
 import type { CreateRestaurantBody } from '../../api/admin-restaurants'
+import { SearchableSelect } from '../../components/SearchableSelect'
 import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_RANGE_OPTIONS } from './constants'
 
 export interface CoreFormValues {
@@ -181,6 +182,15 @@ export function RestaurantCoreForm({
     return [{ code: values.addressWardCode, shortName: `${values.addressWardCode} (giá trị cũ)` }, ...wards]
   }, [selectedProvince, values.addressWardCode])
 
+  const provinceSelectOptions = useMemo(
+    () => provinceOptions.map((option) => ({ value: option.code, label: option.shortName })),
+    [provinceOptions],
+  )
+  const wardSelectOptions = useMemo(
+    () => wardOptions.map((option) => ({ value: option.code, label: option.shortName })),
+    [wardOptions],
+  )
+
   function handleProvinceChange(code: string) {
     setValues((current) => ({ ...current, addressProvinceCode: code, addressWardCode: '' }))
   }
@@ -283,35 +293,27 @@ export function RestaurantCoreForm({
 
         <label className="form-field">
           <span>Tỉnh/Thành *</span>
-          <select
+          <SearchableSelect
             value={values.addressProvinceCode}
             disabled={isSubmitting}
-            onChange={(event) => handleProvinceChange(event.target.value)}
-          >
-            <option value="">— Chọn —</option>
-            {provinceOptions.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.shortName}
-              </option>
-            ))}
-          </select>
+            onChange={handleProvinceChange}
+            options={provinceSelectOptions}
+            placeholder="— Chọn —"
+            noResultsText="Không tìm thấy kết quả"
+          />
           {errors.addressProvinceCode && <span className="field-error">{errors.addressProvinceCode}</span>}
         </label>
 
         <label className="form-field">
           <span>Phường/Xã *</span>
-          <select
+          <SearchableSelect
             value={values.addressWardCode}
             disabled={isSubmitting || !values.addressProvinceCode}
-            onChange={(event) => set('addressWardCode', event.target.value)}
-          >
-            <option value="">{values.addressProvinceCode ? '— Chọn —' : '— Chọn tỉnh/thành trước —'}</option>
-            {wardOptions.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.shortName}
-              </option>
-            ))}
-          </select>
+            onChange={(code) => set('addressWardCode', code)}
+            options={wardSelectOptions}
+            placeholder={values.addressProvinceCode ? '— Chọn —' : '— Chọn tỉnh/thành trước —'}
+            noResultsText="Không tìm thấy kết quả"
+          />
           {errors.addressWardCode && <span className="field-error">{errors.addressWardCode}</span>}
         </label>
 

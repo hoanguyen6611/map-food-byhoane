@@ -1,10 +1,13 @@
 {
   "common": {
     "siteDescription": "Bản đồ ẩm thực Việt Nam — tìm quán ăn, quán cà phê, nhà hàng phù hợp nhất với bạn, không chỉ gần bạn nhất.",
+    "noResultsFound": "Không tìm thấy kết quả",
     "skipToContent": "Bỏ qua để đến nội dung chính",
     "homeAriaLabel": "The Food Map of Vietnam — về trang chủ",
     "mainNav": "Điều hướng chính",
-    "findRestaurants": "Tìm quán ăn",
+    "menuAriaLabel": "Mở menu",
+    "closeMenuAriaLabel": "Đóng menu",
+    "findRestaurants": "Tìm địa điểm",
     "footerCta": "",
     "favoriteAdd": "Lưu vào yêu thích",
     "favoriteRemove": "Bỏ khỏi yêu thích",
@@ -39,7 +42,7 @@
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
-    "heroSubtitle": "Bản đồ ẩm thực Việt Nam — khám phá quán ăn, quán cà phê, nhà hàng và xe đẩy vỉa hè ở TP. Hồ Chí Minh qua đánh giá thật từ cộng đồng.",
+    "heroSubtitle": "Bản đồ ẩm thực Việt Nam — khám phá quán ăn, quán cà phê, nhà hàng và xe đẩy vỉa hè ở khắp Việt Nam qua đánh giá thật từ cộng đồng.",
     "searchPlaceholder": "Tìm theo tên quán, món ăn...",
     "searchAriaLabel": "Từ khoá tìm kiếm",
     "searchButton": "Tìm kiếm",
@@ -181,7 +184,9 @@
   },
   "favorites": {
     "title": "Quán yêu thích",
-    "empty": "Bạn chưa lưu quán ăn nào."
+    "subtitle": "{count} quán bạn đã lưu để ghé sau",
+    "empty": "Bạn chưa lưu quán ăn nào.",
+    "emptyBody": "Bấm biểu tượng trái tim trên trang chi tiết quán để lưu vào đây."
   },
   "labels": {
     "category": {
@@ -233,6 +238,7 @@
     "overallLabel": "Đánh giá tổng thể",
     "commentLabel": "Bình luận (không bắt buộc)",
     "commentPlaceholder": "Bạn thích hoặc không thích điều gì?",
+    "photosLabel": "Ảnh (không bắt buộc)",
     "submit": "Gửi đánh giá",
     "submitting": "Đang gửi…",
     "validationError": "Vui lòng chọn điểm tổng thể và ít nhất một tiêu chí.",
@@ -250,7 +256,8 @@
     "editHeading": "Chỉnh sửa hồ sơ",
     "reviewCountLabel": "Đánh giá đã viết",
     "displayNameLabel": "Tên hiển thị",
-    "homeCityLabel": "Thành phố",
+    "homeCityLabel": "Tỉnh/Thành phố",
+    "homeCityPlaceholder": "Chọn tỉnh/thành",
     "bioLabel": "Giới thiệu",
     "save": "Lưu thay đổi",
     "saving": "Đang lưu…",
@@ -259,16 +266,28 @@
     "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
     "myReviewsHeading": "Đánh giá của tôi",
     "noReviews": "Bạn chưa viết đánh giá nào.",
+    "contributionCountLabel": "Quán đã thêm",
+    "myContributionsHeading": "Quán tôi đã thêm",
+    "noContributions": "Bạn chưa thêm quán nào.",
     "status": {
       "pending": "Đang chờ duyệt",
       "rejected": "Đã từ chối",
-      "hidden": "Đã ẩn"
+      "hidden": "Đã ẩn",
+      "in_review": "Đang chờ duyệt",
+      "edit_requested": "Cần chỉnh sửa"
     }
   },
   "notifications": {
     "title": "Thông báo",
+    "unreadSubtitle": "{count} thông báo chưa đọc",
+    "allCaughtUp": "Bạn đã xem hết thông báo",
     "empty": "Bạn chưa có thông báo nào.",
-    "markRead": "Đánh dấu đã đọc"
+    "emptyUnread": "Không có thông báo chưa đọc.",
+    "emptyReviews": "Không có thông báo về đánh giá.",
+    "markRead": "Đánh dấu đã đọc",
+    "tabAll": "Tất cả",
+    "tabUnread": "Chưa đọc",
+    "tabReviews": "Đánh giá"
   },
   "map": {
     "pageTitle": "Bản đồ quán ăn",

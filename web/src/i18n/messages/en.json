@@ -1,9 +1,12 @@
 {
   "common": {
     "siteDescription": "The Food Map of Vietnam — find the restaurant, cafe, or eatery that's actually right for you, not just the closest one.",
+    "noResultsFound": "No results found",
     "skipToContent": "Skip to main content",
     "homeAriaLabel": "The Food Map of Vietnam — go to homepage",
     "mainNav": "Main navigation",
+    "menuAriaLabel": "Open menu",
+    "closeMenuAriaLabel": "Close menu",
     "findRestaurants": "Find restaurants",
     "footerCta": "",
     "favoriteAdd": "Save to favorites",
@@ -181,7 +184,9 @@
   },
   "favorites": {
     "title": "Favorite restaurants",
-    "empty": "You haven't saved any restaurants yet."
+    "subtitle": "{count} restaurants saved for later",
+    "empty": "You haven't saved any restaurants yet.",
+    "emptyBody": "Tap the heart icon on a restaurant's page to save it here."
   },
   "labels": {
     "category": {
@@ -233,6 +238,7 @@
     "overallLabel": "Overall rating",
     "commentLabel": "Comment (optional)",
     "commentPlaceholder": "What did you like or dislike?",
+    "photosLabel": "Photos (optional)",
     "submit": "Submit review",
     "submitting": "Submitting…",
     "validationError": "Please give an overall rating and rate at least one category.",
@@ -250,7 +256,8 @@
     "editHeading": "Edit profile",
     "reviewCountLabel": "Reviews written",
     "displayNameLabel": "Display name",
-    "homeCityLabel": "Home city",
+    "homeCityLabel": "Province/City",
+    "homeCityPlaceholder": "Select a province",
     "bioLabel": "Bio",
     "save": "Save changes",
     "saving": "Saving…",
@@ -259,16 +266,28 @@
     "unauthorizedError": "Your session has expired — please sign in again.",
     "myReviewsHeading": "My reviews",
     "noReviews": "You haven't written any reviews yet.",
+    "contributionCountLabel": "Restaurants added",
+    "myContributionsHeading": "Restaurants I've added",
+    "noContributions": "You haven't added any restaurants yet.",
     "status": {
       "pending": "Pending review",
       "rejected": "Rejected",
-      "hidden": "Hidden"
+      "hidden": "Hidden",
+      "in_review": "Pending review",
+      "edit_requested": "Needs changes"
     }
   },
   "notifications": {
     "title": "Notifications",
+    "unreadSubtitle": "{count} unread notifications",
+    "allCaughtUp": "You're all caught up",
     "empty": "You have no notifications yet.",
-    "markRead": "Mark as read"
+    "emptyUnread": "No unread notifications.",
+    "emptyReviews": "No review notifications.",
+    "markRead": "Mark all as read",
+    "tabAll": "All",
+    "tabUnread": "Unread",
+    "tabReviews": "Reviews"
   },
   "map": {
     "pageTitle": "Restaurant map",

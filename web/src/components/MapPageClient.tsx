@@ -133,16 +133,16 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
                   {r.thumbnailUrl ? <Image src={r.thumbnailUrl} alt="" width={52} height={52} /> : null}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span className="place-row-name" style={{ fontSize: 13 }}>
+                  <span className="place-row-name" style={{ fontSize: 15 }}>
                     {r.name}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <StarIcon size={11} />
-                    <span className="font-num" style={{ fontSize: 12, fontWeight: 600 }}>
+                    <span className="font-num" style={{ fontSize: 14, fontWeight: 600 }}>
                       {r.compositeScore !== null ? r.compositeScore.toFixed(1) : labels.noRating}
                     </span>
                     {priceLabel ? (
-                      <span className="font-meta" style={{ fontSize: 11, color: 'var(--color-ink-subtle)' }}>
+                      <span className="font-meta" style={{ fontSize: 13, color: 'var(--color-ink-subtle)' }}>
                         · {priceLabel}đ
                       </span>
                     ) : null}
@@ -182,19 +182,19 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
               {selected.thumbnailUrl ? <Image src={selected.thumbnailUrl} alt="" width={72} height={72} /> : null}
             </span>
             <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Link href={`/restaurant/${selected.slug}`} className="place-row-name" style={{ fontSize: 15 }}>
+              <Link href={`/restaurant/${selected.slug}`} className="place-row-name" style={{ fontSize: 17 }}>
                 {selected.name}
               </Link>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <StarIcon size={12} />
-                <span className="font-num" style={{ fontSize: 13, fontWeight: 600 }}>
+                <span className="font-num" style={{ fontSize: 15, fontWeight: 600 }}>
                   {selected.compositeScore?.toFixed(1) ?? labels.noRating}
                 </span>
-                <span className="font-meta" style={{ fontSize: 11, color: 'var(--color-ink-subtle)' }}>
+                <span className="font-meta" style={{ fontSize: 13, color: 'var(--color-ink-subtle)' }}>
                   ({selected.reviewCount})
                 </span>
               </span>
-              <Link href={`/restaurant/${selected.slug}`} className="section-link" style={{ fontSize: 12 }}>
+              <Link href={`/restaurant/${selected.slug}`} className="section-link" style={{ fontSize: 14 }}>
                 {labels.viewDetail}
               </Link>
             </span>

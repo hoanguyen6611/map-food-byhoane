@@ -32,6 +32,14 @@ export class NotificationController {
     return this.notificationService.list(user.id, query.page, query.pageSize);
   }
 
+  // Declared before `:id/read` in the file but that's irrelevant here — the
+  // two routes are structurally distinct (`read-all` has one segment,
+  // `:id/read` always has two), so there's no matching ambiguity either way.
+  @Patch('read-all')
+  markAllRead(@CurrentUser() user: RequestUser): Promise<void> {
+    return this.notificationService.markAllRead(user.id);
+  }
+
   @Patch(':id/read')
   markRead(
     @Param('id') id: string,

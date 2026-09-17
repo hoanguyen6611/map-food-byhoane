@@ -102,3 +102,13 @@ export interface RestaurantSitemapEntryDto {
   slug: string;
   updatedAt: string;
 }
+
+// Batch id->slug lookup (GET /restaurants/slugs?ids=...) — e.g. resolving
+// notification deep-links to real detail-page URLs without fetching each
+// restaurant's full detail payload just to read one field. Ids that don't
+// resolve to a published restaurant (pending/rejected/deleted/unknown) are
+// simply omitted, same "no such restaurant" semantics as GET /restaurants/:id.
+export interface RestaurantSlugLookupDto {
+  id: string;
+  slug: string;
+}

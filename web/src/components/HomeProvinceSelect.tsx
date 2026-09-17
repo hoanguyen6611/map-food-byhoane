@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { setHomeProvinceAction } from '@/app/[locale]/actions';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 interface ProvinceOption {
   code: string;
@@ -16,6 +17,7 @@ interface Props {
   defaultLabel: string;
   options: ProvinceOption[];
   ariaLabel: string;
+  noResultsText: string;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  * Home's own sections (Danh mục/Khu vực/Quán nổi bật) re-fetch scoped to it,
  * without waiting for "Tìm" to be clicked.
  */
-export function HomeProvinceSelect({ value, defaultValue, defaultLabel, options, ariaLabel }: Props) {
+export function HomeProvinceSelect({ value, defaultValue, defaultLabel, options, ariaLabel, noResultsText }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [localValue, setLocalValue] = useState(value);
@@ -35,22 +37,23 @@ export function HomeProvinceSelect({ value, defaultValue, defaultLabel, options,
     setLocalValue(value);
   }, [value]);
 
-  function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const next = event.target.value;
+  function handleChange(next: string) {
     setLocalValue(next);
     startTransition(() => {
       void setHomeProvinceAction(next).then(() => router.refresh());
     });
   }
 
+  const selectOptions = [{ value: defaultValue, label: defaultLabel }, ...options.map((p) => ({ value: p.name, label: p.shortName }))];
+
   return (
-    <select name="province" value={localValue} onChange={handleChange} className="search-field-select" aria-label={ariaLabel}>
-      <option value={defaultValue}>{defaultLabel}</option>
-      {options.map((p) => (
-        <option key={p.code} value={p.name}>
-          {p.shortName}
-        </option>
-      ))}
-    </select>
+    <SearchableSelect
+      value={localValue}
+      onChange={handleChange}
+      options={selectOptions}
+      placeholder={ariaLabel}
+      noResultsText={noResultsText}
+      name="province"
+    />
   );
 }

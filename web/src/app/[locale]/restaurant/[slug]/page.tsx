@@ -295,7 +295,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               <div className="info-card">
                 <h2 className="info-card-title">{t('hoursHeading')}</h2>
                 {restaurant.openingHours.map((hour) => (
-                  <div key={hour.dayOfWeek} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13 }}>
+                  <div key={hour.dayOfWeek} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 15 }}>
                     <span>{tLabels(`day.${hour.dayOfWeek}`)}</span>
                     <span className="font-num" style={{ color: 'var(--color-ink-muted)' }}>
                       {hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}

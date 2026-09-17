@@ -8,6 +8,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   Max,
   MaxLength,
@@ -76,4 +77,13 @@ export class CreateReviewDto {
   @ArrayMaxSize(6)
   @IsUUID(undefined, { each: true })
   photoIds?: string[];
+
+  // Externally-hosted photos (web's ImageKit.io upload flow) attached by URL
+  // instead of a backend Photo id — see MediaService.attachExternalUrls.
+  // Same 6-photo cap as photoIds, enforced jointly across both arrays.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsUrl({}, { each: true })
+  photoUrls?: string[];
 }
