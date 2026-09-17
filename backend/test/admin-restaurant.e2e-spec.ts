@@ -53,7 +53,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
   // assigned by an existing admin (no self-serve escalation), so tests
   // promote the account directly in the DB, then re-login to mint a token
   // whose JWT payload actually carries the new role.
-  async function registerAs(role: 'admin' | 'moderator'): Promise<{ token: string; userId: string }> {
+  async function registerAs(
+    role: 'admin' | 'moderator',
+  ): Promise<{ token: string; userId: string }> {
     const email = uniqueEmail(role);
     const reg = await request(app.getHttpServer())
       .post('/auth/register')
@@ -61,8 +63,13 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       .expect(201);
     const userId = authBody(reg).user.id;
 
-    const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: role } });
-    await prisma.user.update({ where: { id: userId }, data: { roleId: roleRow.id } });
+    const roleRow = await prisma.role.findUniqueOrThrow({
+      where: { code: role },
+    });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { roleId: roleRow.id },
+    });
 
     const login = await request(app.getHttpServer())
       .post('/auth/login')
@@ -71,7 +78,10 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
     return { token: authBody(login).accessToken, userId };
   }
 
-  async function createDraftRestaurant(token: string, nameSuffix: string): Promise<AdminRestaurantDetailDto> {
+  async function createDraftRestaurant(
+    token: string,
+    nameSuffix: string,
+  ): Promise<AdminRestaurantDetailDto> {
     const res = await request(app.getHttpServer())
       .post('/admin/restaurants')
       .set('Authorization', `Bearer ${token}`)
@@ -81,7 +91,12 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         categoryCode: 'quan_an',
         priceRangeCode: '50_100k',
         phone: '+84901234567',
-        address: { line: '1 Test St', ward: 'Phường 1', district: 'Quận 1', province: 'TP. Hồ Chí Minh' },
+        address: {
+          line: '1 Test St',
+          ward: 'Phường 1',
+          district: 'Quận 1',
+          province: 'TP. Hồ Chí Minh',
+        },
         location: { lat: 10.7769, lng: 106.7009 },
         cuisineCodes: ['mon_viet'],
       })
@@ -93,7 +108,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
   // — a leftover soft-deleted row is harmless, but a full cleanup keeps
   // repeated local `npm run test:e2e` runs from accumulating junk data.
   async function cleanupRestaurant(id: string): Promise<void> {
-    await prisma.photo.deleteMany({ where: { ownerType: 'restaurant', ownerId: id } });
+    await prisma.photo.deleteMany({
+      where: { ownerType: 'restaurant', ownerId: id },
+    });
     await prisma.menuItem.deleteMany({ where: { menu: { restaurantId: id } } });
     await prisma.menu.deleteMany({ where: { restaurantId: id } });
     await prisma.restaurantFacility.deleteMany({ where: { restaurantId: id } });
@@ -108,7 +125,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
     }
   }
 
-  async function latestAuditAction(targetId: string): Promise<string | undefined> {
+  async function latestAuditAction(
+    targetId: string,
+  ): Promise<string | undefined> {
     const row = await prisma.auditLog.findFirst({
       where: { targetId },
       orderBy: { createdAt: 'desc' },
@@ -136,7 +155,11 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       expect(body.name).toBe(created.name);
       expect(body.address.district).toBe('Quận 1');
       expect(body.location).toEqual({ lat: 10.7769, lng: 106.7009 });
-      expect(body.priceRange).toEqual({ code: '50_100k', minVnd: 50_000, maxVnd: 100_000 });
+      expect(body.priceRange).toEqual({
+        code: '50_100k',
+        minVnd: 50_000,
+        maxVnd: 100_000,
+      });
       expect(body.openingHours).toHaveLength(7);
       expect(typeof body.isOpenNow).toBe('boolean');
       // Honest empty states — no menus/photos/reviews were ever added, and
@@ -149,7 +172,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       expect(body.reviews).toEqual([]);
       expect(body.compositeScore).toBeNull();
       // Admin-only lifecycle fields must NOT leak into the public contract.
-      expect((body as unknown as Record<string, unknown>).publicationStatus).toBeUndefined();
+      expect(
+        (body as unknown as Record<string, unknown>).publicationStatus,
+      ).toBeUndefined();
 
       await cleanupRestaurant(created.id);
     });
@@ -163,7 +188,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(204);
 
-      await request(app.getHttpServer()).get(`/restaurants/${created.id}`).expect(404);
+      await request(app.getHttpServer())
+        .get(`/restaurants/${created.id}`)
+        .expect(404);
 
       await cleanupRestaurant(created.id);
     });
@@ -198,7 +225,12 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
 
       const days = Array.from({ length: 7 }, (_, dayOfWeek) =>
         dayOfWeek >= 1 && dayOfWeek <= 5
-          ? { dayOfWeek, openTime: '18:00', closeTime: '02:00', isClosed: false }
+          ? {
+              dayOfWeek,
+              openTime: '18:00',
+              closeTime: '02:00',
+              isClosed: false,
+            }
           : { dayOfWeek, isClosed: true },
       );
       await request(app.getHttpServer())
@@ -219,12 +251,24 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         .expect(200);
       const body = detail.body as AdminRestaurantDetailDto;
       const monday = body.openingHours.find((h) => h.dayOfWeek === 1);
-      expect(monday).toEqual({ dayOfWeek: 1, openTime: '18:00', closeTime: '02:00', isClosed: false });
+      expect(monday).toEqual({
+        dayOfWeek: 1,
+        openTime: '18:00',
+        closeTime: '02:00',
+        isClosed: false,
+      });
       const sunday = body.openingHours.find((h) => h.dayOfWeek === 0);
-      expect(sunday).toEqual({ dayOfWeek: 0, openTime: null, closeTime: null, isClosed: true });
+      expect(sunday).toEqual({
+        dayOfWeek: 0,
+        openTime: null,
+        closeTime: null,
+        isClosed: true,
+      });
       expect(body.facilities.sort()).toEqual(['air_conditioner', 'wifi']);
 
-      expect(await latestAuditAction(created.id)).toBe('restaurant.facilities.replace');
+      expect(await latestAuditAction(created.id)).toBe(
+        'restaurant.facilities.replace',
+      );
 
       await cleanupRestaurant(created.id);
     });
@@ -257,7 +301,9 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         .get(`/admin/restaurants/${created.id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
-      expect((detail.body as AdminRestaurantDetailDto).menus[0]?.items ?? []).toEqual([]);
+      expect(
+        (detail.body as AdminRestaurantDetailDto).menus[0]?.items ?? [],
+      ).toEqual([]);
 
       await cleanupRestaurant(created.id);
     });
@@ -269,10 +315,16 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
       const attach = await request(app.getHttpServer())
         .post(`/admin/restaurants/${created.id}/photos`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ url: 'https://picsum.photos/seed/e2e-admin-restaurant/800/600', width: 800, height: 600 })
+        .send({
+          url: 'https://picsum.photos/seed/e2e-admin-restaurant/800/600',
+          width: 800,
+          height: 600,
+        })
         .expect(201);
       const photo = attach.body as PhotoDto;
-      expect(photo.url).toBe('https://picsum.photos/seed/e2e-admin-restaurant/800/600');
+      expect(photo.url).toBe(
+        'https://picsum.photos/seed/e2e-admin-restaurant/800/600',
+      );
 
       await request(app.getHttpServer())
         .delete(`/admin/restaurants/photos/${photo.id}`)
@@ -334,8 +386,13 @@ describe('Admin restaurant CRUD + restaurant detail (e2e)', () => {
         .get(`/admin/restaurants/${created.id}`)
         .set('Authorization', `Bearer ${admin.token}`)
         .expect(200);
-      expect((stillGettableByAdmin.body as AdminRestaurantDetailDto).deletedAt).not.toBeNull();
-      expect((stillGettableByAdmin.body as AdminRestaurantDetailDto).publicationStatus).toBe('removed');
+      expect(
+        (stillGettableByAdmin.body as AdminRestaurantDetailDto).deletedAt,
+      ).not.toBeNull();
+      expect(
+        (stillGettableByAdmin.body as AdminRestaurantDetailDto)
+          .publicationStatus,
+      ).toBe('removed');
 
       await cleanupRestaurant(created.id);
     });

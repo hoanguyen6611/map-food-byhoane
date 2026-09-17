@@ -15,15 +15,25 @@ export const MEDIUM_RISK_THRESHOLD = 0.5;
 export const RAPID_FIRE_WINDOW_MS = 60 * 60 * 1000;
 export const RAPID_FIRE_THRESHOLD = 5;
 
-export function recommendActionForRiskScore(riskScore: number): 'auto_approve' | 'hold_for_review' {
-  return riskScore >= MEDIUM_RISK_THRESHOLD ? 'hold_for_review' : 'auto_approve';
+export function recommendActionForRiskScore(
+  riskScore: number,
+): 'auto_approve' | 'hold_for_review' {
+  return riskScore >= MEDIUM_RISK_THRESHOLD
+    ? 'hold_for_review'
+    : 'auto_approve';
 }
 
 const URL_PATTERN = /https?:\/\/|www\./i;
 // Spam-indicator phrases (advertising/scam patterns), not a profanity
 // wordlist — a portfolio repo is a public artifact, so this favors
 // structural spam signals over embedding slurs.
-const SPAM_PHRASES = ['click vào link', 'kiếm tiền online', 'quảng cáo', 'inbox zalo', 'liên hệ zalo'];
+const SPAM_PHRASES = [
+  'click vào link',
+  'kiếm tiền online',
+  'quảng cáo',
+  'inbox zalo',
+  'liên hệ zalo',
+];
 const REPEATED_CHAR_PATTERN = /(.)\1{4,}/; // same char 5+ times in a row, e.g. "aaaaa"/"!!!!!"
 
 export interface TextHeuristicResult {
@@ -41,7 +51,9 @@ export interface TextHeuristicResult {
  * labels its `reason` output so this path is distinguishable from a real
  * Claude judgment in the Admin Moderation Queue.
  */
-export function scoreTextContentRuleBased(text: string | null): TextHeuristicResult {
+export function scoreTextContentRuleBased(
+  text: string | null,
+): TextHeuristicResult {
   const labels: string[] = [];
   let riskScore = 0;
   const content = text ?? '';

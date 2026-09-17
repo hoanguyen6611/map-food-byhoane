@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { NotificationBell } from '../components/NotificationBell'
 
 interface NavItem {
   to: string
@@ -43,6 +44,7 @@ export function AppLayout() {
         <header className="admin-header">
           <span>Admin Portal</span>
           <div className="admin-header-user">
+            <NotificationBell />
             {session && (
               <span className="admin-header-email" title={session.user.role}>
                 {session.user.email}

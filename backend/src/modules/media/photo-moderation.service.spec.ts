@@ -4,7 +4,10 @@ function buildService(moderateImpl: jest.Mock) {
   const claudeGateway = { moderate: moderateImpl } as never;
   const createMock = jest.fn();
   const prisma = { moderationResult: { create: createMock } } as never;
-  return { service: new PhotoModerationService(prisma, claudeGateway), createMock };
+  return {
+    service: new PhotoModerationService(prisma, claudeGateway),
+    createMock,
+  };
 }
 
 describe('PhotoModerationService.check', () => {
@@ -17,7 +20,10 @@ describe('PhotoModerationService.check', () => {
     });
     const { service } = buildService(moderate);
     const result = await service.check('https://storage.example.com/photo.jpg');
-    expect(moderate).toHaveBeenCalledWith({ text: null, imageUrls: ['https://storage.example.com/photo.jpg'] });
+    expect(moderate).toHaveBeenCalledWith({
+      text: null,
+      imageUrls: ['https://storage.example.com/photo.jpg'],
+    });
     expect(result.recommendedAction).toBe('auto_approve');
   });
 
@@ -41,7 +47,15 @@ describe('PhotoModerationService.recordResult', () => {
       aiReason: 'OK',
       recommendedAction: 'auto_approve',
     });
-    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ decision: 'approved', targetType: 'photo', targetId: 'photo-1' }) }));
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          decision: 'approved',
+          targetType: 'photo',
+          targetId: 'photo-1',
+        }),
+      }),
+    );
 
     createMock.mockClear();
     await service.recordResult('photo-2', {
@@ -50,6 +64,10 @@ describe('PhotoModerationService.recordResult', () => {
       aiReason: 'Nghi ngờ spam.',
       recommendedAction: 'hold_for_review',
     });
-    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ decision: 'pending' }) }));
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ decision: 'pending' }),
+      }),
+    );
   });
 });

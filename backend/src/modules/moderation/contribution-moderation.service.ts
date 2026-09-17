@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClaudeGatewayService } from '../ai/claude-gateway.service';
-import { RAPID_FIRE_THRESHOLD, RAPID_FIRE_WINDOW_MS } from './rule-based-moderation.util';
+import {
+  RAPID_FIRE_THRESHOLD,
+  RAPID_FIRE_WINDOW_MS,
+} from './rule-based-moderation.util';
 import type { ModerationCheckResult } from '../review/review-moderation.service';
 
 export interface ContributionModerationInput {
@@ -46,16 +49,21 @@ export class ContributionModerationService {
     private readonly claudeGateway: ClaudeGatewayService,
   ) {}
 
-  async check(input: ContributionModerationInput): Promise<ModerationCheckResult> {
+  async check(
+    input: ContributionModerationInput,
+  ): Promise<ModerationCheckResult> {
     let base: ModerationCheckResult;
     try {
       base = await this.claudeGateway.moderate({ text: input.textContent });
     } catch (error) {
-      this.logger.error(`Claude moderation call failed for a contribution, holding for manual review: ${String(error)}`);
+      this.logger.error(
+        `Claude moderation call failed for a contribution, holding for manual review: ${String(error)}`,
+      );
       return {
         riskScore: 1,
         labels: ['ai_check_failed'],
-        aiReason: 'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
+        aiReason:
+          'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
         recommendedAction: 'hold_for_review',
       };
     }
@@ -65,7 +73,11 @@ export class ContributionModerationService {
     let aiReason = base.aiReason;
     let recommendedAction = base.recommendedAction;
 
-    if (input.menuItemPricesVnd?.some((price) => price >= ABNORMAL_PRICE_THRESHOLD_VND)) {
+    if (
+      input.menuItemPricesVnd?.some(
+        (price) => price >= ABNORMAL_PRICE_THRESHOLD_VND,
+      )
+    ) {
       labels.push('abnormal_price');
       riskScore = Math.min(1, riskScore + 0.3);
       aiReason += ' Phát hiện mức giá bất thường trong thực đơn.';
@@ -83,7 +95,8 @@ export class ContributionModerationService {
     if (recentCount >= RAPID_FIRE_THRESHOLD) {
       labels.push('rapid_fire');
       riskScore = Math.min(1, riskScore + 0.5);
-      aiReason += ' Ngoài ra, tài khoản đang gửi đóng góp với tần suất bất thường.';
+      aiReason +=
+        ' Ngoài ra, tài khoản đang gửi đóng góp với tần suất bất thường.';
       if (recommendedAction === 'auto_approve') {
         recommendedAction = 'hold_for_review';
       }
@@ -93,7 +106,10 @@ export class ContributionModerationService {
   }
 
   /** Returns the created ModerationResult's id, so the caller can link it via Contribution.moderationResultId. */
-  async recordResult(contributionId: string, result: ModerationCheckResult): Promise<string> {
+  async recordResult(
+    contributionId: string,
+    result: ModerationCheckResult,
+  ): Promise<string> {
     const moderationResult = await this.prisma.moderationResult.create({
       data: {
         targetType: 'contribution',
@@ -103,7 +119,8 @@ export class ContributionModerationService {
         aiReason: result.aiReason,
         recommendedAction: result.recommendedAction,
         modelVersion: this.modelVersion,
-        decision: result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
+        decision:
+          result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
       },
     });
     return moderationResult.id;

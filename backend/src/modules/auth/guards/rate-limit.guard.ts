@@ -68,7 +68,8 @@ export class RateLimitGuard implements CanActivate {
     // endpoints (login/register/forgot-password) have no `request.user`
     // yet (set by JwtAuthGuard, which must run before this guard), so they
     // keep the original IP(+email) identifier.
-    const authenticatedUser = (request as unknown as { user?: RequestUser }).user;
+    const authenticatedUser = (request as unknown as { user?: RequestUser })
+      .user;
     if (authenticatedUser?.id) {
       return `user:${authenticatedUser.id}`;
     }

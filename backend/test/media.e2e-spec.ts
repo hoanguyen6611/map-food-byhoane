@@ -3,7 +3,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import sharp from 'sharp';
-import type { AuthResponse, CreateUploadUrlResponse, PhotoDto } from '@foodmap/shared-types';
+import type {
+  AuthResponse,
+  CreateUploadUrlResponse,
+  PhotoDto,
+} from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { MediaService } from '../src/modules/media/media.service';
@@ -24,12 +28,23 @@ describe('Media (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
     prisma = moduleFixture.get(PrismaService);
 
     realJpeg = await sharp({
-      create: { width: 3000, height: 2000, channels: 3, background: { r: 10, g: 200, b: 100 } },
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 3,
+        background: { r: 10, g: 200, b: 100 },
+      },
     })
       .jpeg()
       .toBuffer();
@@ -39,17 +54,26 @@ describe('Media (e2e)', () => {
     await app.close();
   });
 
-  const uniqueEmail = (label: string) => `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const uniqueEmail = (label: string) =>
+    `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const authBody = (res: request.Response) => res.body as AuthResponse;
 
-  async function registerUser(label: string): Promise<{ token: string; userId: string }> {
+  async function registerUser(
+    label: string,
+  ): Promise<{ token: string; userId: string }> {
     const email = uniqueEmail(label);
-    const res = await request(app.getHttpServer()).post('/auth/register').send({ email, password: 'password123' }).expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email, password: 'password123' })
+      .expect(201);
     const body = authBody(res);
     return { token: body.accessToken, userId: body.user.id };
   }
 
-  async function requestUploadUrl(token: string, fileSizeBytes: number): Promise<CreateUploadUrlResponse> {
+  async function requestUploadUrl(
+    token: string,
+    fileSizeBytes: number,
+  ): Promise<CreateUploadUrlResponse> {
     const res = await request(app.getHttpServer())
       .post('/media/upload-url')
       .set('Authorization', `Bearer ${token}`)
@@ -58,7 +82,10 @@ describe('Media (e2e)', () => {
     return res.body as CreateUploadUrlResponse;
   }
 
-  async function putToSignedUrl(uploadUrl: string, body: Buffer): Promise<void> {
+  async function putToSignedUrl(
+    uploadUrl: string,
+    body: Buffer,
+  ): Promise<void> {
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'image/jpeg' },
@@ -70,14 +97,25 @@ describe('Media (e2e)', () => {
   }
 
   it('rejects unauthenticated requests', async () => {
-    await request(app.getHttpServer()).post('/media/upload-url').send({ contentType: 'image/jpeg', fileSizeBytes: 1000 }).expect(401);
-    await request(app.getHttpServer()).post('/media/confirm').send({ storageKey: 'x', ownerType: 'review' }).expect(401);
-    await request(app.getHttpServer()).delete('/media/00000000-0000-0000-0000-000000000000').expect(401);
+    await request(app.getHttpServer())
+      .post('/media/upload-url')
+      .send({ contentType: 'image/jpeg', fileSizeBytes: 1000 })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/media/confirm')
+      .send({ storageKey: 'x', ownerType: 'review' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .delete('/media/00000000-0000-0000-0000-000000000000')
+      .expect(401);
   });
 
   it('happy path: upload-url -> real PUT to MinIO -> confirm creates a Photo with clamped dimensions', async () => {
     const { token } = await registerUser('media-happy');
-    const { uploadUrl, storageKey } = await requestUploadUrl(token, realJpeg.length);
+    const { uploadUrl, storageKey } = await requestUploadUrl(
+      token,
+      realJpeg.length,
+    );
 
     await putToSignedUrl(uploadUrl, realJpeg);
 
@@ -92,7 +130,9 @@ describe('Media (e2e)', () => {
     expect(photo.width).toBeLessThanOrEqual(1920);
     expect(photo.height).toBeLessThanOrEqual(1920);
 
-    const row = await prisma.photo.findUniqueOrThrow({ where: { id: photo.id } });
+    const row = await prisma.photo.findUniqueOrThrow({
+      where: { id: photo.id },
+    });
     expect(row.storageKey).toMatch(/^photos\//);
     expect(row.mimeType).toBe('image/jpeg');
     expect(row.ownerId).toBeNull(); // no ownerId supplied — stays unattached until reparented
@@ -106,8 +146,13 @@ describe('Media (e2e)', () => {
 
   it('rejects a magic-byte mismatch (renamed non-image file) and cleans up the staging object', async () => {
     const { token } = await registerUser('media-magic-byte');
-    const fakeImage = Buffer.from('this is definitely not a jpeg, just plain text');
-    const { uploadUrl, storageKey } = await requestUploadUrl(token, fakeImage.length);
+    const fakeImage = Buffer.from(
+      'this is definitely not a jpeg, just plain text',
+    );
+    const { uploadUrl, storageKey } = await requestUploadUrl(
+      token,
+      fakeImage.length,
+    );
 
     await putToSignedUrl(uploadUrl, fakeImage);
 
@@ -126,8 +171,14 @@ describe('Media (e2e)', () => {
     const { token } = await registerUser('media-corrupt');
     // Valid JPEG signature (FF D8 FF) followed by garbage — passes the
     // byte-sniff but fails sharp's real decode.
-    const corrupt = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('garbage'.repeat(20))]);
-    const { uploadUrl, storageKey } = await requestUploadUrl(token, corrupt.length);
+    const corrupt = Buffer.concat([
+      Buffer.from([0xff, 0xd8, 0xff]),
+      Buffer.from('garbage'.repeat(20)),
+    ]);
+    const { uploadUrl, storageKey } = await requestUploadUrl(
+      token,
+      corrupt.length,
+    );
 
     await putToSignedUrl(uploadUrl, corrupt);
 
@@ -159,7 +210,10 @@ describe('Media (e2e)', () => {
   it('only the uploader or an admin can delete a photo', async () => {
     const { token: ownerToken } = await registerUser('media-owner');
     const { token: strangerToken } = await registerUser('media-stranger');
-    const { uploadUrl, storageKey } = await requestUploadUrl(ownerToken, realJpeg.length);
+    const { uploadUrl, storageKey } = await requestUploadUrl(
+      ownerToken,
+      realJpeg.length,
+    );
     await putToSignedUrl(uploadUrl, realJpeg);
     const confirmRes = await request(app.getHttpServer())
       .post('/media/confirm')
@@ -189,7 +243,10 @@ describe('Media (e2e)', () => {
       const { token, userId } = await registerUser('media-cap');
       const photoIds: string[] = [];
       for (let i = 0; i < 7; i++) {
-        const { uploadUrl, storageKey } = await requestUploadUrl(token, realJpeg.length);
+        const { uploadUrl, storageKey } = await requestUploadUrl(
+          token,
+          realJpeg.length,
+        );
         await putToSignedUrl(uploadUrl, realJpeg);
         const res = await request(app.getHttpServer())
           .post('/media/confirm')
@@ -203,9 +260,13 @@ describe('Media (e2e)', () => {
       // Any real uuid works as the target owner — reparent's cap check
       // doesn't require the owner row to actually exist, and `userId` is
       // reused here purely as a stand-in "some restaurant id."
-      await expect(mediaService.reparent(userId, photoIds, 'review', userId)).rejects.toThrow();
+      await expect(
+        mediaService.reparent(userId, photoIds, 'review', userId),
+      ).rejects.toThrow();
 
-      const stillUnattached = await prisma.photo.count({ where: { id: { in: photoIds }, ownerId: null } });
+      const stillUnattached = await prisma.photo.count({
+        where: { id: { in: photoIds }, ownerId: null },
+      });
       expect(stillUnattached).toBe(7); // transaction rolled back — none attached.
     });
   });

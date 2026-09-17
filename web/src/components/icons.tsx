@@ -250,3 +250,52 @@ export function ChevronRightIcon(props: IconProps) {
     </Base>
   );
 }
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </Base>
+  );
+}
+
+/** Folded-map brand mark — replaces the previous chopstick-pin logo per the
+ * updated design. Same path the login page's own logo tile already used
+ * (build-prompts/09-public-web.md's original mockup), now shared here so
+ * every logo instance (topbar/footer/login) renders identically. */
+export function MapLogoIcon(props: IconProps) {
+  return (
+    <Base strokeWidth={1.6} {...props}>
+      <path d="M9 3.5 4 6v14l5-2.5 6 3 5-2.5V4l-5 2.5z" />
+      <path d="M9 3.5v14M15 6.5v14" />
+    </Base>
+  );
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </Base>
+  );
+}
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </Base>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+    </Base>
+  );
+}

@@ -1,6 +1,19 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsIn, IsOptional, IsPhoneNumber, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import type { CuisineCode, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
+import {
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import type {
+  CuisineCode,
+  PriceRangeCode,
+  RestaurantCategoryCode,
+} from '@foodmap/shared-types';
 import { AddressInputDto, LocationInputDto } from './create-restaurant.dto';
 
 const CATEGORY_CODES: RestaurantCategoryCode[] = [
@@ -18,7 +31,14 @@ const PRICE_RANGE_CODES: PriceRangeCode[] = [
   '200_500k',
   'above_500k',
 ];
-const CUISINE_CODES: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
+const CUISINE_CODES: CuisineCode[] = [
+  'mon_viet',
+  'mon_han',
+  'mon_nhat',
+  'mon_chay',
+  'mon_thai',
+  'mon_au',
+];
 
 // All fields optional (PATCH semantics) — nested address/location, when
 // provided, must still be complete objects (partial-address updates aren't

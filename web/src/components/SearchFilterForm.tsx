@@ -39,9 +39,12 @@ interface Props {
   categoryCounts: { code: RestaurantCategoryCode; count: number }[];
   totalCount: number;
   locale: string;
+  // "Khu vực" (Quận 1/3/Bình Thạnh/Phú Nhuận) only exists for HCMC — see
+  // Home page's identical scoping decision (page.tsx's `isHcmc`).
+  isHcmc: boolean;
 }
 
-export async function SearchFilterForm({ search, categoryCounts, totalCount, locale }: Props) {
+export async function SearchFilterForm({ search, categoryCounts, totalCount, locale, isHcmc }: Props) {
   const [t, tLabels] = await Promise.all([getTranslations('filterForm'), getTranslations('labels')]);
 
   const priceBucket = PRICE_BUCKETS.find(
@@ -93,28 +96,32 @@ export async function SearchFilterForm({ search, categoryCounts, totalCount, loc
         })}
       </div>
 
-      <hr className="filter-rule" />
+      {isHcmc ? (
+        <>
+          <hr className="filter-rule" />
 
-      <div className="filter-section">
-        <span className="filter-section-title">{t('areaLabel')}</span>
-        <div className="chip-row">
-          <Link href={buildHref(search, { district: undefined })} className={`pill ${!search.district ? 'pill-selected' : ''}`}>
-            {t('all')}
-          </Link>
-          {DISTRICTS.map((d) => {
-            const active = search.district === d.name;
-            return (
-              <Link
-                key={d.slug}
-                href={buildHref(search, { district: active ? undefined : d.name })}
-                className={`pill ${active ? 'pill-selected' : ''}`}
-              >
-                {d.name}
+          <div className="filter-section">
+            <span className="filter-section-title">{t('areaLabel')}</span>
+            <div className="chip-row">
+              <Link href={buildHref(search, { district: undefined })} className={`pill ${!search.district ? 'pill-selected' : ''}`}>
+                {t('all')}
               </Link>
-            );
-          })}
-        </div>
-      </div>
+              {DISTRICTS.map((d) => {
+                const active = search.district === d.name;
+                return (
+                  <Link
+                    key={d.slug}
+                    href={buildHref(search, { district: active ? undefined : d.name })}
+                    className={`pill ${active ? 'pill-selected' : ''}`}
+                  >
+                    {d.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <hr className="filter-rule" />
 

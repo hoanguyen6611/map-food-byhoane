@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@foodmap/shared-types": "*",
+    "@imagekit/next": "^2.1.5",
     "leaflet": "^1.9.4",
     "next": "^15.5.22",
     "next-intl": "^4.13.6",

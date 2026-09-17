@@ -22,7 +22,9 @@ export class PhotoCleanupProcessor extends WorkerHost implements OnModuleInit {
   async process(_job: Job): Promise<void> {
     const swept = await this.mediaService.sweepOrphans();
     if (swept > 0) {
-      this.logger.log(`Orphan photo sweep removed ${swept} unattached photo(s)`);
+      this.logger.log(
+        `Orphan photo sweep removed ${swept} unattached photo(s)`,
+      );
     }
   }
 
@@ -30,7 +32,11 @@ export class PhotoCleanupProcessor extends WorkerHost implements OnModuleInit {
   // identical repeat configs, so this is safe across restarts too) — same
   // "runs within this same NestJS process" rationale as CompositeScoreProcessor.
   async onModuleInit(): Promise<void> {
-    await this.queue.add(SWEEP_ORPHANS_JOB, {}, { repeat: { every: SWEEP_INTERVAL_MS } });
+    await this.queue.add(
+      SWEEP_ORPHANS_JOB,
+      {},
+      { repeat: { every: SWEEP_INTERVAL_MS } },
+    );
     this.logger.log('Photo cleanup worker ready');
   }
 }

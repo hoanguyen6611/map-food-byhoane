@@ -1,6 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import type { AISummaryResponseDto, RestaurantDetailDto, RestaurantSitemapEntryDto, RestaurantSummaryDto } from '@foodmap/shared-types';
+import type {
+  AISummaryResponseDto,
+  RestaurantDetailDto,
+  RestaurantSitemapEntryDto,
+  RestaurantSummaryDto,
+} from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { BoundsQueryDto } from './dto/bounds-query.dto';
@@ -15,12 +20,23 @@ export class RestaurantController {
   // GET /restaurants/nearby to the :id handler with id="nearby" instead.
   @Get('nearby')
   findNearby(@Query() query: NearbyQueryDto): Promise<RestaurantSummaryDto[]> {
-    return this.restaurantService.findNearby(query.lat, query.lng, query.radiusKm);
+    return this.restaurantService.findNearby(
+      query.lat,
+      query.lng,
+      query.radiusKm,
+    );
   }
 
   @Get('bounds')
-  findInBounds(@Query() query: BoundsQueryDto): Promise<RestaurantSummaryDto[]> {
-    return this.restaurantService.findInBounds(query.swLat, query.swLng, query.neLat, query.neLng);
+  findInBounds(
+    @Query() query: BoundsQueryDto,
+  ): Promise<RestaurantSummaryDto[]> {
+    return this.restaurantService.findInBounds(
+      query.swLat,
+      query.swLng,
+      query.neLat,
+      query.neLng,
+    );
   }
 
   // Consumed by the public web app's sitemap.xml (build-prompts/09) — every

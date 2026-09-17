@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import type { AdminDashboardStatsDto, AuthResponse } from '@foodmap/shared-types';
+import type {
+  AdminDashboardStatsDto,
+  AuthResponse,
+} from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -39,7 +42,9 @@ describe('Admin Dashboard (e2e)', () => {
     `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const authBody = (res: request.Response) => res.body as AuthResponse;
 
-  async function registerAs(role: 'admin' | 'moderator' | 'user'): Promise<{ token: string }> {
+  async function registerAs(
+    role: 'admin' | 'moderator' | 'user',
+  ): Promise<{ token: string }> {
     const email = uniqueEmail(role);
     const reg = await request(app.getHttpServer())
       .post('/auth/register')
@@ -48,8 +53,13 @@ describe('Admin Dashboard (e2e)', () => {
     const userId = authBody(reg).user.id;
 
     if (role !== 'user') {
-      const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: role } });
-      await prisma.user.update({ where: { id: userId }, data: { roleId: roleRow.id } });
+      const roleRow = await prisma.role.findUniqueOrThrow({
+        where: { code: role },
+      });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { roleId: roleRow.id },
+      });
     }
 
     const login = await request(app.getHttpServer())
@@ -95,7 +105,9 @@ describe('Admin Dashboard (e2e)', () => {
       expect(dates).toEqual([...dates].sort());
 
       expect(body.ratingDistribution).toHaveLength(5);
-      expect(body.ratingDistribution.map((bucket) => bucket.rating)).toEqual([1, 2, 3, 4, 5]);
+      expect(body.ratingDistribution.map((bucket) => bucket.rating)).toEqual([
+        1, 2, 3, 4, 5,
+      ]);
       for (const bucket of body.ratingDistribution) {
         expect(bucket.count).toBeGreaterThanOrEqual(0);
       }

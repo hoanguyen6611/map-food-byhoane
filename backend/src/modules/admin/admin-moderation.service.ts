@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma, ModerationResult } from '@prisma/client';
 import type {
   AdminModerationQueueItemDto,
@@ -41,7 +46,9 @@ export class AdminModerationService {
     private readonly contributionFinalizeService: ContributionFinalizeService,
   ) {}
 
-  async list(query: AdminModerationQueryDto): Promise<Paginated<AdminModerationQueueItemDto>> {
+  async list(
+    query: AdminModerationQueryDto,
+  ): Promise<Paginated<AdminModerationQueueItemDto>> {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
     // Defaults to 'pending' — the queue's whole point is surfacing
@@ -52,11 +59,18 @@ export class AdminModerationService {
     };
 
     const [rows, total] = await Promise.all([
-      this.prisma.moderationResult.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      this.prisma.moderationResult.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       this.prisma.moderationResult.count({ where }),
     ]);
 
-    const items = await Promise.all(rows.map((row) => this.buildQueueItem(row)));
+    const items = await Promise.all(
+      rows.map((row) => this.buildQueueItem(row)),
+    );
     return { items, total, page, pageSize };
   }
 
@@ -66,12 +80,20 @@ export class AdminModerationService {
    * client-side in admin-web. Both `moderator` and `admin` can call this
    * (no @Roles override, unlike restaurant hard-delete) per the doc.
    */
-  async decide(moderationResultId: string, dto: ModerationDecisionDto, actorId: string): Promise<void> {
+  async decide(
+    moderationResultId: string,
+    dto: ModerationDecisionDto,
+    actorId: string,
+  ): Promise<void> {
     if (dto.decision !== 'approved' && !dto.reason) {
-      throw new BadRequestException('Cần nhập lý do khi từ chối hoặc yêu cầu chỉnh sửa.');
+      throw new BadRequestException(
+        'Cần nhập lý do khi từ chối hoặc yêu cầu chỉnh sửa.',
+      );
     }
 
-    const moderationResult = await this.prisma.moderationResult.findUnique({ where: { id: moderationResultId } });
+    const moderationResult = await this.prisma.moderationResult.findUnique({
+      where: { id: moderationResultId },
+    });
     if (!moderationResult) {
       throw new NotFoundException('Không tìm thấy mục kiểm duyệt');
     }
@@ -80,17 +102,28 @@ export class AdminModerationService {
     }
 
     assertDecisionAllowed(
-      { recommendedAction: moderationResult.recommendedAction, riskScore: Number(moderationResult.riskScore) },
+      {
+        recommendedAction: moderationResult.recommendedAction,
+        riskScore: Number(moderationResult.riskScore),
+      },
       dto.decision,
       actorId,
     );
 
     await this.prisma.moderationResult.update({
       where: { id: moderationResultId },
-      data: { decision: dto.decision, decidedBy: actorId, decidedAt: new Date() },
+      data: {
+        decision: dto.decision,
+        decidedBy: actorId,
+        decidedAt: new Date(),
+      },
     });
 
-    const sideEffect = await this.applyTargetSideEffect(moderationResult, dto.decision, actorId);
+    const sideEffect = await this.applyTargetSideEffect(
+      moderationResult,
+      dto.decision,
+      actorId,
+    );
 
     await this.auditLog.record({
       actorId,
@@ -102,12 +135,19 @@ export class AdminModerationService {
     });
 
     if (sideEffect) {
-      const notificationType: NotificationType = moderationResult.targetType === 'review' ? 'moderation_result' : 'contribution_status';
-      await this.notificationService.create(sideEffect.contributorUserId, notificationType, {
-        title: this.decisionTitle(dto.decision),
-        body: dto.reason ?? this.decisionDefaultBody(dto.decision),
-        deepLink: sideEffect.deepLink,
-      });
+      const notificationType: NotificationType =
+        moderationResult.targetType === 'review'
+          ? 'moderation_result'
+          : 'contribution_status';
+      await this.notificationService.create(
+        sideEffect.contributorUserId,
+        notificationType,
+        {
+          title: this.decisionTitle(dto.decision),
+          body: dto.reason ?? this.decisionDefaultBody(dto.decision),
+          deepLink: sideEffect.deepLink,
+        },
+      );
     }
   }
 
@@ -124,34 +164,60 @@ export class AdminModerationService {
     moderationResult: ModerationResult,
     decision: 'approved' | 'rejected' | 'edit_requested',
     actorId: string,
-  ): Promise<{ contributorUserId: string; deepLink: NotificationDeepLink } | null> {
+  ): Promise<{
+    contributorUserId: string;
+    deepLink: NotificationDeepLink;
+  } | null> {
     switch (moderationResult.targetType) {
       case 'review': {
-        const review = await this.prisma.review.findUnique({ where: { id: moderationResult.targetId } });
+        const review = await this.prisma.review.findUnique({
+          where: { id: moderationResult.targetId },
+        });
         if (!review) return null;
-        const status = decision === 'approved' ? 'published' : decision === 'rejected' ? 'rejected' : 'pending';
-        await this.prisma.review.update({ where: { id: moderationResult.targetId }, data: { status } });
+        const status =
+          decision === 'approved'
+            ? 'published'
+            : decision === 'rejected'
+              ? 'rejected'
+              : 'pending';
+        await this.prisma.review.update({
+          where: { id: moderationResult.targetId },
+          data: { status },
+        });
         // 'Reviews' (restaurantId) — the only screen NotificationsScreen's
         // NAVIGABLE_SCREENS actually recognizes; the review's own id isn't a
         // navigable target on its own.
-        return { contributorUserId: review.userId, deepLink: { screen: 'Reviews', restaurantId: review.restaurantId } };
+        return {
+          contributorUserId: review.userId,
+          deepLink: { screen: 'Reviews', restaurantId: review.restaurantId },
+        };
       }
       case 'contribution': {
-        const contribution = await this.prisma.contribution.findUnique({ where: { id: moderationResult.targetId } });
+        const contribution = await this.prisma.contribution.findUnique({
+          where: { id: moderationResult.targetId },
+        });
         if (!contribution) return null;
         await this.contributionFinalizeService.applyModeratorDecision(
           moderationResult.targetId,
-          { recommendedAction: moderationResult.recommendedAction, riskScore: Number(moderationResult.riskScore) },
+          {
+            recommendedAction: moderationResult.recommendedAction,
+            riskScore: Number(moderationResult.riskScore),
+          },
           decision,
           actorId,
         );
         return {
           contributorUserId: contribution.userId,
-          deepLink: { screen: 'SubmissionStatus', contributionId: contribution.id },
+          deepLink: {
+            screen: 'SubmissionStatus',
+            contributionId: contribution.id,
+          },
         };
       }
       case 'photo': {
-        const photo = await this.prisma.photo.findUnique({ where: { id: moderationResult.targetId } });
+        const photo = await this.prisma.photo.findUnique({
+          where: { id: moderationResult.targetId },
+        });
         if (!photo) return null;
         if (decision === 'rejected') {
           // deletedAt already hides it from every photo query (all filter
@@ -162,7 +228,10 @@ export class AdminModerationService {
             data: { status: 'rejected', deletedAt: new Date() },
           });
         } else if (decision === 'approved') {
-          await this.prisma.photo.update({ where: { id: moderationResult.targetId }, data: { status: 'approved' } });
+          await this.prisma.photo.update({
+            where: { id: moderationResult.targetId },
+            data: { status: 'approved' },
+          });
         }
         // No user notification for photo decisions — there's no mobile
         // screen to deep-link a bare photo status into (unlike review/
@@ -202,7 +271,9 @@ export class AdminModerationService {
     }
   }
 
-  private async buildQueueItem(moderationResult: ModerationResult): Promise<AdminModerationQueueItemDto> {
+  private async buildQueueItem(
+    moderationResult: ModerationResult,
+  ): Promise<AdminModerationQueueItemDto> {
     let contentKind = moderationResult.targetType as string;
     let contentSummary = '';
     let submitterDisplayName = 'Người dùng ẩn danh';
@@ -215,21 +286,32 @@ export class AdminModerationService {
           include: { user: { include: { profile: true } } },
         });
         contentSummary = review?.comment ?? '(Không có bình luận)';
-        submitterDisplayName = review?.user.profile?.displayName ?? submitterDisplayName;
-        relatedReports = await this.reportService.findByTarget('review', moderationResult.targetId);
+        submitterDisplayName =
+          review?.user.profile?.displayName ?? submitterDisplayName;
+        relatedReports = await this.reportService.findByTarget(
+          'review',
+          moderationResult.targetId,
+        );
         break;
       }
       case 'contribution': {
         const contribution = await this.prisma.contribution.findUnique({
           where: { id: moderationResult.targetId },
-          include: { user: { include: { profile: true } }, targetRestaurant: true },
+          include: {
+            user: { include: { profile: true } },
+            targetRestaurant: true,
+          },
         });
         if (contribution) {
           contentKind = contribution.type;
-          submitterDisplayName = contribution.user.profile?.displayName ?? submitterDisplayName;
+          submitterDisplayName =
+            contribution.user.profile?.displayName ?? submitterDisplayName;
           contentSummary = this.summarizeContribution(contribution);
           if (contribution.targetRestaurantId) {
-            relatedReports = await this.reportService.findByTarget('restaurant', contribution.targetRestaurantId);
+            relatedReports = await this.reportService.findByTarget(
+              'restaurant',
+              contribution.targetRestaurantId,
+            );
           }
         }
         break;
@@ -240,7 +322,8 @@ export class AdminModerationService {
           include: { uploader: { include: { profile: true } } },
         });
         contentSummary = photo?.storageKey ?? '(Không tìm thấy ảnh)';
-        submitterDisplayName = photo?.uploader?.profile?.displayName ?? submitterDisplayName;
+        submitterDisplayName =
+          photo?.uploader?.profile?.displayName ?? submitterDisplayName;
         break;
       }
       case 'video':
@@ -249,9 +332,14 @@ export class AdminModerationService {
       case 'restaurant': {
         // No single "submitter" for an already-published restaurant being
         // reported — submitterDisplayName stays the generic default.
-        const restaurant = await this.prisma.restaurant.findUnique({ where: { id: moderationResult.targetId } });
+        const restaurant = await this.prisma.restaurant.findUnique({
+          where: { id: moderationResult.targetId },
+        });
         contentSummary = restaurant?.name ?? '(Không tìm thấy quán)';
-        relatedReports = await this.reportService.findByTarget('restaurant', moderationResult.targetId);
+        relatedReports = await this.reportService.findByTarget(
+          'restaurant',
+          moderationResult.targetId,
+        );
         break;
       }
     }

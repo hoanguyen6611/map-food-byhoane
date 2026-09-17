@@ -30,7 +30,11 @@ describe('calculateCompositeScore', () => {
     const globalPriorMean = 3.0;
     const rawAverage = 4.8;
     const lowVolume = calculateCompositeScore(3, rawAverage, globalPriorMean)!;
-    const highVolume = calculateCompositeScore(500, rawAverage, globalPriorMean)!;
+    const highVolume = calculateCompositeScore(
+      500,
+      rawAverage,
+      globalPriorMean,
+    )!;
     expect(highVolume).toBeGreaterThan(lowVolume);
     expect(highVolume).toBeCloseTo(rawAverage, 1);
   });

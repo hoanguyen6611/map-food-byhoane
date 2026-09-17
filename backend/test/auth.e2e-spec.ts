@@ -36,7 +36,12 @@ describe('Auth (e2e)', () => {
     await app.init();
     prisma = moduleFixture.get(PrismaService);
     realJpeg = await sharp({
-      create: { width: 400, height: 400, channels: 3, background: { r: 200, g: 100, b: 50 } },
+      create: {
+        width: 400,
+        height: 400,
+        channels: 3,
+        background: { r: 200, g: 100, b: 50 },
+      },
     })
       .jpeg()
       .toBuffer();
@@ -50,7 +55,10 @@ describe('Auth (e2e)', () => {
     `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
 
   // Mirrors media.e2e-spec.ts's helpers — a real upload against MinIO, not mocked.
-  async function uploadUserProfilePhoto(token: string, userId: string): Promise<PhotoDto> {
+  async function uploadUserProfilePhoto(
+    token: string,
+    userId: string,
+  ): Promise<PhotoDto> {
     const uploadRes = await request(app.getHttpServer())
       .post('/media/upload-url')
       .set('Authorization', `Bearer ${token}`)
@@ -63,7 +71,8 @@ describe('Auth (e2e)', () => {
       headers: { 'Content-Type': 'image/jpeg' },
       body: new Uint8Array(realJpeg),
     });
-    if (!putRes.ok) throw new Error(`PUT to signed URL failed: ${putRes.status}`);
+    if (!putRes.ok)
+      throw new Error(`PUT to signed URL failed: ${putRes.status}`);
 
     const confirmRes = await request(app.getHttpServer())
       .post('/media/confirm')
@@ -252,7 +261,10 @@ describe('Auth (e2e)', () => {
         .send({ email: uniqueEmail('avatar-other'), password: 'password123' })
         .expect(201);
 
-      const photo = await uploadUserProfilePhoto(ownerBody.accessToken, ownerBody.user.id);
+      const photo = await uploadUserProfilePhoto(
+        ownerBody.accessToken,
+        ownerBody.user.id,
+      );
 
       // Someone else's user_profile photo.
       await request(app.getHttpServer())
@@ -268,8 +280,13 @@ describe('Auth (e2e)', () => {
         .set('Authorization', `Bearer ${ownerBody.accessToken}`)
         .send({ contentType: 'image/jpeg', fileSizeBytes: realJpeg.length })
         .expect(201);
-      const { uploadUrl, storageKey } = reviewOwnedRes.body as CreateUploadUrlResponse;
-      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: new Uint8Array(realJpeg) });
+      const { uploadUrl, storageKey } =
+        reviewOwnedRes.body as CreateUploadUrlResponse;
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: new Uint8Array(realJpeg),
+      });
       const reviewPhotoRes = await request(app.getHttpServer())
         .post('/media/confirm')
         .set('Authorization', `Bearer ${ownerBody.accessToken}`)
@@ -299,7 +316,10 @@ describe('Auth (e2e)', () => {
       // here isolates what this test actually verifies (updateProfile's own
       // validation + avatarUrl resolution), not the moderation pipeline's
       // availability, which is already covered by media.e2e-spec.ts.
-      await prisma.photo.update({ where: { id: photo.id }, data: { status: 'approved' } });
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { status: 'approved' },
+      });
 
       const updated = await request(app.getHttpServer())
         .patch('/me/profile')
@@ -308,7 +328,10 @@ describe('Auth (e2e)', () => {
         .expect(200);
       expect(meBody(updated).profile.avatarUrl).toBe(photo.url);
 
-      const me = await request(app.getHttpServer()).get('/me').set('Authorization', `Bearer ${accessToken}`).expect(200);
+      const me = await request(app.getHttpServer())
+        .get('/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
       expect(meBody(me).profile.avatarPhotoId).toBe(photo.id);
       expect(meBody(me).profile.avatarUrl).toBe(photo.url);
     });
@@ -320,7 +343,10 @@ describe('Auth (e2e)', () => {
         .expect(201);
       const { accessToken, user } = authBody(reg);
       const photo = await uploadUserProfilePhoto(accessToken, user.id);
-      await prisma.photo.update({ where: { id: photo.id }, data: { status: 'approved' } });
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { status: 'approved' },
+      });
       await request(app.getHttpServer())
         .patch('/me/profile')
         .set('Authorization', `Bearer ${accessToken}`)

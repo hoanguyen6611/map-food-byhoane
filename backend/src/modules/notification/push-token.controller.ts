@@ -1,4 +1,11 @@
-import { Body, Controller, Delete, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -18,7 +25,10 @@ export class PushTokenController {
   // re-point its one Expo push token to the new user, not accumulate stale
   // rows under the old one.
   @Post()
-  async register(@Body() dto: RegisterPushTokenDto, @CurrentUser() user: RequestUser): Promise<void> {
+  async register(
+    @Body() dto: RegisterPushTokenDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.prisma.pushToken.upsert({
       where: { token: dto.token },
       update: { userId: user.id, platform: dto.platform },
@@ -31,7 +41,12 @@ export class PushTokenController {
   // to someone else) just reflects the already-true end state, no error,
   // mirroring FavoriteService's add/remove idempotency convention.
   @Delete(':token')
-  async unregister(@Param('token') token: string, @CurrentUser() user: RequestUser): Promise<void> {
-    await this.prisma.pushToken.deleteMany({ where: { token, userId: user.id } });
+  async unregister(
+    @Param('token') token: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    await this.prisma.pushToken.deleteMany({
+      where: { token, userId: user.id },
+    });
   }
 }

@@ -7,16 +7,31 @@ import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/co
 import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
+import { getHomeProvince, HCMC_LEGACY_PROVINCE_NAME } from '@/lib/home-province';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
   searchParams: Promise<SearchParamsRecord>;
 }
 
-async function buildTitle(q?: string, district?: string): Promise<string> {
+// `province=all` is an explicit "show every province" override (reachable
+// only via the active-filter chip's own "×") — distinct from the param
+// being absent, which instead falls back to whatever province was last
+// selected on Home (a persistent, site-wide preference, not a one-off
+// search filter someone would expect "Xoá tất cả bộ lọc" to reset).
+const ALL_PROVINCES = 'all';
+
+async function resolveProvince(raw: string | undefined): Promise<string | undefined> {
+  if (raw === ALL_PROVINCES) return undefined;
+  if (raw) return raw;
+  return getHomeProvince();
+}
+
+async function buildTitle(q?: string, district?: string, province?: string): Promise<string> {
   const t = await getTranslations('search');
   if (q) return t('titleQuery', { query: q });
   if (district) return t('titleForDistrict', { district });
+  if (province) return t('titleForDistrict', { district: province });
   return t('titleAll');
 }
 
@@ -24,13 +39,13 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const { locale } = await params;
   const search = await searchParams;
   const [title, t] = await Promise.all([
-    buildTitle(search.q, search.district),
+    buildTitle(search.q, search.district, search.province),
     getTranslations({ locale, namespace: 'search' }),
   ]);
   return {
     title,
     description: t('metaDescription'),
-    robots: { index: !!(search.q || search.category || search.district), follow: true },
+    robots: { index: !!(search.q || search.category || search.district || search.province), follow: true },
   };
 }
 
@@ -42,11 +57,13 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   const page = Number(search.page ?? '1') || 1;
   const view = search.view === 'grid' ? 'grid' : 'list';
 
+  const effectiveProvince = await resolveProvince(search.province);
+
   const [t, tCommon, tLabels, title] = await Promise.all([
     getTranslations('search'),
     getTranslations('common'),
     getTranslations('labels'),
-    buildTitle(search.q, search.district),
+    buildTitle(search.q, search.district, effectiveProvince),
   ]);
 
   const [result, totalCountResult, categoryCounts] = await Promise.all([
@@ -54,6 +71,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       q: search.q,
       category: search.category,
       district: search.district,
+      province: effectiveProvince,
       cuisine: search.cuisine,
       facilities: search.facilities,
       priceMin: search.priceMin ? Number(search.priceMin) : undefined,
@@ -63,8 +81,8 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       page,
       pageSize: PAGE_SIZE,
     }),
-    searchRestaurants({ pageSize: 1 }),
-    Promise.all(CATEGORY_OPTIONS.map((code) => searchRestaurants({ category: code, pageSize: 1 }))),
+    searchRestaurants({ pageSize: 1, province: effectiveProvince }),
+    Promise.all(CATEGORY_OPTIONS.map((code) => searchRestaurants({ category: code, pageSize: 1, province: effectiveProvince }))),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
@@ -92,6 +110,9 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   }
   if (search.district) {
     activeChips.push({ key: 'district', label: search.district, clearHref: buildSearchHref(search, { district: undefined }) });
+  }
+  if (effectiveProvince) {
+    activeChips.push({ key: 'province', label: effectiveProvince, clearHref: buildSearchHref(search, { province: ALL_PROVINCES }) });
   }
   if (priceBucket) {
     activeChips.push({
@@ -132,6 +153,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
           categoryCounts={CATEGORY_OPTIONS.map((code, i) => ({ code, count: categoryCounts[i].total }))}
           totalCount={totalCountResult.total}
           locale={locale}
+          isHcmc={effectiveProvince === HCMC_LEGACY_PROVINCE_NAME}
         />
       </div>
 

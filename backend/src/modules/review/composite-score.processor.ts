@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 import { COMPOSITE_SCORE_QUEUE } from './composite-score.service';
 import { CompositeScoreService } from './composite-score.service';
@@ -24,9 +24,18 @@ export class CompositeScoreProcessor extends WorkerHost {
   // worker deployment needed at this scale, see docs/07-tech-stack.md §2).
   // A failed recompute just leaves the previous score stale until the next
   // successful job for the same restaurant; it never corrupts data, so we
-  // only log, we don't need custom retry/backoff tuning beyond BullMQ's
-  // defaults for this module's scope.
+  // only log — see `defaultJobOptions` on the queue registration
+  // (review.module.ts) for the retry/backoff tuning, and `onFailed` below
+  // for the log line a stuck stale count needs to actually be visible.
   onModuleInit(): void {
     this.logger.log('Composite score worker ready');
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<RecomputeJobData> | undefined, error: Error): void {
+    this.logger.error(
+      `Composite score recompute failed for restaurant ${job?.data.restaurantId ?? 'unknown'} (attempt ${job?.attemptsMade}): ${error.message}`,
+      error.stack,
+    );
   }
 }

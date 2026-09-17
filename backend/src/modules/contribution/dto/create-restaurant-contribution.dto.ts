@@ -11,6 +11,7 @@ import {
   IsOptional,
   IsPhoneNumber,
   IsString,
+  IsUrl,
   Matches,
   Max,
   MaxLength,
@@ -18,11 +19,36 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
+import type {
+  CuisineCode,
+  FacilityType,
+  PriceRangeCode,
+  RestaurantCategoryCode,
+} from '@foodmap/shared-types';
 
-const CATEGORY_CODES: RestaurantCategoryCode[] = ['quan_an', 'quan_ca_phe', 'nha_hang', 'xe_day', 'quan_via_he', 'quan_bar'];
-const PRICE_RANGE_CODES: PriceRangeCode[] = ['under_50k', '50_100k', '100_200k', '200_500k', 'above_500k'];
-const CUISINE_CODES: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
+const CATEGORY_CODES: RestaurantCategoryCode[] = [
+  'quan_an',
+  'quan_ca_phe',
+  'nha_hang',
+  'xe_day',
+  'quan_via_he',
+  'quan_bar',
+];
+const PRICE_RANGE_CODES: PriceRangeCode[] = [
+  'under_50k',
+  '50_100k',
+  '100_200k',
+  '200_500k',
+  'above_500k',
+];
+const CUISINE_CODES: CuisineCode[] = [
+  'mon_viet',
+  'mon_han',
+  'mon_nhat',
+  'mon_chay',
+  'mon_thai',
+  'mon_au',
+];
 const FACILITY_TYPES: FacilityType[] = [
   'wifi',
   'parking_car',
@@ -169,12 +195,24 @@ export class CreateRestaurantContributionDto {
   @ArrayMaxSize(100)
   menuItems?: ContributionMenuItemDto[];
 
-  // ≥1 photo required per build-prompts/07's Add Restaurant scope.
+  // ≥1 photo required per build-prompts/07's Add Restaurant scope — across
+  // photoIds+photoUrls combined, checked in ContributionService (class-validator
+  // has no clean cross-field "at least one of" primitive for two optional arrays).
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(10)
   @IsString({ each: true })
-  photoIds!: string[];
+  photoIds?: string[];
+
+  // Externally-hosted photos (web's ImageKit.io upload flow) attached by URL
+  // instead of a backend Photo id — see MediaService.attachExternalUrls,
+  // which also enforces these actually come from the configured ImageKit
+  // account before trusting them.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUrl({}, { each: true })
+  photoUrls?: string[];
 
   @IsOptional()
   @IsBoolean()

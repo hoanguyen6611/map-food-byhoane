@@ -33,7 +33,9 @@
     "share": "Share",
     "linkCopied": "Link copied",
     "mapNavLink": "Map",
-    "aboutNavLink": "How scoring works"
+    "aboutNavLink": "How scoring works",
+    "categoriesNavLink": "Categories",
+    "footerBrandDesc": "Find restaurants, cafes, and eateries in Ho Chi Minh City through real reviews."
   },
   "home": {
     "heroTitle": "Find the right place, not just the nearest one",
@@ -46,7 +48,7 @@
     "areasHeading": "Areas",
     "featuredHeading": "Featured restaurants",
     "emptyFeatured": "No restaurants have been published yet.",
-    "heroBadge": "Ho Chi Minh City · {count} restaurants reviewed",
+    "heroBadge": "{province} · {count} restaurants reviewed",
     "heroArea": "Ho Chi Minh City",
     "heroChipsLabel": "Popular searches:",
     "heroChips": ["Cafes in District 3", "Late-night cơm tấm", "Vegetarian", "Bún bò Huế"],
@@ -164,6 +166,9 @@
     "submitting": "Working…",
     "continue": "Continue",
     "or": "or",
+    "continueWithGoogle": "Google",
+    "continueWithApple": "Apple",
+    "socialLoginError": "Couldn't sign you in. Please try again.",
     "agreeText": "I agree to write honest reviews based on my real experience.",
     "pwStrength": {
       "weak": "Weak",
@@ -346,6 +351,7 @@
     "useMyLocation": "Use my current location",
     "photosLabel": "Photos (at least 1)",
     "selectPlaceholder": "Select…",
+    "selectProvinceFirst": "— Select a province first —",
     "addPhoto": "Add photo",
     "uploading": "Uploading…",
     "removePhoto": "Remove photo",

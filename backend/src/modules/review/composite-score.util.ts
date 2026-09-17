@@ -9,7 +9,11 @@ export const MIN_VOTES_THRESHOLD = 5;
  * v = published review count, R = raw average, C = global prior mean.
  * Returns null when v=0 — never fabricate a score for a review-less place.
  */
-export function calculateCompositeScore(reviewCount: number, restaurantAverage: number, globalPriorMean: number): number | null {
+export function calculateCompositeScore(
+  reviewCount: number,
+  restaurantAverage: number,
+  globalPriorMean: number,
+): number | null {
   if (reviewCount <= 0) return null;
   const v = reviewCount;
   const m = MIN_VOTES_THRESHOLD;

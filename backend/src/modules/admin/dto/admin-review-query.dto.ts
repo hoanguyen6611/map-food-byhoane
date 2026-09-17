@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import type { ReviewStatus } from '@foodmap/shared-types';
 
 const STATUSES: ReviewStatus[] = ['pending', 'published', 'rejected', 'hidden'];

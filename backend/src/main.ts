@@ -34,7 +34,10 @@ async function bootstrap() {
         'Most endpoints under /me and /admin require a JWT bearer token from POST /auth/login; use the Authorize button below with the accessToken it returns.',
     )
     .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

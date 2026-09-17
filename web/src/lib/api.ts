@@ -47,6 +47,7 @@ export interface SearchParams {
   facilities?: string;
   category?: string;
   district?: string;
+  province?: string;
   priceMin?: number;
   priceMax?: number;
   minRating?: number;

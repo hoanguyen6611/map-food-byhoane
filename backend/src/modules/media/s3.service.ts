@@ -33,8 +33,11 @@ export class S3Service {
 
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.get<string>('S3_BUCKET', 'foodmap-media');
-    this.publicBaseUrl = this.config.get<string>('S3_PUBLIC_BASE_URL', '').replace(/\/$/, '');
-    const forcePathStyle = this.config.get<string>('S3_FORCE_PATH_STYLE', 'false') === 'true';
+    this.publicBaseUrl = this.config
+      .get<string>('S3_PUBLIC_BASE_URL', '')
+      .replace(/\/$/, '');
+    const forcePathStyle =
+      this.config.get<string>('S3_FORCE_PATH_STYLE', 'false') === 'true';
     // MinIO ignores this value entirely, but it's still part of the SigV4
     // signature the SDK computes — a provider that DOES check it (R2 requires
     // exactly 'auto') would fail every request with SignatureDoesNotMatch if
@@ -51,23 +54,42 @@ export class S3Service {
       credentials,
     });
     this.presignClient = new S3Client({
-      endpoint: this.config.get<string>('S3_PUBLIC_ENDPOINT') || this.config.get<string>('S3_ENDPOINT'),
+      endpoint:
+        this.config.get<string>('S3_PUBLIC_ENDPOINT') ||
+        this.config.get<string>('S3_ENDPOINT'),
       region,
       forcePathStyle,
       credentials,
     });
   }
 
-  async presignPut(key: string, contentType: string, expiresSeconds: number): Promise<string> {
-    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType });
-    return getSignedUrl(this.presignClient, command, { expiresIn: expiresSeconds });
+  async presignPut(
+    key: string,
+    contentType: string,
+    expiresSeconds: number,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+    return getSignedUrl(this.presignClient, command, {
+      expiresIn: expiresSeconds,
+    });
   }
 
   /** Returns null if the object doesn't exist (upload never happened / expired). */
-  async headObject(key: string): Promise<{ contentLength: number; contentType?: string } | null> {
+  async headObject(
+    key: string,
+  ): Promise<{ contentLength: number; contentType?: string } | null> {
     try {
-      const result = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
-      return { contentLength: result.ContentLength ?? 0, contentType: result.ContentType };
+      const result = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return {
+        contentLength: result.ContentLength ?? 0,
+        contentType: result.ContentType,
+      };
     } catch (error) {
       if (error instanceof NotFound) return null;
       throw error;
@@ -75,7 +97,9 @@ export class S3Service {
   }
 
   async getObjectBuffer(key: string): Promise<Buffer> {
-    const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const result = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
     const chunks: Buffer[] = [];
     for await (const chunk of result.Body as AsyncIterable<Buffer>) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -86,12 +110,25 @@ export class S3Service {
   // ContentType is always caller-supplied and server-chosen (never the
   // client's declared type) — see MediaService.confirm, which always calls
   // this with 'image/jpeg' regardless of what the original upload claimed.
-  async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
-    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }));
+  async putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
   }
 
   async deleteObject(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
   }
 
   /**

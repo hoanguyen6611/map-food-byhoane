@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CreateUploadUrlResponse, PhotoDto } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,17 +31,31 @@ export class MediaController {
     @Body() dto: CreateUploadUrlDto,
     @CurrentUser() user: RequestUser,
   ): Promise<CreateUploadUrlResponse> {
-    return this.mediaService.createUploadUrl(user.id, dto.contentType, dto.fileSizeBytes);
+    return this.mediaService.createUploadUrl(
+      user.id,
+      dto.contentType,
+      dto.fileSizeBytes,
+    );
   }
 
   @Post('confirm')
-  confirm(@Body() dto: ConfirmUploadDto, @CurrentUser() user: RequestUser): Promise<PhotoDto> {
+  confirm(
+    @Body() dto: ConfirmUploadDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PhotoDto> {
     return this.mediaService.confirm(user.id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
-    return this.mediaService.remove(user.id, id, user.role === 'admin' || user.role === 'moderator');
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    return this.mediaService.remove(
+      user.id,
+      id,
+      user.role === 'admin' || user.role === 'moderator',
+    );
   }
 }

@@ -11,7 +11,11 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import type { CuisineCode, FacilityType, RestaurantCategoryCode } from '@foodmap/shared-types';
+import type {
+  CuisineCode,
+  FacilityType,
+  RestaurantCategoryCode,
+} from '@foodmap/shared-types';
 
 const FACILITY_TYPES: FacilityType[] = [
   'wifi',

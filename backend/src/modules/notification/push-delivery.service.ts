@@ -23,7 +23,11 @@ export class PushDeliveryService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async sendToUser(userId: string, payload: NotificationPayload, notificationId: string): Promise<void> {
+  async sendToUser(
+    userId: string,
+    payload: NotificationPayload,
+    notificationId: string,
+  ): Promise<void> {
     const tokens = await this.prisma.pushToken.findMany({ where: { userId } });
     if (tokens.length === 0) return;
 
@@ -53,19 +57,27 @@ export class PushDeliveryService {
       try {
         const tickets = await this.expo.sendPushNotificationsAsync(chunk);
         tickets.forEach((ticket, index) => {
-          if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+          if (
+            ticket.status === 'error' &&
+            ticket.details?.error === 'DeviceNotRegistered'
+          ) {
             staleTokens.push(chunkTokens[index]);
           }
         });
       } catch (error) {
         // Never let a delivery failure propagate to the caller — the
         // notification row is already written regardless of push outcome.
-        this.logger.error('Expo push send failed', error instanceof Error ? error.stack : error);
+        this.logger.error(
+          'Expo push send failed',
+          error instanceof Error ? error.stack : error,
+        );
       }
     }
 
     if (staleTokens.length > 0) {
-      await this.prisma.pushToken.deleteMany({ where: { token: { in: staleTokens } } });
+      await this.prisma.pushToken.deleteMany({
+        where: { token: { in: staleTokens } },
+      });
     }
   }
 }

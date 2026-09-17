@@ -1,4 +1,14 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AdminReviewListItemDto, Paginated } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,21 +31,29 @@ export class AdminReviewController {
   constructor(private readonly adminReviewService: AdminReviewService) {}
 
   @Get()
-  list(@Query() query: AdminReviewQueryDto): Promise<Paginated<AdminReviewListItemDto>> {
+  list(
+    @Query() query: AdminReviewQueryDto,
+  ): Promise<Paginated<AdminReviewListItemDto>> {
     return this.adminReviewService.list(query);
   }
 
   @Patch(':id/hide')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async hide(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async hide(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.adminReviewService.hide(id, user.id);
   }
 
   @Patch(':id/restore')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async restore(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async restore(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.adminReviewService.restore(id, user.id);
   }
 
@@ -45,7 +63,10 @@ export class AdminReviewController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.adminReviewService.remove(id, user.id);
   }
 }

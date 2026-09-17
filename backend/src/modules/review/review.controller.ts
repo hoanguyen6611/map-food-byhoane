@@ -12,7 +12,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { MyReviewListResponse, ReviewDto, ReviewListResponse } from '@foodmap/shared-types';
+import type {
+  MyReviewListResponse,
+  ReviewDto,
+  ReviewListResponse,
+} from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../auth/guards/rate-limit.guard';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
@@ -36,7 +40,10 @@ export class ReviewController {
   @Post()
   @UseGuards(JwtAuthGuard, RateLimitGuard)
   @RateLimit({ limit: 10, windowSeconds: 3600, keyPrefix: 'review-create' })
-  create(@Body() dto: CreateReviewDto, @CurrentUser() user: RequestUser): Promise<ReviewDto> {
+  create(
+    @Body() dto: CreateReviewDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReviewDto> {
     return this.reviewService.create(dto, user.id);
   }
 
@@ -53,7 +60,10 @@ export class ReviewController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.reviewService.remove(id, user.id);
   }
 }
@@ -86,7 +96,10 @@ export class MyReviewController {
   constructor(private readonly reviewService: ReviewService) {}
 
   @Get()
-  listMine(@CurrentUser() user: RequestUser, @Query() query: MyReviewListQueryDto): Promise<MyReviewListResponse> {
+  listMine(
+    @CurrentUser() user: RequestUser,
+    @Query() query: MyReviewListQueryDto,
+  ): Promise<MyReviewListResponse> {
     return this.reviewService.listMine(user.id, query.page, query.pageSize);
   }
 }

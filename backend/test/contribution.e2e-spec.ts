@@ -28,16 +28,31 @@ describe('Contribution (e2e)', () => {
   let realJpeg: Buffer;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
       .overrideProvider(ClaudeGatewayService)
       .useValue(buildMockClaudeGateway())
       .compile();
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
     prisma = moduleFixture.get(PrismaService);
 
-    realJpeg = await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 20, g: 180, b: 90 } } })
+    realJpeg = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 3,
+        background: { r: 20, g: 180, b: 90 },
+      },
+    })
       .jpeg()
       .toBuffer();
   });
@@ -46,12 +61,18 @@ describe('Contribution (e2e)', () => {
     await app.close();
   });
 
-  const uniqueEmail = (label: string) => `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const uniqueEmail = (label: string) =>
+    `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const authBody = (res: request.Response) => res.body as AuthResponse;
 
-  async function registerUser(label: string): Promise<{ token: string; userId: string }> {
+  async function registerUser(
+    label: string,
+  ): Promise<{ token: string; userId: string }> {
     const email = uniqueEmail(label);
-    const res = await request(app.getHttpServer()).post('/auth/register').send({ email, password: 'password123' }).expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email, password: 'password123' })
+      .expect(201);
     const body = authBody(res);
     return { token: body.accessToken, userId: body.user.id };
   }
@@ -64,7 +85,11 @@ describe('Contribution (e2e)', () => {
       .expect(201);
     const { uploadUrl, storageKey } = uploadRes.body as CreateUploadUrlResponse;
 
-    const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: new Uint8Array(realJpeg) });
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(realJpeg),
+    });
     if (!putRes.ok) throw new Error(`PUT failed: ${putRes.status}`);
 
     const confirmRes = await request(app.getHttpServer())
@@ -75,12 +100,18 @@ describe('Contribution (e2e)', () => {
     return (confirmRes.body as { id: string }).id;
   }
 
-  function basicRestaurantBody(overrides: Record<string, unknown> = {}, photoIds: string[] = []) {
+  function basicRestaurantBody(
+    overrides: Record<string, unknown> = {},
+    photoIds: string[] = [],
+  ) {
     return {
       name: `E2E Test Restaurant ${Date.now()}-${Math.random().toString(36).slice(2)}`,
       categoryCode: 'quan_an',
       address: { line: '1 Test St', ward: 'Phường Test', province: 'TP. Test' },
-      location: { lat: 10.9 + Math.random() * 0.05, lng: 106.9 + Math.random() * 0.05 },
+      location: {
+        lat: 10.9 + Math.random() * 0.05,
+        lng: 106.9 + Math.random() * 0.05,
+      },
       photoIds,
       ...overrides,
     };
@@ -89,7 +120,9 @@ describe('Contribution (e2e)', () => {
   async function cleanupRestaurant(id: string): Promise<void> {
     const restaurant = await prisma.restaurant.findUnique({ where: { id } });
     if (!restaurant) return;
-    await prisma.photo.deleteMany({ where: { ownerType: 'restaurant', ownerId: id } });
+    await prisma.photo.deleteMany({
+      where: { ownerType: 'restaurant', ownerId: id },
+    });
     await prisma.menuItem.deleteMany({ where: { menu: { restaurantId: id } } });
     await prisma.menu.deleteMany({ where: { restaurantId: id } });
     await prisma.restaurantFacility.deleteMany({ where: { restaurantId: id } });
@@ -102,7 +135,9 @@ describe('Contribution (e2e)', () => {
     const contributionIds = await prisma.contribution
       .findMany({ where: { targetRestaurantId: id }, select: { id: true } })
       .then((rows) => rows.map((r) => r.id));
-    await prisma.editSuggestion.deleteMany({ where: { contributionId: { in: contributionIds } } });
+    await prisma.editSuggestion.deleteMany({
+      where: { contributionId: { in: contributionIds } },
+    });
     await prisma.contribution.deleteMany({ where: { targetRestaurantId: id } });
     await prisma.restaurantStatus.deleteMany({ where: { restaurantId: id } });
     await prisma.restaurant.delete({ where: { id } });
@@ -126,14 +161,23 @@ describe('Contribution (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/restaurants')
         .set('Authorization', `Bearer ${token}`)
-        .send(basicRestaurantBody({ description: 'Quán ăn rất ngon, không gian thoáng mát.' }, [photoId]))
+        .send(
+          basicRestaurantBody(
+            { description: 'Quán ăn rất ngon, không gian thoáng mát.' },
+            [photoId],
+          ),
+        )
         .expect(201);
       const body = res.body as CreateRestaurantContributionResponse;
       expect(body.status).toBe('auto_approved');
 
-      await request(app.getHttpServer()).get(`/restaurants/${body.restaurantId}`).expect(200);
+      await request(app.getHttpServer())
+        .get(`/restaurants/${body.restaurantId}`)
+        .expect(200);
 
-      const photo = await prisma.photo.findUniqueOrThrow({ where: { id: photoId } });
+      const photo = await prisma.photo.findUniqueOrThrow({
+        where: { id: photoId },
+      });
       expect(photo.ownerId).toBe(body.restaurantId);
 
       await cleanupRestaurant(body.restaurantId);
@@ -147,7 +191,10 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(
           basicRestaurantBody(
-            { description: 'kiếm tiền online dễ dàng, xem tại https://spam.example.com nhé' },
+            {
+              description:
+                'kiếm tiền online dễ dàng, xem tại https://spam.example.com nhé',
+            },
             [photoId],
           ),
         )
@@ -155,9 +202,13 @@ describe('Contribution (e2e)', () => {
       const body = res.body as CreateRestaurantContributionResponse;
       expect(body.status).toBe('in_review');
 
-      await request(app.getHttpServer()).get(`/restaurants/${body.restaurantId}`).expect(404);
+      await request(app.getHttpServer())
+        .get(`/restaurants/${body.restaurantId}`)
+        .expect(404);
 
-      const status = await prisma.restaurantStatus.findUniqueOrThrow({ where: { restaurantId: body.restaurantId } });
+      const status = await prisma.restaurantStatus.findUniqueOrThrow({
+        where: { restaurantId: body.restaurantId },
+      });
       expect(status.publicationStatus).toBe('in_review');
 
       await cleanupRestaurant(body.restaurantId);
@@ -177,30 +228,50 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({ name, location: { lat, lng } }, [photoId1]))
         .expect(201);
-      const firstId = (first.body as CreateRestaurantContributionResponse).restaurantId;
+      const firstId = (first.body as CreateRestaurantContributionResponse)
+        .restaurantId;
 
       const checkRes = await request(app.getHttpServer())
         .post('/restaurants/duplicate-check')
         .set('Authorization', `Bearer ${token}`)
         .send({ lat: lat + 0.0001, lng: lng + 0.0001, name })
         .expect(201);
-      expect((checkRes.body as { candidates: unknown[] }).candidates.length).toBeGreaterThan(0);
+      expect(
+        (checkRes.body as { candidates: unknown[] }).candidates.length,
+      ).toBeGreaterThan(0);
 
       const photoId2 = await uploadRealPhoto(token);
       await request(app.getHttpServer())
         .post('/restaurants')
         .set('Authorization', `Bearer ${token}`)
-        .send(basicRestaurantBody({ name, location: { lat: lat + 0.0001, lng: lng + 0.0001 } }, [photoId2]))
+        .send(
+          basicRestaurantBody(
+            { name, location: { lat: lat + 0.0001, lng: lng + 0.0001 } },
+            [photoId2],
+          ),
+        )
         .expect(409);
 
       const confirmedRes = await request(app.getHttpServer())
         .post('/restaurants')
         .set('Authorization', `Bearer ${token}`)
-        .send(basicRestaurantBody({ name, location: { lat: lat + 0.0001, lng: lng + 0.0001 }, duplicateConfirmed: true }, [photoId2]))
+        .send(
+          basicRestaurantBody(
+            {
+              name,
+              location: { lat: lat + 0.0001, lng: lng + 0.0001 },
+              duplicateConfirmed: true,
+            },
+            [photoId2],
+          ),
+        )
         .expect(201);
 
       await cleanupRestaurant(firstId);
-      await cleanupRestaurant((confirmedRes.body as CreateRestaurantContributionResponse).restaurantId);
+      await cleanupRestaurant(
+        (confirmedRes.body as CreateRestaurantContributionResponse)
+          .restaurantId,
+      );
     });
   });
 
@@ -213,7 +284,9 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({}, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
 
       await request(app.getHttpServer())
         .post(`/restaurants/${restaurantId}/edit-suggestions`)
@@ -232,7 +305,9 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({ phone: '0901234567' }, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
 
       const editRes = await request(app.getHttpServer())
         .post(`/restaurants/${restaurantId}/edit-suggestions`)
@@ -241,10 +316,17 @@ describe('Contribution (e2e)', () => {
         .expect(201);
 
       if ((editRes.body as { status: string }).status === 'auto_approved') {
-        const detail = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}`).expect(200);
+        const detail = await request(app.getHttpServer())
+          .get(`/restaurants/${restaurantId}`)
+          .expect(200);
         expect((detail.body as { phone: string }).phone).toBe('0909999999');
 
-        const suggestion = await prisma.editSuggestion.findFirst({ where: { contributionId: (editRes.body as { contributionId: string }).contributionId } });
+        const suggestion = await prisma.editSuggestion.findFirst({
+          where: {
+            contributionId: (editRes.body as { contributionId: string })
+              .contributionId,
+          },
+        });
         expect(suggestion?.oldValue).toBe('0901234567');
       }
       // If it happened to be held for review instead (e.g. rapid-fire from
@@ -264,7 +346,9 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({}, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
 
       const crowdedRes = await request(app.getHttpServer())
         .post(`/restaurants/${restaurantId}/status-reports`)
@@ -272,7 +356,9 @@ describe('Contribution (e2e)', () => {
         .send({ kind: 'crowded', crowdedLevel: 'moderate' })
         .expect(201);
       if ((crowdedRes.body as { status: string }).status === 'auto_approved') {
-        const row = await prisma.crowdedStatus.findFirst({ where: { restaurantId } });
+        const row = await prisma.crowdedStatus.findFirst({
+          where: { restaurantId },
+        });
         expect(row?.level).toBe('moderate');
       }
 
@@ -287,8 +373,12 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({}, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
-      const before = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}`).expect(200);
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
+      const before = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurantId}`)
+        .expect(200);
 
       await request(app.getHttpServer())
         .post(`/restaurants/${restaurantId}/status-reports`)
@@ -296,7 +386,9 @@ describe('Contribution (e2e)', () => {
         .send({ kind: 'moved', description: 'Quán đã chuyển địa chỉ mới.' })
         .expect(201);
 
-      const after = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}`).expect(200);
+      const after = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurantId}`)
+        .expect(200);
       expect(after.body).toEqual(before.body);
 
       await cleanupRestaurant(restaurantId);
@@ -310,20 +402,30 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${ownerToken}`)
         .send(basicRestaurantBody({}, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
 
       let lastContributionId = '';
       for (let i = 0; i < 3; i++) {
-        const { token: reporterToken } = await registerUser(`contrib-closure-reporter-${i}`);
+        const { token: reporterToken } = await registerUser(
+          `contrib-closure-reporter-${i}`,
+        );
         const res = await request(app.getHttpServer())
           .post(`/restaurants/${restaurantId}/status-reports`)
           .set('Authorization', `Bearer ${reporterToken}`)
-          .send({ kind: 'closure', description: `Quán đóng cửa rồi, báo cáo số ${i}.` })
+          .send({
+            kind: 'closure',
+            description: `Quán đóng cửa rồi, báo cáo số ${i}.`,
+          })
           .expect(201);
-        lastContributionId = (res.body as { contributionId: string }).contributionId;
+        lastContributionId = (res.body as { contributionId: string })
+          .contributionId;
       }
 
-      const status = await prisma.restaurantStatus.findUniqueOrThrow({ where: { restaurantId } });
+      const status = await prisma.restaurantStatus.findUniqueOrThrow({
+        where: { restaurantId },
+      });
       expect(status.publicationStatus).not.toBe('rejected');
       expect(status.publicationStatus).not.toBe('hidden');
 
@@ -331,12 +433,16 @@ describe('Contribution (e2e)', () => {
         where: { id: lastContributionId },
         include: { moderationResult: true },
       });
-      expect(lastContribution.moderationResult?.labels).toContain('closure_escalation');
+      expect(lastContribution.moderationResult?.labels).toContain(
+        'closure_escalation',
+      );
       expect(Number(lastContribution.moderationResult?.riskScore)).toBe(1);
       expect(lastContribution.moderationResult?.decision).toBe('pending');
 
       // A 4th report from a new distinct user must not re-trigger (count is now 4, not exactly 3).
-      const { token: fourthReporterToken } = await registerUser('contrib-closure-reporter-4');
+      const { token: fourthReporterToken } = await registerUser(
+        'contrib-closure-reporter-4',
+      );
       await request(app.getHttpServer())
         .post(`/restaurants/${restaurantId}/status-reports`)
         .set('Authorization', `Bearer ${fourthReporterToken}`)
@@ -346,7 +452,9 @@ describe('Contribution (e2e)', () => {
         where: { id: lastContributionId },
         include: { moderationResult: true },
       });
-      expect(stillSameEscalation.moderationResult?.labels).toEqual(lastContribution.moderationResult?.labels);
+      expect(stillSameEscalation.moderationResult?.labels).toEqual(
+        lastContribution.moderationResult?.labels,
+      );
 
       await cleanupRestaurant(restaurantId);
     });
@@ -361,14 +469,18 @@ describe('Contribution (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(basicRestaurantBody({}, [photoId]))
         .expect(201);
-      const restaurantId = (createRes.body as CreateRestaurantContributionResponse).restaurantId;
+      const restaurantId = (
+        createRes.body as CreateRestaurantContributionResponse
+      ).restaurantId;
 
       const listRes = await request(app.getHttpServer())
         .get('/me/contributions')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
       const body = listRes.body as ContributionListResponse;
-      expect(body.items.some((item) => item.targetRestaurantId === restaurantId)).toBe(true);
+      expect(
+        body.items.some((item) => item.targetRestaurantId === restaurantId),
+      ).toBe(true);
 
       await cleanupRestaurant(restaurantId);
     });
@@ -394,8 +506,14 @@ describe('Contribution (e2e)', () => {
   });
 
   it('rejects unauthenticated requests across the module', async () => {
-    await request(app.getHttpServer()).post('/restaurants').send(basicRestaurantBody()).expect(401);
-    await request(app.getHttpServer()).post('/restaurants/duplicate-check').send({ lat: 10, lng: 106, name: 'x' }).expect(401);
+    await request(app.getHttpServer())
+      .post('/restaurants')
+      .send(basicRestaurantBody())
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/restaurants/duplicate-check')
+      .send({ lat: 10, lng: 106, name: 'x' })
+      .expect(401);
     await request(app.getHttpServer()).get('/me/contributions').expect(401);
   });
 });

@@ -56,8 +56,14 @@ export interface CreateRestaurantContributionRequest {
   openingHours?: OpeningHourDto[];
   facilities?: FacilityType[];
   menuItems?: MenuItemInputDto[];
-  // ≥1 required — enforced server-side, not just by this type.
-  photoIds: string[];
+  // At least one photo required across photoIds+photoUrls combined —
+  // enforced server-side, not just by this type. `photoIds` are backend
+  // Photo rows created via the S3-backed MediaModule upload flow (get
+  // re-encoded + AI-moderated); `photoUrls` are externally-hosted photos
+  // (currently: the web app's ImageKit.io upload flow) attached directly
+  // by URL, deliberately bypassing that pipeline — see MediaService.attachExternalUrls.
+  photoIds?: string[];
+  photoUrls?: string[];
   // Must be true to proceed past a 409 duplicate-candidates response.
   duplicateConfirmed?: boolean;
 }

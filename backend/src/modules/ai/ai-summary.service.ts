@@ -31,14 +31,23 @@ export class AiSummaryService {
 
   async regenerateIfNeeded(restaurantId: string): Promise<void> {
     try {
-      const minReviewCount = Number(this.config.get<string>('AI_SUMMARY_MIN_REVIEW_COUNT', '5'));
-      const refreshIntervalDays = Number(this.config.get<string>('AI_SUMMARY_REFRESH_INTERVAL_DAYS', '7'));
+      const minReviewCount = Number(
+        this.config.get<string>('AI_SUMMARY_MIN_REVIEW_COUNT', '5'),
+      );
+      const refreshIntervalDays = Number(
+        this.config.get<string>('AI_SUMMARY_REFRESH_INTERVAL_DAYS', '7'),
+      );
 
       const [status, existing, commentedReviewCount] = await Promise.all([
         this.prisma.restaurantStatus.findUnique({ where: { restaurantId } }),
         this.prisma.aISummary.findUnique({ where: { restaurantId } }),
         this.prisma.review.count({
-          where: { restaurantId, status: 'published', deletedAt: null, comment: { not: null } },
+          where: {
+            restaurantId,
+            status: 'published',
+            deletedAt: null,
+            comment: { not: null },
+          },
         }),
       ]);
 
@@ -79,9 +88,13 @@ export class AiSummaryService {
           generatedAt: new Date(),
         },
       });
-      this.logger.log(`Regenerated AI summary for restaurant ${restaurantId} (${reviewCount} reviews).`);
+      this.logger.log(
+        `Regenerated AI summary for restaurant ${restaurantId} (${reviewCount} reviews).`,
+      );
     } catch (error) {
-      this.logger.error(`AI summary regeneration failed for restaurant ${restaurantId}, skipping this cycle: ${String(error)}`);
+      this.logger.error(
+        `AI summary regeneration failed for restaurant ${restaurantId}, skipping this cycle: ${String(error)}`,
+      );
     }
   }
 }

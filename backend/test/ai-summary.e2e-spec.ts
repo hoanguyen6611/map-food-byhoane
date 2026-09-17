@@ -16,7 +16,9 @@ describe('AI Summary (e2e)', () => {
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleFixture.createNestApplication();
     await app.init();
     prisma = moduleFixture.get(PrismaService);
@@ -26,12 +28,21 @@ describe('AI Summary (e2e)', () => {
     await app.close();
   });
 
-  async function createRestaurantWithStatus(reviewCount: number): Promise<string> {
+  async function createRestaurantWithStatus(
+    reviewCount: number,
+  ): Promise<string> {
     const category = await prisma.restaurantCategory.findFirstOrThrow();
     const address = await prisma.address.create({
-      data: { line: 'AI Summary Test St', district: 'Q', province: 'TP', fullAddressText: 'AI Summary Test St, Q, TP' },
+      data: {
+        line: 'AI Summary Test St',
+        district: 'Q',
+        province: 'TP',
+        fullAddressText: 'AI Summary Test St, Q, TP',
+      },
     });
-    const location = await prisma.location.create({ data: { lat: 10.99, lng: 106.99 } });
+    const location = await prisma.location.create({
+      data: { lat: 10.99, lng: 106.99 },
+    });
     const restaurant = await prisma.restaurant.create({
       data: {
         name: `AI Summary Test ${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -42,13 +53,19 @@ describe('AI Summary (e2e)', () => {
       },
     });
     await prisma.restaurantStatus.create({
-      data: { restaurantId: restaurant.id, publicationStatus: 'published', reviewCount },
+      data: {
+        restaurantId: restaurant.id,
+        publicationStatus: 'published',
+        reviewCount,
+      },
     });
     return restaurant.id;
   }
 
   async function cleanup(restaurantId: string): Promise<void> {
-    const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
     if (!restaurant) return;
     await prisma.aISummary.deleteMany({ where: { restaurantId } });
     await prisma.restaurantStatus.deleteMany({ where: { restaurantId } });
@@ -62,7 +79,8 @@ describe('AI Summary (e2e)', () => {
     await prisma.aISummary.create({
       data: {
         restaurantId,
-        summaryText: 'Stale summary from when this restaurant had more reviews.',
+        summaryText:
+          'Stale summary from when this restaurant had more reviews.',
         pros: ['x'],
         cons: ['y'],
         sourceReviewCount: 10,
@@ -71,7 +89,9 @@ describe('AI Summary (e2e)', () => {
       },
     });
 
-    const res = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}/ai-summary`).expect(200);
+    const res = await request(app.getHttpServer())
+      .get(`/restaurants/${restaurantId}/ai-summary`)
+      .expect(200);
     const body = res.body as AISummaryResponseDto;
     expect(body.available).toBe(false);
     expect(body.summary).toBeNull();
@@ -94,7 +114,9 @@ describe('AI Summary (e2e)', () => {
       },
     });
 
-    const res = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}/ai-summary`).expect(200);
+    const res = await request(app.getHttpServer())
+      .get(`/restaurants/${restaurantId}/ai-summary`)
+      .expect(200);
     const body = res.body as AISummaryResponseDto;
     expect(body.available).toBe(true);
     expect(body.summary?.summaryText).toBe('Quán này được đánh giá cao.');
@@ -105,7 +127,9 @@ describe('AI Summary (e2e)', () => {
 
   it('is unavailable when at/above threshold but no row exists', async () => {
     const restaurantId = await createRestaurantWithStatus(10);
-    const res = await request(app.getHttpServer()).get(`/restaurants/${restaurantId}/ai-summary`).expect(200);
+    const res = await request(app.getHttpServer())
+      .get(`/restaurants/${restaurantId}/ai-summary`)
+      .expect(200);
     const body = res.body as AISummaryResponseDto;
     expect(body.available).toBe(false);
     expect(body.summary).toBeNull();

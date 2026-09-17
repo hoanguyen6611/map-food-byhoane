@@ -3,10 +3,20 @@ import { getTranslations } from 'next-intl/server';
 import { searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { MapCanvas } from '@/components/MapCanvas';
+import { HomeProvinceSelect } from '@/components/HomeProvinceSelect';
 import { CATEGORY_ICON_PATH, CATEGORY_OPTIONS } from '@/lib/labels';
 import { DISTRICTS } from '@/lib/districts';
+import { getHomeProvince, HCMC_LEGACY_PROVINCE_NAME } from '@/lib/home-province';
 import { Link, getPathname } from '@/i18n/navigation';
 import { SearchIcon, MapPinIcon } from '@/components/icons';
+import { VN_PROVINCES } from '@foodmap/shared-types';
+
+// The dataset's own HCMC entry is excluded from the select's option list —
+// see HCMC_LEGACY_PROVINCE_NAME's doc comment (home-province.ts) for why a
+// second, correctly-named-but-currently-empty "Hồ Chí Minh" entry would
+// just be a confusing near-duplicate of the one that actually has data.
+const HCMC_DATASET_CODE = '79';
+const OTHER_PROVINCES = VN_PROVINCES.filter((p) => p.code !== HCMC_DATASET_CODE);
 
 export const metadata: Metadata = {
   // No `title` key here at all — Next.js only inherits a parent segment's
@@ -31,15 +41,34 @@ export default async function HomePage({ params }: PageProps) {
     getTranslations('common'),
   ]);
 
+  const selectedProvince = await getHomeProvince();
+  const isHcmc = selectedProvince === HCMC_LEGACY_PROVINCE_NAME;
+  // "Khu vực" (Quận 1/3/Bình Thạnh/Phú Nhuận) only exists for HCMC — no
+  // equivalent breakdown for any other province, so the whole section is
+  // skipped (not fetched, not rendered) rather than showing HCMC's district
+  // names with a stale/misleading count for a different province.
   const [featured, categoryCounts, areaCounts] = await Promise.all([
-    searchRestaurants({ pageSize: 8 }),
-    Promise.all(CATEGORY_OPTIONS.map((code) => searchRestaurants({ category: code, pageSize: 1 }))),
-    Promise.all(DISTRICTS.map((d) => searchRestaurants({ district: d.name, pageSize: 1 }))),
+    searchRestaurants({ pageSize: 8, province: selectedProvince }),
+    Promise.all(CATEGORY_OPTIONS.map((code) => searchRestaurants({ category: code, pageSize: 1, province: selectedProvince }))),
+    isHcmc ? Promise.all(DISTRICTS.map((d) => searchRestaurants({ district: d.name, pageSize: 1 }))) : Promise.resolve([]),
   ]);
 
   // Plain HTML <form action> can't use next-intl's <Link> — resolve the
   // locale-prefixed path (e.g. `/en/search`) by hand instead.
   const searchActionPath = getPathname({ href: '/search', locale });
+
+  // Preserves the selected (non-default) province across every on-page
+  // navigation into /search, so switching provinces on Home doesn't get
+  // silently lost the moment the visitor clicks into a category/chip.
+  function withProvince(href: string): string {
+    if (isHcmc) return href;
+    const [path, query] = href.split('?');
+    const usp = new URLSearchParams(query);
+    usp.set('province', selectedProvince);
+    return `${path}?${usp.toString()}`;
+  }
+
+  const selectedProvinceLabel = isHcmc ? t('heroArea') : (VN_PROVINCES.find((p) => p.name === selectedProvince)?.shortName ?? selectedProvince);
 
   const heroPins = featured.items
     .filter((r) => r.compositeScore !== null)
@@ -53,7 +82,7 @@ export default async function HomePage({ params }: PageProps) {
           <div className="hero-left">
             <span className="hero-badge">
               <span className="hero-badge-dot" aria-hidden="true" />
-              {t('heroBadge', { count: featured.total })}
+              {t('heroBadge', { province: selectedProvinceLabel, count: featured.total })}
             </span>
             <h1 className="hero-title">{t('heroTitle')}</h1>
             <p className="hero-subhead">{t('heroSubtitle')}</p>
@@ -65,9 +94,13 @@ export default async function HomePage({ params }: PageProps) {
               </span>
               <span className="search-field search-field-secondary">
                 <MapPinIcon size={18} />
-                <span className="search-field-text" title={t('heroArea')}>
-                  {t('heroArea')}
-                </span>
+                <HomeProvinceSelect
+                  value={selectedProvince}
+                  defaultValue={HCMC_LEGACY_PROVINCE_NAME}
+                  defaultLabel={t('heroArea')}
+                  options={OTHER_PROVINCES}
+                  ariaLabel={t('heroArea')}
+                />
               </span>
               <button type="submit" className="search-submit">
                 {t('searchButtonShort')}
@@ -77,7 +110,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className="hero-chips">
               <span className="hero-chips-label">{t('heroChipsLabel')}</span>
               {t.raw('heroChips').map((label: string) => (
-                <Link key={label} href={`/search?q=${encodeURIComponent(label)}`} className="pill-plain">
+                <Link key={label} href={withProvince(`/search?q=${encodeURIComponent(label)}`)} className="pill-plain">
                   {label}
                 </Link>
               ))}
@@ -118,13 +151,13 @@ export default async function HomePage({ params }: PageProps) {
         <section className="section-block">
           <div className="section-head">
             <h2 className="section-title">{t('categoriesHeading')}</h2>
-            <Link href="/search" className="section-link">
+            <Link href={withProvince('/search')} className="section-link">
               {t('seeAllLink')}
             </Link>
           </div>
           <div className="cat-grid">
             {CATEGORY_OPTIONS.map((code, i) => (
-              <Link key={code} href={`/search?category=${code}`} className="cat-card">
+              <Link key={code} href={withProvince(`/search?category=${code}`)} className="cat-card">
                 <span className={`cat-icon-tile ${CAT_TILE_CLASSES[i % CAT_TILE_CLASSES.length]}`} aria-hidden="true">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1c2024" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
                     <path d={CATEGORY_ICON_PATH[code]} />
@@ -141,24 +174,26 @@ export default async function HomePage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="section-block">
-          <div className="section-head">
-            <h2 className="section-title">{t('areasHeading')}</h2>
-            <span className="section-caption">{t('areasCaption')}</span>
-          </div>
-          <div className="area-grid">
-            {DISTRICTS.map((district, i) => (
-              <Link
-                key={district.slug}
-                href={`/district/${district.slug}`}
-                className={`area-card ${AREA_TILE_CLASSES[i % AREA_TILE_CLASSES.length]}`}
-              >
-                <span className="area-card-name">{district.name}</span>
-                <span className="area-card-meta">{tCommon('resultCount', { count: areaCounts[i].total })}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {isHcmc ? (
+          <section className="section-block">
+            <div className="section-head">
+              <h2 className="section-title">{t('areasHeading')}</h2>
+              <span className="section-caption">{t('areasCaption')}</span>
+            </div>
+            <div className="area-grid">
+              {DISTRICTS.map((district, i) => (
+                <Link
+                  key={district.slug}
+                  href={`/district/${district.slug}`}
+                  className={`area-card ${AREA_TILE_CLASSES[i % AREA_TILE_CLASSES.length]}`}
+                >
+                  <span className="area-card-name">{district.name}</span>
+                  <span className="area-card-meta">{tCommon('resultCount', { count: areaCounts[i].total })}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="section-block">
           <div className="section-head">

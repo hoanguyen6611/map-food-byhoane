@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { MeResponse } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -40,9 +44,13 @@ export class UserService {
   }
 
   /** Raw id -> real URL, or null if unset/no longer resolvable (deleted photo, bad legacy data, etc). */
-  private async resolveAvatarUrl(avatarPhotoId: string | null): Promise<string | null> {
+  private async resolveAvatarUrl(
+    avatarPhotoId: string | null,
+  ): Promise<string | null> {
     if (!avatarPhotoId) return null;
-    const photo = await this.prisma.photo.findUnique({ where: { id: avatarPhotoId } });
+    const photo = await this.prisma.photo.findUnique({
+      where: { id: avatarPhotoId },
+    });
     if (!photo || photo.deletedAt) return null;
     return this.mediaService.resolveUrl(photo.storageKey);
   }
@@ -56,7 +64,9 @@ export class UserService {
     // the DB (there was previously no existence/ownership/status check at
     // all here). `null` (clearing the avatar) skips validation entirely.
     if (dto.avatarPhotoId) {
-      const photo = await this.prisma.photo.findUnique({ where: { id: dto.avatarPhotoId } });
+      const photo = await this.prisma.photo.findUnique({
+        where: { id: dto.avatarPhotoId },
+      });
       const isValidAvatar =
         photo &&
         !photo.deletedAt &&

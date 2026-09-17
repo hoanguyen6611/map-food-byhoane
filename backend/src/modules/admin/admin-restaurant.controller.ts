@@ -43,10 +43,14 @@ import { AttachPhotoDto } from './dto/attach-photo.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'moderator')
 export class AdminRestaurantController {
-  constructor(private readonly adminRestaurantService: AdminRestaurantService) {}
+  constructor(
+    private readonly adminRestaurantService: AdminRestaurantService,
+  ) {}
 
   @Get()
-  list(@Query() query: AdminRestaurantQueryDto): Promise<Paginated<AdminRestaurantListItemDto>> {
+  list(
+    @Query() query: AdminRestaurantQueryDto,
+  ): Promise<Paginated<AdminRestaurantListItemDto>> {
     return this.adminRestaurantService.list(query);
   }
 
@@ -74,13 +78,19 @@ export class AdminRestaurantController {
 
   @Post(':id/hide')
   @HttpCode(HttpStatus.NO_CONTENT)
-  hide(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  hide(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     return this.adminRestaurantService.hide(id, user.id);
   }
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.NO_CONTENT)
-  restore(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  restore(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     return this.adminRestaurantService.restore(id, user.id);
   }
 
@@ -89,7 +99,10 @@ export class AdminRestaurantController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     return this.adminRestaurantService.remove(id, user.id);
   }
 
@@ -135,7 +148,10 @@ export class AdminRestaurantController {
 
   @Delete('menu-items/:itemId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeMenuItem(@Param('itemId') itemId: string, @CurrentUser() user: RequestUser): Promise<void> {
+  removeMenuItem(
+    @Param('itemId') itemId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     return this.adminRestaurantService.removeMenuItem(itemId, user.id);
   }
 
@@ -150,7 +166,10 @@ export class AdminRestaurantController {
 
   @Delete('photos/:photoId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: RequestUser): Promise<void> {
+  removePhoto(
+    @Param('photoId') photoId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     return this.adminRestaurantService.removePhoto(photoId, user.id);
   }
 }

@@ -34,7 +34,9 @@ import { AdminModule } from './modules/admin/admin.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const redisUrl = new URL(config.get<string>('REDIS_URL', 'redis://localhost:6379'));
+        const redisUrl = new URL(
+          config.get<string>('REDIS_URL', 'redis://localhost:6379'),
+        );
         return {
           connection: {
             host: redisUrl.hostname,

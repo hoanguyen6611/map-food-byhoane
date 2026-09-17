@@ -4,7 +4,10 @@ function buildService(moderateImpl: jest.Mock, recentCount = 0) {
   const claudeGateway = { moderate: moderateImpl } as never;
   const countMock = jest.fn().mockResolvedValue(recentCount);
   const prisma = { review: { count: countMock } } as never;
-  return { service: new ReviewModerationService(prisma, claudeGateway), countMock };
+  return {
+    service: new ReviewModerationService(prisma, claudeGateway),
+    countMock,
+  };
 }
 
 describe('ReviewModerationService.check', () => {

@@ -1,5 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { AdminUserDetailDto, AdminUserListItemDto, Paginated, RoleCode, UserStatus } from '@foodmap/shared-types';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type {
+  AdminUserDetailDto,
+  AdminUserListItemDto,
+  Paginated,
+  RoleCode,
+  UserStatus,
+} from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from './audit-log.service';
 import type { AdminUserQueryDto } from './dto/admin-user-query.dto';
@@ -23,7 +33,9 @@ export class AdminUserService {
     private readonly auditLog: AuditLogService,
   ) {}
 
-  async list(query: AdminUserQueryDto): Promise<Paginated<AdminUserListItemDto>> {
+  async list(
+    query: AdminUserQueryDto,
+  ): Promise<Paginated<AdminUserListItemDto>> {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 
@@ -35,8 +47,17 @@ export class AdminUserService {
       ...(query.search
         ? {
             OR: [
-              { email: { contains: query.search, mode: 'insensitive' as const } },
-              { profile: { displayName: { contains: query.search, mode: 'insensitive' as const } } },
+              {
+                email: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                profile: {
+                  displayName: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -58,8 +79,8 @@ export class AdminUserService {
         id: u.id,
         email: u.email,
         displayName: u.profile?.displayName ?? null,
-        roleCode: u.role.code as RoleCode,
-        status: u.status as UserStatus,
+        roleCode: u.role.code,
+        status: u.status,
         createdAt: u.createdAt.toISOString(),
         lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       })),
@@ -74,7 +95,10 @@ export class AdminUserService {
   // is derived via the user's reviews since Report has no direct 'user' target
   // type (see ReportTargetType in shared-types).
   async detail(targetUserId: string): Promise<AdminUserDetailDto> {
-    const user = await this.prisma.user.findUnique({ where: { id: targetUserId }, include: { role: true, profile: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { role: true, profile: true },
+    });
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
@@ -84,15 +108,20 @@ export class AdminUserService {
       select: { id: true },
     });
     const reportsReceivedCount = reviews.length
-      ? await this.prisma.report.count({ where: { targetType: 'review', targetId: { in: reviews.map((r) => r.id) } } })
+      ? await this.prisma.report.count({
+          where: {
+            targetType: 'review',
+            targetId: { in: reviews.map((r) => r.id) },
+          },
+        })
       : 0;
 
     return {
       id: user.id,
       email: user.email,
       displayName: user.profile?.displayName ?? null,
-      roleCode: user.role.code as RoleCode,
-      status: user.status as UserStatus,
+      roleCode: user.role.code,
+      status: user.status,
       createdAt: user.createdAt.toISOString(),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       reviewCount: reviews.length,
@@ -108,7 +137,10 @@ export class AdminUserService {
       // second-admin-invite flow in this MVP, self-suspension has no recovery path.
       throw new BadRequestException('Không thể tự khoá chính mình');
     }
-    await this.assertNotLastActiveAdmin(targetUserId, 'Không thể khoá admin cuối cùng của hệ thống');
+    await this.assertNotLastActiveAdmin(
+      targetUserId,
+      'Không thể khoá admin cuối cùng của hệ thống',
+    );
     await this.setStatus(targetUserId, 'suspended', actorId, 'user.suspend');
   }
 
@@ -116,26 +148,43 @@ export class AdminUserService {
     await this.setStatus(targetUserId, 'active', actorId, 'user.reactivate');
   }
 
-  async changeRole(targetUserId: string, roleCode: RoleCode, actorId: string): Promise<void> {
+  async changeRole(
+    targetUserId: string,
+    roleCode: RoleCode,
+    actorId: string,
+  ): Promise<void> {
     if (targetUserId === actorId) {
       // An admin demoting themselves could lock themselves out with no
       // recovery path in this MVP (no second admin-invite flow exists) —
       // block it rather than build that recovery flow now.
-      throw new BadRequestException('Không thể tự thay đổi vai trò của chính mình');
+      throw new BadRequestException(
+        'Không thể tự thay đổi vai trò của chính mình',
+      );
     }
-    const user = await this.prisma.user.findUnique({ where: { id: targetUserId }, include: { role: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { role: true },
+    });
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
-    const role = await this.prisma.role.findUnique({ where: { code: roleCode } });
+    const role = await this.prisma.role.findUnique({
+      where: { code: roleCode },
+    });
     if (!role) {
       throw new BadRequestException(`Vai trò không hợp lệ: ${roleCode}`);
     }
     if (user.role.code === 'admin' && roleCode !== 'admin') {
-      await this.assertNotLastActiveAdmin(targetUserId, 'Không thể đổi vai trò của admin cuối cùng của hệ thống');
+      await this.assertNotLastActiveAdmin(
+        targetUserId,
+        'Không thể đổi vai trò của admin cuối cùng của hệ thống',
+      );
     }
 
-    await this.prisma.user.update({ where: { id: targetUserId }, data: { roleId: role.id } });
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { roleId: role.id },
+    });
     await this.auditLog.record({
       actorId,
       action: 'user.role_change',
@@ -149,23 +198,41 @@ export class AdminUserService {
   // Validation per screen 33: "không thể xoá [quyền của] admin cuối cùng của
   // hệ thống" — covers both suspending and role-demoting the sole remaining
   // active admin. No-ops for anyone who isn't currently an active admin.
-  private async assertNotLastActiveAdmin(targetUserId: string, message: string): Promise<void> {
-    const target = await this.prisma.user.findUnique({ where: { id: targetUserId }, include: { role: true } });
+  private async assertNotLastActiveAdmin(
+    targetUserId: string,
+    message: string,
+  ): Promise<void> {
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { role: true },
+    });
     if (!target || target.role.code !== 'admin' || target.status !== 'active') {
       return;
     }
-    const activeAdminCount = await this.prisma.user.count({ where: { role: { code: 'admin' }, status: 'active' } });
+    const activeAdminCount = await this.prisma.user.count({
+      where: { role: { code: 'admin' }, status: 'active' },
+    });
     if (activeAdminCount <= 1) {
       throw new BadRequestException(message);
     }
   }
 
-  private async setStatus(targetUserId: string, status: UserStatus, actorId: string, action: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+  private async setStatus(
+    targetUserId: string,
+    status: UserStatus,
+    actorId: string,
+    action: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
-    await this.prisma.user.update({ where: { id: targetUserId }, data: { status } });
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { status },
+    });
     await this.auditLog.record({
       actorId,
       action,

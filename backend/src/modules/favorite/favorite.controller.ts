@@ -1,6 +1,17 @@
-import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { FavoriteListResponse, FavoriteStatusDto } from '@foodmap/shared-types';
+import type {
+  FavoriteListResponse,
+  FavoriteStatusDto,
+} from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -15,17 +26,26 @@ export class FavoriteController {
   constructor(private readonly favoriteService: FavoriteService) {}
 
   @Post('favorites/:restaurantId')
-  add(@Param('restaurantId') restaurantId: string, @CurrentUser() user: RequestUser): Promise<FavoriteStatusDto> {
+  add(
+    @Param('restaurantId') restaurantId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<FavoriteStatusDto> {
     return this.favoriteService.add(user.id, restaurantId);
   }
 
   @Delete('favorites/:restaurantId')
-  remove(@Param('restaurantId') restaurantId: string, @CurrentUser() user: RequestUser): Promise<FavoriteStatusDto> {
+  remove(
+    @Param('restaurantId') restaurantId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<FavoriteStatusDto> {
     return this.favoriteService.remove(user.id, restaurantId);
   }
 
   @Get('me/favorites')
-  list(@CurrentUser() user: RequestUser, @Query() query: FavoriteListQueryDto): Promise<FavoriteListResponse> {
+  list(
+    @CurrentUser() user: RequestUser,
+    @Query() query: FavoriteListQueryDto,
+  ): Promise<FavoriteListResponse> {
     return this.favoriteService.list(user.id, query.page, query.pageSize);
   }
 

@@ -44,11 +44,16 @@ export class PhotoService {
   }
 
   async remove(photoId: string): Promise<void> {
-    const photo = await this.prisma.photo.findUnique({ where: { id: photoId } });
+    const photo = await this.prisma.photo.findUnique({
+      where: { id: photoId },
+    });
     if (!photo || photo.deletedAt) {
       throw new NotFoundException('Không tìm thấy ảnh');
     }
-    await this.prisma.photo.update({ where: { id: photoId }, data: { deletedAt: new Date() } });
+    await this.prisma.photo.update({
+      where: { id: photoId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   async findForOwner(ownerType: PhotoOwnerType, ownerId: string) {

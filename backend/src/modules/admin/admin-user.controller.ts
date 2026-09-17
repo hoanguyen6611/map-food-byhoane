@@ -1,6 +1,20 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { AdminUserDetailDto, AdminUserListItemDto, Paginated } from '@foodmap/shared-types';
+import type {
+  AdminUserDetailDto,
+  AdminUserListItemDto,
+  Paginated,
+} from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,7 +37,9 @@ export class AdminUserController {
   constructor(private readonly adminUserService: AdminUserService) {}
 
   @Get()
-  list(@Query() query: AdminUserQueryDto): Promise<Paginated<AdminUserListItemDto>> {
+  list(
+    @Query() query: AdminUserQueryDto,
+  ): Promise<Paginated<AdminUserListItemDto>> {
     return this.adminUserService.list(query);
   }
 
@@ -35,14 +51,20 @@ export class AdminUserController {
   @Patch(':id/suspend')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async suspend(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async suspend(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.adminUserService.suspend(id, user.id);
   }
 
   @Patch(':id/reactivate')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async reactivate(@Param('id') id: string, @CurrentUser() user: RequestUser): Promise<void> {
+  async reactivate(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
     await this.adminUserService.reactivate(id, user.id);
   }
 

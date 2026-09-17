@@ -11,7 +11,11 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { CuisineCode, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
+import type {
+  CuisineCode,
+  PriceRangeCode,
+  RestaurantCategoryCode,
+} from '@foodmap/shared-types';
 
 const CATEGORY_CODES: RestaurantCategoryCode[] = [
   'quan_an',
@@ -28,7 +32,14 @@ const PRICE_RANGE_CODES: PriceRangeCode[] = [
   '200_500k',
   'above_500k',
 ];
-const CUISINE_CODES: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
+const CUISINE_CODES: CuisineCode[] = [
+  'mon_viet',
+  'mon_han',
+  'mon_nhat',
+  'mon_chay',
+  'mon_thai',
+  'mon_au',
+];
 
 export class AddressInputDto {
   @IsString()

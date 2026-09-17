@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma, Review } from '@prisma/client';
 import type { AdminReviewListItemDto, Paginated } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -21,7 +25,9 @@ export class AdminReviewService {
     private readonly compositeScoreService: CompositeScoreService,
   ) {}
 
-  async list(query: AdminReviewQueryDto): Promise<Paginated<AdminReviewListItemDto>> {
+  async list(
+    query: AdminReviewQueryDto,
+  ): Promise<Paginated<AdminReviewListItemDto>> {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 
@@ -46,7 +52,9 @@ export class AdminReviewService {
       ...(query.restaurantId ? { restaurantId: query.restaurantId } : {}),
       ...(query.userId ? { userId: query.userId } : {}),
       ...(query.status ? { status: query.status } : {}),
-      ...(query.search ? { comment: { contains: query.search, mode: 'insensitive' as const } } : {}),
+      ...(query.search
+        ? { comment: { contains: query.search, mode: 'insensitive' as const } }
+        : {}),
       ...(riskFilteredIds ? { id: { in: riskFilteredIds } } : {}),
     };
 
@@ -71,7 +79,10 @@ export class AdminReviewService {
     if (review.status === 'hidden') {
       throw new ConflictException('Đánh giá này đã bị ẩn.');
     }
-    await this.prisma.review.update({ where: { id: reviewId }, data: { status: 'hidden' } });
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { status: 'hidden' },
+    });
     await this.auditLog.record({
       actorId,
       action: 'review.hide',
@@ -88,7 +99,10 @@ export class AdminReviewService {
     if (review.status !== 'hidden') {
       throw new ConflictException('Đánh giá này không ở trạng thái bị ẩn.');
     }
-    await this.prisma.review.update({ where: { id: reviewId }, data: { status: 'published' } });
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { status: 'published' },
+    });
     await this.auditLog.record({
       actorId,
       action: 'review.restore',
@@ -107,7 +121,10 @@ export class AdminReviewService {
   // the DB layer, which is the established convention throughout.
   async remove(reviewId: string, actorId: string): Promise<void> {
     const review = await this.getActiveReview(reviewId);
-    await this.prisma.review.update({ where: { id: reviewId }, data: { deletedAt: new Date() } });
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { deletedAt: new Date() },
+    });
     await this.auditLog.record({
       actorId,
       action: 'review.admin_delete',
@@ -120,7 +137,9 @@ export class AdminReviewService {
   }
 
   private async getActiveReview(reviewId: string): Promise<Review> {
-    const review = await this.prisma.review.findFirst({ where: { id: reviewId, deletedAt: null } });
+    const review = await this.prisma.review.findFirst({
+      where: { id: reviewId, deletedAt: null },
+    });
     if (!review) {
       throw new NotFoundException('Không tìm thấy đánh giá');
     }
@@ -128,7 +147,10 @@ export class AdminReviewService {
   }
 
   private async buildListItem(
-    review: Review & { user: { id: string; profile: { displayName: string } | null }; restaurant: { name: string } },
+    review: Review & {
+      user: { id: string; profile: { displayName: string } | null };
+      restaurant: { name: string };
+    },
   ): Promise<AdminReviewListItemDto> {
     const latestModeration = await this.prisma.moderationResult.findFirst({
       where: { targetType: 'review', targetId: review.id },
@@ -139,7 +161,10 @@ export class AdminReviewService {
       id: review.id,
       restaurantId: review.restaurantId,
       restaurantName: review.restaurant.name,
-      author: { id: review.user.id, displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh' },
+      author: {
+        id: review.user.id,
+        displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh',
+      },
       overallRating: review.overallRating,
       comment: review.comment,
       status: review.status,

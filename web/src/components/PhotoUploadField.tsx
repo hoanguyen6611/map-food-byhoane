@@ -2,26 +2,39 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { upload } from '@imagekit/next';
 import type { MediaOwnerType } from '@foodmap/shared-types';
 
-interface UploadedPhoto {
-  id: string;
+export interface UploadedPhoto {
+  /** ImageKit's fileId — needed to delete the file via api/imagekit-delete. */
+  fileId: string;
   url: string;
+}
+
+interface ImageKitAuthParams {
+  token: string;
+  signature: string;
+  expire: number;
+  publicKey: string;
 }
 
 interface Props {
   photos: UploadedPhoto[];
   onChange: (photos: UploadedPhoto[]) => void;
   maxPhotos?: number;
-  // Must match whatever `ownerType` the eventual reparent-on-submit call
-  // uses server-side, or MediaService.reparent's lookup (`WHERE ownerType =
-  // ...`) simply finds zero matching rows and rejects the whole submission
-  // as "invalid photos" — e.g. ContributionService.create reparents new-
-  // restaurant photos as `'restaurant'`, NOT `'contribution'`, even though
-  // the contribution itself is what temporarily "owns" them pre-submit.
+  /** Used only to namespace the ImageKit upload folder (e.g. `/foodmap/restaurant`) — organizational, not a security boundary. */
   ownerType: MediaOwnerType;
 }
 
+/**
+ * Uploads straight from the browser to ImageKit.io (`@imagekit/next`'s
+ * `upload()`), authorized by a short-lived signature this app's own
+ * `api/imagekit-auth` route mints server-side from the ImageKit PRIVATE key
+ * — the browser never sees that key. Replaces the previous flow that PUT
+ * the file through this app's own S3/MinIO-backed MediaModule (re-encode +
+ * magic-byte sniff + AI moderation); see MediaService.attachExternalUrls's
+ * doc comment for that tradeoff.
+ */
 export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }: Props) {
   const t = useTranslations('addRestaurant');
   const [uploading, setUploading] = useState(false);
@@ -35,18 +48,35 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
     setUploading(true);
     try {
       const uploaded: UploadedPhoto[] = [];
+      let hadError = false;
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('ownerType', ownerType);
-        const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
-        if (!res.ok) {
-          setError(t('photoUploadError'));
-          continue;
+        try {
+          const authRes = await fetch('/api/imagekit-auth');
+          if (!authRes.ok) throw new Error('auth failed');
+          const auth = (await authRes.json()) as ImageKitAuthParams;
+
+          const result = await upload({
+            file,
+            fileName: file.name,
+            folder: `/foodmap/${ownerType}`,
+            publicKey: auth.publicKey,
+            signature: auth.signature,
+            expire: auth.expire,
+            token: auth.token,
+          });
+          if (result.fileId && result.url) {
+            uploaded.push({ fileId: result.fileId, url: result.url });
+          } else {
+            hadError = true;
+          }
+        } catch {
+          // ImageKitInvalidRequestError / ImageKitServerError /
+          // ImageKitUploadNetworkError / ImageKitAbortError, or the auth
+          // fetch itself failing — all surface as one generic message.
+          hadError = true;
         }
-        const photo = (await res.json()) as { id: string; url: string };
-        uploaded.push({ id: photo.id, url: photo.url });
       }
+      if (hadError) setError(t('photoUploadError'));
       onChange([...photos, ...uploaded]);
     } finally {
       setUploading(false);
@@ -54,11 +84,10 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
     }
   }
 
-  async function removePhoto(id: string) {
-    onChange(photos.filter((p) => p.id !== id));
-    // Best-effort — an orphaned unattached photo is swept server-side after
-    // 24h anyway (PhotoCleanupProcessor), so a failure here isn't user-facing.
-    fetch(`/api/media/${id}`, { method: 'DELETE' }).catch(() => undefined);
+  async function removePhoto(fileId: string) {
+    onChange(photos.filter((p) => p.fileId !== fileId));
+    // Best-effort — see api/imagekit-delete's doc comment.
+    fetch(`/api/imagekit-delete/${fileId}`, { method: 'DELETE' }).catch(() => undefined);
   }
 
   return (
@@ -66,11 +95,11 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
       <div className="photo-upload-grid">
         {photos.map((photo) => (
           // eslint-disable-next-line @next/next/no-img-element -- previews of
-          // freshly-uploaded R2 objects, not worth next/image's remote-pattern
+          // freshly-uploaded ImageKit files, not worth next/image's remote-pattern
           // config churn for a handful of thumbnails in a one-off form.
-          <div className="photo-upload-thumb" key={photo.id}>
+          <div className="photo-upload-thumb" key={photo.fileId}>
             <img src={photo.url} alt="" />
-            <button type="button" onClick={() => removePhoto(photo.id)} aria-label={t('removePhoto')}>
+            <button type="button" onClick={() => removePhoto(photo.fileId)} aria-label={t('removePhoto')}>
               ×
             </button>
           </div>

@@ -826,6 +826,10 @@ enum NotificationType {
   moderation_result
   report_resolved
   contribution_status
+  // Admin/moderator-facing (unlike the other three, which target the
+  // contributor) — fired when a new contribution or review lands in the
+  // Admin Moderation Queue as `pending`. See NotificationService.notifyAdmins.
+  moderation_queue_new
 }
 
 // `payload` carries the deep-link target (screen + id) per the ERD note —

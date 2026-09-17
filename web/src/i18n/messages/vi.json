@@ -33,7 +33,9 @@
     "share": "Chia sẻ",
     "linkCopied": "Đã sao chép liên kết",
     "mapNavLink": "Bản đồ",
-    "aboutNavLink": "Cách chấm điểm"
+    "aboutNavLink": "Cách chấm điểm",
+    "categoriesNavLink": "Danh mục",
+    "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở TP. Hồ Chí Minh qua đánh giá thật."
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
@@ -46,7 +48,7 @@
     "areasHeading": "Khu vực",
     "featuredHeading": "Quán nổi bật",
     "emptyFeatured": "Chưa có quán nào được đăng.",
-    "heroBadge": "TP. Hồ Chí Minh · {count} quán đã được đánh giá",
+    "heroBadge": "{province} · {count} quán đã được đánh giá",
     "heroArea": "TP. Hồ Chí Minh",
     "heroChipsLabel": "Đang tìm nhiều:",
     "heroChips": ["Cà phê Quận 3", "Cơm tấm đêm", "Quán chay", "Bún bò Huế"],
@@ -164,6 +166,9 @@
     "submitting": "Đang xử lý…",
     "continue": "Tiếp tục",
     "or": "hoặc",
+    "continueWithGoogle": "Google",
+    "continueWithApple": "Apple",
+    "socialLoginError": "Không thể đăng nhập. Vui lòng thử lại.",
     "agreeText": "Tôi đồng ý viết đánh giá trung thực dựa trên trải nghiệm thật của mình.",
     "pwStrength": {
       "weak": "Yếu",
@@ -346,6 +351,7 @@
     "useMyLocation": "Dùng vị trí hiện tại của tôi",
     "photosLabel": "Ảnh (ít nhất 1)",
     "selectPlaceholder": "Chọn…",
+    "selectProvinceFirst": "— Chọn tỉnh/thành trước —",
     "addPhoto": "Thêm ảnh",
     "uploading": "Đang tải lên…",
     "removePhoto": "Xoá ảnh",

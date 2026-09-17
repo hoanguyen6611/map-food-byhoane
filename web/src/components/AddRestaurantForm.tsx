@@ -1,16 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
-import { PhotoUploadField } from '@/components/PhotoUploadField';
+import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import type { CuisineCode, DuplicateCandidateDto } from '@foodmap/shared-types';
-
-interface UploadedPhoto {
-  id: string;
-  url: string;
-}
+import { VN_PROVINCES, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
 
 type Phase =
   | { kind: 'form' }
@@ -29,8 +24,8 @@ export function AddRestaurantForm() {
   const [phone, setPhone] = useState('');
   const [cuisineCodes, setCuisineCodes] = useState<CuisineCode[]>([]);
   const [line, setLine] = useState('');
-  const [ward, setWard] = useState('');
-  const [province, setProvince] = useState('');
+  const [provinceCode, setProvinceCode] = useState('');
+  const [wardCode, setWardCode] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -49,18 +44,27 @@ export function AddRestaurantForm() {
     setCuisineCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   }
 
+  const selectedProvince = useMemo(() => VN_PROVINCES.find((p) => p.code === provinceCode), [provinceCode]);
+
+  function handleProvinceChange(code: string) {
+    setProvinceCode(code);
+    setWardCode('');
+  }
+
   const canSubmit =
     name.trim().length >= 2 &&
     categoryCode !== '' &&
     line.trim() !== '' &&
-    ward.trim() !== '' &&
-    province.trim() !== '' &&
+    provinceCode !== '' &&
+    wardCode !== '' &&
     lat !== '' &&
     lng !== '' &&
     photos.length > 0;
 
   async function submit(duplicateConfirmed: boolean) {
-    if (!canSubmit) return;
+    if (!canSubmit || !selectedProvince) return;
+    const ward = selectedProvince.wards.find((w) => w.code === wardCode);
+    if (!ward) return;
     setIsSubmitting(true);
     const result = await submitContributionAction({
       name: name.trim(),
@@ -68,10 +72,10 @@ export function AddRestaurantForm() {
       categoryCode: categoryCode as never,
       priceRangeCode: priceRangeCode ? (priceRangeCode as never) : undefined,
       phone: phone.trim() || undefined,
-      address: { line: line.trim(), ward: ward.trim(), province: province.trim() },
+      address: { line: line.trim(), ward: ward.name, province: selectedProvince.name },
       location: { lat: Number(lat), lng: Number(lng) },
       cuisineCodes: cuisineCodes.length > 0 ? cuisineCodes : undefined,
-      photoIds: photos.map((p) => p.id),
+      photoUrls: photos.map((p) => p.url),
       duplicateConfirmed,
     });
     setIsSubmitting(false);
@@ -201,12 +205,26 @@ export function AddRestaurantForm() {
         <input type="text" value={line} onChange={(e) => setLine(e.target.value)} required />
       </label>
       <label className="login-field">
-        <span>{t('wardLabel')}</span>
-        <input type="text" value={ward} onChange={(e) => setWard(e.target.value)} required />
+        <span>{t('provinceLabel')}</span>
+        <select value={provinceCode} onChange={(e) => handleProvinceChange(e.target.value)} required>
+          <option value="">{t('selectPlaceholder')}</option>
+          {VN_PROVINCES.map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.shortName}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="login-field">
-        <span>{t('provinceLabel')}</span>
-        <input type="text" value={province} onChange={(e) => setProvince(e.target.value)} required />
+        <span>{t('wardLabel')}</span>
+        <select value={wardCode} onChange={(e) => setWardCode(e.target.value)} disabled={!selectedProvince} required>
+          <option value="">{selectedProvince ? t('selectPlaceholder') : t('selectProvinceFirst')}</option>
+          {(selectedProvince?.wards ?? []).map((w) => (
+            <option key={w.code} value={w.code}>
+              {w.shortName}
+            </option>
+          ))}
+        </select>
       </label>
 
       <div className="login-field">

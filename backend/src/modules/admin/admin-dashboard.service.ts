@@ -27,17 +27,34 @@ export class AdminDashboardService {
       recentUsers,
       ratingGroups,
     ] = await Promise.all([
-      this.prisma.moderationResult.count({ where: { targetType: 'restaurant', decision: 'pending' } }),
-      this.prisma.moderationResult.count({ where: { targetType: 'review', decision: 'pending' } }),
+      this.prisma.moderationResult.count({
+        where: { targetType: 'restaurant', decision: 'pending' },
+      }),
+      this.prisma.moderationResult.count({
+        where: { targetType: 'review', decision: 'pending' },
+      }),
       this.prisma.report.count({ where: { status: 'open' } }),
       this.prisma.user.count({ where: { status: 'active' } }),
-      this.prisma.review.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.contribution.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.user.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      this.prisma.review.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      this.prisma.contribution.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
       // A plain small-cardinality Int column (1-5) — exactly what `groupBy` is
       // for, unlike the day-bucketing above (which needs Postgres `date_trunc`,
       // not expressible via Prisma's groupBy, hence the in-memory bucketing).
-      this.prisma.review.groupBy({ by: ['overallRating'], where: { status: 'published' }, _count: true }),
+      this.prisma.review.groupBy({
+        by: ['overallRating'],
+        where: { status: 'published' },
+        _count: true,
+      }),
     ]);
 
     const reviewsByDay = this.bucketByDay(recentReviews);
@@ -54,7 +71,9 @@ export class AdminDashboardService {
       };
     });
 
-    const countByRating = new Map(ratingGroups.map((group) => [group.overallRating, group._count]));
+    const countByRating = new Map(
+      ratingGroups.map((group) => [group.overallRating, group._count]),
+    );
     const ratingDistribution = ([1, 2, 3, 4, 5] as const).map((rating) => ({
       rating,
       count: countByRating.get(rating) ?? 0,

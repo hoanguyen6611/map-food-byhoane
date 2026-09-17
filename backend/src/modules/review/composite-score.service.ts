@@ -57,14 +57,19 @@ export class CompositeScoreService {
     await this.prisma.restaurantStatus.update({
       where: { restaurantId },
       data: {
-        compositeScore: compositeScore === null ? null : new Prisma.Decimal(compositeScore.toFixed(2)),
+        compositeScore:
+          compositeScore === null
+            ? null
+            : new Prisma.Decimal(compositeScore.toFixed(2)),
         reviewCount: v,
         lastReviewAt: lastReview?.createdAt ?? null,
         lastComputedAt: new Date(),
       },
     });
 
-    this.logger.debug(`Recomputed composite score for ${restaurantId}: v=${v} R=${R.toFixed(2)} C=${C.toFixed(2)} -> ${compositeScore?.toFixed(2) ?? 'null'}`);
+    this.logger.debug(
+      `Recomputed composite score for ${restaurantId}: v=${v} R=${R.toFixed(2)} C=${C.toFixed(2)} -> ${compositeScore?.toFixed(2) ?? 'null'}`,
+    );
 
     // Fail-safe internally (AiSummaryService.regenerateIfNeeded never
     // throws) — a Claude/AI Summary issue must never break composite-score

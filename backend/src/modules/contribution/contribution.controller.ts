@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
   ContributionListResponse,
@@ -30,8 +38,14 @@ export class ContributionController {
   constructor(private readonly contributionService: ContributionService) {}
 
   @Post('restaurants/duplicate-check')
-  async duplicateCheck(@Body() dto: DuplicateCheckDto): Promise<DuplicateCheckResponse> {
-    const candidates = await this.contributionService.checkDuplicate(dto.lat, dto.lng, dto.name);
+  async duplicateCheck(
+    @Body() dto: DuplicateCheckDto,
+  ): Promise<DuplicateCheckResponse> {
+    const candidates = await this.contributionService.checkDuplicate(
+      dto.lat,
+      dto.lng,
+      dto.name,
+    );
     return { candidates };
   }
 
@@ -40,7 +54,11 @@ export class ContributionController {
   // abuse vector than a review, so this is the same 10/hour/user shape.
   @Post('restaurants')
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 10, windowSeconds: 3600, keyPrefix: 'contribution-create' })
+  @RateLimit({
+    limit: 10,
+    windowSeconds: 3600,
+    keyPrefix: 'contribution-create',
+  })
   createRestaurant(
     @Body() dto: CreateRestaurantContributionDto,
     @CurrentUser() user: RequestUser,
@@ -62,7 +80,11 @@ export class ContributionController {
   // if a single account could spam unlimited reports.
   @Post('restaurants/:id/status-reports')
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 10, windowSeconds: 3600, keyPrefix: 'status-report-create' })
+  @RateLimit({
+    limit: 10,
+    windowSeconds: 3600,
+    keyPrefix: 'status-report-create',
+  })
   createStatusReport(
     @Param('id') id: string,
     @Body() dto: CreateStatusReportDto,
@@ -72,8 +94,15 @@ export class ContributionController {
   }
 
   @Get('me/contributions')
-  listMine(@CurrentUser() user: RequestUser, @Query() query: ContributionListQueryDto): Promise<ContributionListResponse> {
-    return this.contributionService.listMyContributions(user.id, query.page, query.pageSize);
+  listMine(
+    @CurrentUser() user: RequestUser,
+    @Query() query: ContributionListQueryDto,
+  ): Promise<ContributionListResponse> {
+    return this.contributionService.listMyContributions(
+      user.id,
+      query.page,
+      query.pageSize,
+    );
   }
 
   @Get('contributions/:id')

@@ -15,7 +15,10 @@ export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 
   @Post()
-  create(@Body() dto: CreateReportDto, @CurrentUser() user: RequestUser): Promise<ReportDto> {
+  create(
+    @Body() dto: CreateReportDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReportDto> {
     return this.reportService.create(dto, user.id);
   }
 }

@@ -40,7 +40,10 @@ export interface AIGateway {
   moderate(content: ModerateContentInput): Promise<ModerationCheckResult>;
 
   /** Natural-language search query parsing — no callers anywhere in the app yet. */
-  parseQuery(text: string, context?: Record<string, unknown>): Promise<StructuredFilter>;
+  parseQuery(
+    text: string,
+    context?: Record<string, unknown>,
+  ): Promise<StructuredFilter>;
 
   /** Restaurant AI Summary generation (US-J1/J2) — see ai-summary-trigger.stub.ts, never called yet. */
   summarize(restaurantId: string): Promise<AISummaryResult>;

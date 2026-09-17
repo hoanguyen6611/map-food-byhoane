@@ -7,21 +7,29 @@ const APPLE_ISSUER = 'https://appleid.apple.com';
 const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
 
 // Verifies an Apple ID token issued to the mobile client by native
-// "Sign in with Apple" — checked against Apple's published JWKS, never
-// trusted as-is. Note: Apple only includes `email` on the *first* sign-in
-// for a given app; the client is responsible for caching it thereafter if
+// "Sign in with Apple", or to the web client by Sign in with Apple JS —
+// checked against Apple's published JWKS, never trusted as-is. Apple issues
+// a distinct client id per platform (the app's Bundle/App ID vs a web
+// "Services ID"), so the token's `aud` differs by client; `sub` is stable
+// per Apple Developer Team regardless, as long as the Services ID and App
+// ID are grouped under the same primary App ID in Apple's dashboard (a
+// one-time Apple Developer console configuration step, not a code concern).
+// Note: Apple only includes `email` on the *first* sign-in for a given
+// client id — the caller is responsible for caching it thereafter if
 // needed (out of scope here — this service only authenticates identity).
 @Injectable()
 export class AppleOAuthService {
   private readonly jwks = createRemoteJWKSet(new URL(APPLE_JWKS_URL));
-  private readonly clientId: string;
+  private readonly audiences: string[];
 
   constructor(config: ConfigService) {
-    this.clientId = config.get<string>('APPLE_OAUTH_CLIENT_ID', '');
+    const mobileClientId = config.get<string>('APPLE_OAUTH_CLIENT_ID', '');
+    const webClientId = config.get<string>('APPLE_OAUTH_WEB_CLIENT_ID', '');
+    this.audiences = [mobileClientId, webClientId].filter(Boolean);
   }
 
   async verify(idToken: string): Promise<VerifiedOAuthIdentity> {
-    if (!this.clientId) {
+    if (this.audiences.length === 0) {
       throw new UnauthorizedException(
         'Apple OAuth chưa được cấu hình trên máy chủ',
       );
@@ -29,7 +37,7 @@ export class AppleOAuthService {
     try {
       const { payload } = await jwtVerify(idToken, this.jwks, {
         issuer: APPLE_ISSUER,
-        audience: this.clientId,
+        audience: this.audiences,
       });
       const subjectId = payload.sub;
       const email =

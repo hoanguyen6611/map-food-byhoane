@@ -1,5 +1,9 @@
 import { InternalServerErrorException } from '@nestjs/common';
-import type { ModerationDecision, ModerationRecommendedAction, Prisma } from '@prisma/client';
+import type {
+  ModerationDecision,
+  ModerationRecommendedAction,
+  Prisma,
+} from '@prisma/client';
 import { MEDIUM_RISK_THRESHOLD } from './rule-based-moderation.util';
 
 export interface ModerationHardRuleInput {
@@ -29,7 +33,9 @@ export function assertDecisionAllowed(
   if (decision !== 'approved') return;
 
   const riskScore = Number(moderationResult.riskScore);
-  const isHighRisk = moderationResult.recommendedAction === 'reject' || riskScore >= MEDIUM_RISK_THRESHOLD;
+  const isHighRisk =
+    moderationResult.recommendedAction === 'reject' ||
+    riskScore >= MEDIUM_RISK_THRESHOLD;
   if (isHighRisk && !decidedBy) {
     throw new InternalServerErrorException(
       'Không thể tự động duyệt nội dung có rủi ro cao mà không có người kiểm duyệt.',

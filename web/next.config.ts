@@ -34,6 +34,21 @@ const nextConfig: NextConfig = {
       // ships real photos today. Deploying to production needs the real
       // S3/CDN hostname added here too.
       { protocol: 'http', hostname: 'localhost', port: '9000', pathname: '/foodmap-media/**' },
+      // Add Restaurant's photo upload (PhotoUploadField.tsx) uploads
+      // directly to ImageKit.io — restaurant photos contributed through
+      // that flow are served from this hostname instead of MinIO/S3.
+      // Derived from NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT at build time so
+      // this doesn't need editing per-account; next/image still throws
+      // "hostname not configured" for any contributed photo if that env
+      // var is unset when the app builds.
+      ...(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT
+        ? [
+            {
+              protocol: new URL(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT).protocol.replace(':', '') as 'http' | 'https',
+              hostname: new URL(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT).hostname,
+            },
+          ]
+        : []),
     ],
   },
 };

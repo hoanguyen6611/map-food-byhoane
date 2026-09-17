@@ -5,7 +5,10 @@ import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
 import { PhotoModerationService } from './photo-moderation.service';
 import { S3Service } from './s3.service';
-import { PhotoCleanupProcessor, PHOTO_CLEANUP_QUEUE } from './photo-cleanup.processor';
+import {
+  PhotoCleanupProcessor,
+  PHOTO_CLEANUP_QUEUE,
+} from './photo-cleanup.processor';
 
 // Real signed-upload pipeline (build-prompts/07-contribution-media-moderation-ai.md):
 // signed upload URLs, server-side re-encode + magic-byte validation,
@@ -15,7 +18,12 @@ import { PhotoCleanupProcessor, PHOTO_CLEANUP_QUEUE } from './photo-cleanup.proc
 @Module({
   imports: [BullModule.registerQueue({ name: PHOTO_CLEANUP_QUEUE }), AiModule],
   controllers: [MediaController],
-  providers: [MediaService, S3Service, PhotoCleanupProcessor, PhotoModerationService],
+  providers: [
+    MediaService,
+    S3Service,
+    PhotoCleanupProcessor,
+    PhotoModerationService,
+  ],
   // S3Service exported too — RestaurantService needs it directly to
   // resolve Photo.storageKey into a real URL (see S3Service.publicUrl's
   // doc comment) without depending on the rest of MediaService's surface.

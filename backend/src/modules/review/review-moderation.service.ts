@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClaudeGatewayService } from '../ai/claude-gateway.service';
-import { RAPID_FIRE_THRESHOLD, RAPID_FIRE_WINDOW_MS } from '../moderation/rule-based-moderation.util';
+import {
+  RAPID_FIRE_THRESHOLD,
+  RAPID_FIRE_WINDOW_MS,
+} from '../moderation/rule-based-moderation.util';
 
 export interface ModerationCheckInput {
   userId: string;
@@ -46,11 +49,14 @@ export class ReviewModerationService {
     try {
       base = await this.claudeGateway.moderate({ text: input.comment });
     } catch (error) {
-      this.logger.error(`Claude moderation call failed for a review, holding for manual review: ${String(error)}`);
+      this.logger.error(
+        `Claude moderation call failed for a review, holding for manual review: ${String(error)}`,
+      );
       return {
         riskScore: 1,
         labels: ['ai_check_failed'],
-        aiReason: 'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
+        aiReason:
+          'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
         recommendedAction: 'hold_for_review',
       };
     }
@@ -69,7 +75,8 @@ export class ReviewModerationService {
     if (recentCount >= RAPID_FIRE_THRESHOLD) {
       labels.push('rapid_fire');
       riskScore = Math.min(1, riskScore + 0.5);
-      aiReason += ' Ngoài ra, tài khoản đang gửi đánh giá với tần suất bất thường.';
+      aiReason +=
+        ' Ngoài ra, tài khoản đang gửi đánh giá với tần suất bất thường.';
       if (recommendedAction === 'auto_approve') {
         recommendedAction = 'hold_for_review';
       }
@@ -95,7 +102,8 @@ export class ReviewModerationService {
         // stays null here either way (docs/06-database-erd.md §7 hard
         // constraint, enforced independently by moderation-decision.util.ts
         // + the DB CHECK constraint).
-        decision: result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
+        decision:
+          result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
       },
     });
   }

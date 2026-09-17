@@ -11,7 +11,9 @@ describe('sniffImageMagicBytes', () => {
   });
 
   it('identifies a real PNG by its 8-byte signature', () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+    ]);
     expect(sniffImageMagicBytes(png)).toBe('image/png');
   });
 
@@ -34,7 +36,11 @@ describe('sniffImageMagicBytes', () => {
   });
 
   it('rejects a buffer with valid-looking-but-wrong-length RIFF header (no WEBP marker)', () => {
-    const notWebp = Buffer.concat([Buffer.from('RIFF', 'ascii'), Buffer.from([0, 0, 0, 0]), Buffer.from('AVI ', 'ascii')]);
+    const notWebp = Buffer.concat([
+      Buffer.from('RIFF', 'ascii'),
+      Buffer.from([0, 0, 0, 0]),
+      Buffer.from('AVI ', 'ascii'),
+    ]);
     expect(sniffImageMagicBytes(notWebp)).toBeNull();
   });
 });
@@ -42,7 +48,12 @@ describe('sniffImageMagicBytes', () => {
 describe('reencode', () => {
   it('clamps a large image to the 1920px display cap and produces a smaller thumbnail', async () => {
     const original = await sharp({
-      create: { width: 3000, height: 2000, channels: 3, background: { r: 200, g: 50, b: 50 } },
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 3,
+        background: { r: 200, g: 50, b: 50 },
+      },
     })
       .jpeg()
       .toBuffer();
@@ -58,7 +69,12 @@ describe('reencode', () => {
 
   it('never upscales a small image past its original size', async () => {
     const original = await sharp({
-      create: { width: 100, height: 80, channels: 3, background: { r: 10, g: 10, b: 10 } },
+      create: {
+        width: 100,
+        height: 80,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
     })
       .jpeg()
       .toBuffer();
@@ -69,7 +85,10 @@ describe('reencode', () => {
   });
 
   it('throws on a buffer with valid magic bytes but undecodable content', async () => {
-    const corrupt = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('not actually a jpeg body')]);
+    const corrupt = Buffer.concat([
+      Buffer.from([0xff, 0xd8, 0xff]),
+      Buffer.from('not actually a jpeg body'),
+    ]);
     await expect(reencode(corrupt)).rejects.toThrow();
   });
 });

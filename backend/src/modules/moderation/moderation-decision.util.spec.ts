@@ -9,34 +9,58 @@ import { assertDecisionAllowed } from './moderation-decision.util';
 describe('assertDecisionAllowed', () => {
   it('throws when approving a reject-recommended result without a real moderator', () => {
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'reject', riskScore: 0.9 }, 'approved', null),
+      assertDecisionAllowed(
+        { recommendedAction: 'reject', riskScore: 0.9 },
+        'approved',
+        null,
+      ),
     ).toThrow();
   });
 
   it('throws when approving a high-risk-scored result without a real moderator, even if recommendedAction is not reject', () => {
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'hold_for_review', riskScore: 0.75 }, 'approved', null),
+      assertDecisionAllowed(
+        { recommendedAction: 'hold_for_review', riskScore: 0.75 },
+        'approved',
+        null,
+      ),
     ).toThrow();
   });
 
   it('allows a real moderator to approve high-risk content (human override)', () => {
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'reject', riskScore: 0.9 }, 'approved', 'moderator-user-id'),
+      assertDecisionAllowed(
+        { recommendedAction: 'reject', riskScore: 0.9 },
+        'approved',
+        'moderator-user-id',
+      ),
     ).not.toThrow();
   });
 
   it('allows the legitimate auto-approve path (low risk, no decider) through', () => {
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'auto_approve', riskScore: 0.1 }, 'approved', null),
+      assertDecisionAllowed(
+        { recommendedAction: 'auto_approve', riskScore: 0.1 },
+        'approved',
+        null,
+      ),
     ).not.toThrow();
   });
 
   it('never blocks non-approved decisions regardless of risk or decider', () => {
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'reject', riskScore: 0.95 }, 'rejected', null),
+      assertDecisionAllowed(
+        { recommendedAction: 'reject', riskScore: 0.95 },
+        'rejected',
+        null,
+      ),
     ).not.toThrow();
     expect(() =>
-      assertDecisionAllowed({ recommendedAction: 'reject', riskScore: 0.95 }, 'edit_requested', null),
+      assertDecisionAllowed(
+        { recommendedAction: 'reject', riskScore: 0.95 },
+        'edit_requested',
+        null,
+      ),
     ).not.toThrow();
   });
 });

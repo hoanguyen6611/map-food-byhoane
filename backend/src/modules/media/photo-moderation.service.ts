@@ -26,19 +26,28 @@ export class PhotoModerationService {
 
   async check(imageUrl: string): Promise<ModerationCheckResult> {
     try {
-      return await this.claudeGateway.moderate({ text: null, imageUrls: [imageUrl] });
+      return await this.claudeGateway.moderate({
+        text: null,
+        imageUrls: [imageUrl],
+      });
     } catch (error) {
-      this.logger.error(`Claude moderation call failed for a photo, holding for manual review: ${String(error)}`);
+      this.logger.error(
+        `Claude moderation call failed for a photo, holding for manual review: ${String(error)}`,
+      );
       return {
         riskScore: 1,
         labels: ['ai_check_failed'],
-        aiReason: 'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
+        aiReason:
+          'Kiểm duyệt AI tạm thời không khả dụng — đã chuyển cho người kiểm duyệt.',
         recommendedAction: 'hold_for_review',
       };
     }
   }
 
-  async recordResult(photoId: string, result: ModerationCheckResult): Promise<void> {
+  async recordResult(
+    photoId: string,
+    result: ModerationCheckResult,
+  ): Promise<void> {
     await this.prisma.moderationResult.create({
       data: {
         targetType: 'photo',
@@ -48,7 +57,8 @@ export class PhotoModerationService {
         aiReason: result.aiReason,
         recommendedAction: result.recommendedAction,
         modelVersion: this.modelVersion,
-        decision: result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
+        decision:
+          result.recommendedAction === 'auto_approve' ? 'approved' : 'pending',
       },
     });
   }

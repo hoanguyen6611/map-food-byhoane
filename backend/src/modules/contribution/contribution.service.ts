@@ -1,5 +1,11 @@
 import { randomUUID } from 'crypto';
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   ContributionListResponse,
@@ -46,7 +52,11 @@ export class ContributionService {
     private readonly finalizeService: ContributionFinalizeService,
   ) {}
 
-  async checkDuplicate(lat: number, lng: number, name: string): Promise<DuplicateCandidateDto[]> {
+  async checkDuplicate(
+    lat: number,
+    lng: number,
+    name: string,
+  ): Promise<DuplicateCandidateDto[]> {
     const rows = await this.prisma.$queryRaw<DuplicateCandidateRow[]>`
       SELECT
         r.id,
@@ -73,126 +83,228 @@ export class ContributionService {
     }));
   }
 
-  async createNewRestaurant(dto: CreateRestaurantContributionDto, userId: string): Promise<CreateRestaurantContributionResponse> {
+  async createNewRestaurant(
+    dto: CreateRestaurantContributionDto,
+    userId: string,
+  ): Promise<CreateRestaurantContributionResponse> {
+    const photoIdCount = dto.photoIds?.length ?? 0;
+    const photoUrlCount = dto.photoUrls?.length ?? 0;
+    if (photoIdCount + photoUrlCount < 1) {
+      throw new BadRequestException('Cần ít nhất 1 ảnh.');
+    }
+
     if (!dto.duplicateConfirmed) {
-      const candidates = await this.checkDuplicate(dto.location.lat, dto.location.lng, dto.name);
+      const candidates = await this.checkDuplicate(
+        dto.location.lat,
+        dto.location.lng,
+        dto.name,
+      );
       if (candidates.length > 0) {
         throw new ConflictException({
-          message: 'Có thể quán này đã tồn tại — xác nhận nếu đây là quán khác.',
+          message:
+            'Có thể quán này đã tồn tại — xác nhận nếu đây là quán khác.',
           candidates,
         });
       }
     }
 
-    const category = await this.prisma.restaurantCategory.findUniqueOrThrow({ where: { code: dto.categoryCode } });
+    const category = await this.prisma.restaurantCategory.findUniqueOrThrow({
+      where: { code: dto.categoryCode },
+    });
     const priceRange = dto.priceRangeCode
-      ? await this.prisma.priceRange.findUniqueOrThrow({ where: { code: dto.priceRangeCode } })
+      ? await this.prisma.priceRange.findUniqueOrThrow({
+          where: { code: dto.priceRangeCode },
+        })
       : null;
     const slug = await this.generateUniqueSlug(dto.name);
 
-    const address = await this.prisma.address.create({
-      data: {
-        line: dto.address.line,
-        ward: dto.address.ward,
-        // District no longer collected from any client — defaulted to ''
-        // to satisfy the still-non-null DB column without a migration.
-        district: dto.address.district ?? '',
-        province: dto.address.province,
-        fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
-          .filter(Boolean)
-          .join(', '),
+    // Everything below is a pure DB write (no external calls) up through
+    // Contribution creation, so it all runs as one transaction: a failure
+    // partway through (e.g. attachExternalUrls rejecting a bad ImageKit URL,
+    // or a photo-cap violation) rolls back the whole thing instead of
+    // leaving an orphaned Restaurant+RestaurantStatus('pending') behind with
+    // no Contribution/ModerationResult ever created for it — which made it
+    // show up in the admin restaurant list's "pending" filter but never in
+    // /admin/moderation-queue, since that only reads ModerationResult rows.
+    // Found live: 4 duplicate "pending" restaurants from repeated failed
+    // submit retries, each missing IMAGEKIT_URL_ENDPOINT-driven photo attach.
+    // The moderation Claude call below deliberately stays OUTSIDE this
+    // transaction (an external HTTP call has no business holding a DB
+    // transaction open) — safe to do because ContributionModerationService
+    // .check() never throws (it catches Claude failures internally and
+    // returns a hold_for_review result instead), so it can't reintroduce the
+    // same orphaning risk.
+    const { restaurant, contribution } = await this.prisma.$transaction(
+      async (tx) => {
+        const address = await tx.address.create({
+          data: {
+            line: dto.address.line,
+            ward: dto.address.ward,
+            // District no longer collected from any client — defaulted to ''
+            // to satisfy the still-non-null DB column without a migration.
+            district: dto.address.district ?? '',
+            province: dto.address.province,
+            fullAddressText: [
+              dto.address.line,
+              dto.address.ward,
+              dto.address.district,
+              dto.address.province,
+            ]
+              .filter(Boolean)
+              .join(', '),
+          },
+        });
+        const location = await tx.location.create({
+          data: { lat: dto.location.lat, lng: dto.location.lng },
+        });
+
+        const restaurant = await tx.restaurant.create({
+          data: {
+            name: dto.name,
+            slug,
+            description: dto.description,
+            categoryId: category.id,
+            priceRangeId: priceRange?.id,
+            phone: dto.phone,
+            addressId: address.id,
+            locationId: location.id,
+            submittedBy: userId,
+          },
+        });
+        // Starts 'pending' — ContributionFinalizeService flips this to
+        // 'published'/'in_review'/'rejected' based on the moderation outcome
+        // (or a later moderator decision), never left at the DB default.
+        await tx.restaurantStatus.create({
+          data: { restaurantId: restaurant.id, publicationStatus: 'pending' },
+        });
+
+        if (dto.cuisineCodes && dto.cuisineCodes.length > 0) {
+          const cuisines = await tx.cuisine.findMany({
+            where: { code: { in: dto.cuisineCodes } },
+          });
+          await tx.restaurantCuisine.createMany({
+            data: cuisines.map((c) => ({
+              restaurantId: restaurant.id,
+              cuisineId: c.id,
+            })),
+          });
+        }
+
+        if (dto.openingHours && dto.openingHours.length > 0) {
+          await tx.openingHour.createMany({
+            data: dto.openingHours.map((day) => ({
+              restaurantId: restaurant.id,
+              dayOfWeek: day.dayOfWeek,
+              openTime:
+                day.isClosed || !day.openTime
+                  ? null
+                  : this.parseTime(day.openTime),
+              closeTime:
+                day.isClosed || !day.closeTime
+                  ? null
+                  : this.parseTime(day.closeTime),
+              isClosed: day.isClosed,
+            })),
+          });
+        }
+
+        if (dto.facilities && dto.facilities.length > 0) {
+          await tx.restaurantFacility.createMany({
+            data: dto.facilities.map((facilityType) => ({
+              restaurantId: restaurant.id,
+              facilityType,
+            })),
+          });
+        }
+
+        if (dto.menuItems && dto.menuItems.length > 0) {
+          const menu = await tx.menu.create({
+            data: { restaurantId: restaurant.id, isActive: true },
+          });
+          // Best-effort link to the curated Dish catalog, same rule as
+          // admin-restaurant.service.ts's addMenuItem — never creates a new Dish
+          // from a contributor's free-text input, only links an exact match.
+          const dishes = await tx.dish.findMany({
+            where: {
+              name: {
+                in: dto.menuItems.map((item) => item.name),
+                mode: 'insensitive',
+              },
+            },
+          });
+          const dishIdByName = new Map(
+            dishes.map((dish) => [dish.name.toLowerCase(), dish.id]),
+          );
+          await tx.menuItem.createMany({
+            data: dto.menuItems.map((item) => ({
+              menuId: menu.id,
+              dishId: dishIdByName.get(item.name.toLowerCase()) ?? null,
+              name: item.name,
+              priceVnd: item.priceVnd,
+              category: item.category,
+              isPopular: item.isPopular ?? false,
+            })),
+          });
+        }
+
+        if (dto.photoIds && dto.photoIds.length > 0) {
+          await this.mediaService.reparent(
+            userId,
+            dto.photoIds,
+            'restaurant',
+            restaurant.id,
+            tx,
+          );
+        }
+        if (dto.photoUrls && dto.photoUrls.length > 0) {
+          await this.mediaService.attachExternalUrls(
+            userId,
+            'restaurant',
+            restaurant.id,
+            dto.photoUrls,
+            tx,
+          );
+        }
+
+        const contribution = await tx.contribution.create({
+          data: {
+            id: randomUUID(),
+            userId,
+            type: 'new_restaurant',
+            targetRestaurantId: restaurant.id,
+            payload: dto as unknown as Prisma.InputJsonValue,
+            status: 'pending',
+          },
+        });
+
+        return { restaurant, contribution };
       },
-    });
-    const location = await this.prisma.location.create({ data: { lat: dto.location.lat, lng: dto.location.lng } });
-
-    const restaurant = await this.prisma.restaurant.create({
-      data: {
-        name: dto.name,
-        slug,
-        description: dto.description,
-        categoryId: category.id,
-        priceRangeId: priceRange?.id,
-        phone: dto.phone,
-        addressId: address.id,
-        locationId: location.id,
-        submittedBy: userId,
-      },
-    });
-    // Starts 'pending' — ContributionFinalizeService flips this to
-    // 'published'/'in_review'/'rejected' based on the moderation outcome
-    // (or a later moderator decision), never left at the DB default.
-    await this.prisma.restaurantStatus.create({ data: { restaurantId: restaurant.id, publicationStatus: 'pending' } });
-
-    if (dto.cuisineCodes && dto.cuisineCodes.length > 0) {
-      const cuisines = await this.prisma.cuisine.findMany({ where: { code: { in: dto.cuisineCodes } } });
-      await this.prisma.restaurantCuisine.createMany({
-        data: cuisines.map((c) => ({ restaurantId: restaurant.id, cuisineId: c.id })),
-      });
-    }
-
-    if (dto.openingHours && dto.openingHours.length > 0) {
-      await this.prisma.openingHour.createMany({
-        data: dto.openingHours.map((day) => ({
-          restaurantId: restaurant.id,
-          dayOfWeek: day.dayOfWeek,
-          openTime: day.isClosed || !day.openTime ? null : this.parseTime(day.openTime),
-          closeTime: day.isClosed || !day.closeTime ? null : this.parseTime(day.closeTime),
-          isClosed: day.isClosed,
-        })),
-      });
-    }
-
-    if (dto.facilities && dto.facilities.length > 0) {
-      await this.prisma.restaurantFacility.createMany({
-        data: dto.facilities.map((facilityType) => ({ restaurantId: restaurant.id, facilityType })),
-      });
-    }
-
-    if (dto.menuItems && dto.menuItems.length > 0) {
-      const menu = await this.prisma.menu.create({ data: { restaurantId: restaurant.id, isActive: true } });
-      // Best-effort link to the curated Dish catalog, same rule as
-      // admin-restaurant.service.ts's addMenuItem — never creates a new Dish
-      // from a contributor's free-text input, only links an exact match.
-      const dishes = await this.prisma.dish.findMany({
-        where: { name: { in: dto.menuItems.map((item) => item.name), mode: 'insensitive' } },
-      });
-      const dishIdByName = new Map(dishes.map((dish) => [dish.name.toLowerCase(), dish.id]));
-      await this.prisma.menuItem.createMany({
-        data: dto.menuItems.map((item) => ({
-          menuId: menu.id,
-          dishId: dishIdByName.get(item.name.toLowerCase()) ?? null,
-          name: item.name,
-          priceVnd: item.priceVnd,
-          category: item.category,
-          isPopular: item.isPopular ?? false,
-        })),
-      });
-    }
-
-    await this.mediaService.reparent(userId, dto.photoIds, 'restaurant', restaurant.id);
-
-    const contribution = await this.prisma.contribution.create({
-      data: {
-        id: randomUUID(),
-        userId,
-        type: 'new_restaurant',
-        targetRestaurantId: restaurant.id,
-        payload: dto as unknown as Prisma.InputJsonValue,
-        status: 'pending',
-      },
-    });
+    );
 
     const moderation = await this.moderationService.check({
       userId,
       textContent: dto.description ?? null,
       menuItemPricesVnd: dto.menuItems?.map((item) => item.priceVnd),
     });
-    const moderationResultId = await this.moderationService.recordResult(contribution.id, moderation);
-    await this.prisma.contribution.update({ where: { id: contribution.id }, data: { moderationResultId } });
+    const moderationResultId = await this.moderationService.recordResult(
+      contribution.id,
+      moderation,
+    );
+    await this.prisma.contribution.update({
+      where: { id: contribution.id },
+      data: { moderationResultId },
+    });
 
-    const status = await this.finalizeService.finalizeAfterModeration(contribution.id, moderation);
+    const status = await this.finalizeService.finalizeAfterModeration(
+      contribution.id,
+      moderation,
+    );
 
-    return { restaurantId: restaurant.id, contributionId: contribution.id, status };
+    return {
+      restaurantId: restaurant.id,
+      contributionId: contribution.id,
+      status,
+    };
   }
 
   async createEditSuggestion(
@@ -200,14 +312,20 @@ export class ContributionService {
     dto: CreateEditSuggestionDto,
     userId: string,
   ): Promise<CreateEditSuggestionResponse> {
-    const oldValue = await this.readCurrentFieldValue(restaurantId, dto.fieldName);
+    const oldValue = await this.readCurrentFieldValue(
+      restaurantId,
+      dto.fieldName,
+    );
 
     const contribution = await this.prisma.contribution.create({
       data: {
         userId,
         type: 'edit_suggestion',
         targetRestaurantId: restaurantId,
-        payload: { fieldName: dto.fieldName, newValue: dto.newValue } as unknown as Prisma.InputJsonValue,
+        payload: {
+          fieldName: dto.fieldName,
+          newValue: dto.newValue,
+        } as unknown as Prisma.InputJsonValue,
         status: 'pending',
       },
     });
@@ -215,7 +333,7 @@ export class ContributionService {
       data: {
         contributionId: contribution.id,
         fieldName: dto.fieldName,
-        oldValue: (oldValue ?? Prisma.JsonNull) as unknown as Prisma.InputJsonValue,
+        oldValue: oldValue ?? Prisma.JsonNull,
         newValue: dto.newValue as Prisma.InputJsonValue,
       },
     });
@@ -224,10 +342,19 @@ export class ContributionService {
       userId,
       textContent: typeof dto.newValue === 'string' ? dto.newValue : null,
     });
-    const moderationResultId = await this.moderationService.recordResult(contribution.id, moderation);
-    await this.prisma.contribution.update({ where: { id: contribution.id }, data: { moderationResultId } });
+    const moderationResultId = await this.moderationService.recordResult(
+      contribution.id,
+      moderation,
+    );
+    await this.prisma.contribution.update({
+      where: { id: contribution.id },
+      data: { moderationResultId },
+    });
 
-    const status = await this.finalizeService.finalizeAfterModeration(contribution.id, moderation);
+    const status = await this.finalizeService.finalizeAfterModeration(
+      contribution.id,
+      moderation,
+    );
     return { contributionId: contribution.id, status };
   }
 
@@ -236,7 +363,9 @@ export class ContributionService {
     dto: CreateStatusReportDto,
     userId: string,
   ): Promise<CreateStatusReportResponse> {
-    const restaurant = await this.prisma.restaurant.findFirst({ where: { id: restaurantId, deletedAt: null } });
+    const restaurant = await this.prisma.restaurant.findFirst({
+      where: { id: restaurantId, deletedAt: null },
+    });
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
     }
@@ -259,17 +388,29 @@ export class ContributionService {
         userId,
         type: isClosureReport ? 'closure_report' : 'status_update',
         targetRestaurantId: restaurantId,
-        payload: payload as unknown as Prisma.InputJsonValue,
+        payload: payload,
         status: 'pending',
       },
     });
 
     const textContent = dto.description ?? dto.notes ?? null;
-    const moderation = await this.moderationService.check({ userId, textContent });
-    const moderationResultId = await this.moderationService.recordResult(contribution.id, moderation);
-    await this.prisma.contribution.update({ where: { id: contribution.id }, data: { moderationResultId } });
+    const moderation = await this.moderationService.check({
+      userId,
+      textContent,
+    });
+    const moderationResultId = await this.moderationService.recordResult(
+      contribution.id,
+      moderation,
+    );
+    await this.prisma.contribution.update({
+      where: { id: contribution.id },
+      data: { moderationResultId },
+    });
 
-    const status = await this.finalizeService.finalizeAfterModeration(contribution.id, moderation);
+    const status = await this.finalizeService.finalizeAfterModeration(
+      contribution.id,
+      moderation,
+    );
 
     if (isClosureReport) {
       await this.checkClosureEscalation(restaurantId);
@@ -295,10 +436,21 @@ export class ContributionService {
    * final human decision and must remain escalatable.
    */
   async checkClosureEscalation(restaurantId: string): Promise<void> {
-    const windowStart = new Date(Date.now() - CLOSURE_ESCALATION_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const windowStart = new Date(
+      Date.now() - CLOSURE_ESCALATION_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
     const recentReports = await this.prisma.contribution.findMany({
-      where: { targetRestaurantId: restaurantId, type: 'closure_report', createdAt: { gte: windowStart } },
-      select: { id: true, userId: true, moderationResultId: true, createdAt: true },
+      where: {
+        targetRestaurantId: restaurantId,
+        type: 'closure_report',
+        createdAt: { gte: windowStart },
+      },
+      select: {
+        id: true,
+        userId: true,
+        moderationResultId: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -319,26 +471,40 @@ export class ContributionService {
     });
     if (escalated.count === 0) return; // already decided by a real moderator — never reopen.
 
-    await this.prisma.contribution.update({ where: { id: latest.id }, data: { status: 'in_review' } });
+    await this.prisma.contribution.update({
+      where: { id: latest.id },
+      data: { status: 'in_review' },
+    });
 
     // aiReason needs a separate read-then-write since Prisma can't
     // concatenate strings in one call; the `!includes` check keeps this
     // idempotent if checkClosureEscalation were ever invoked twice for the
     // same crossing point.
-    const target = await this.prisma.moderationResult.findUnique({ where: { id: latest.moderationResultId } });
+    const target = await this.prisma.moderationResult.findUnique({
+      where: { id: latest.moderationResultId },
+    });
     if (target && !target.aiReason.includes('closure_escalation')) {
       await this.prisma.moderationResult.update({
         where: { id: latest.moderationResultId },
-        data: { aiReason: `${target.aiReason} — 3+ báo cáo đóng cửa độc lập trong 14 ngày.` },
+        data: {
+          aiReason: `${target.aiReason} — 3+ báo cáo đóng cửa độc lập trong 14 ngày.`,
+        },
       });
     }
   }
 
-  async listMyContributions(userId: string, page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE): Promise<ContributionListResponse> {
+  async listMyContributions(
+    userId: string,
+    page = DEFAULT_PAGE,
+    pageSize = DEFAULT_PAGE_SIZE,
+  ): Promise<ContributionListResponse> {
     const [rows, total] = await Promise.all([
       this.prisma.contribution.findMany({
         where: { userId },
-        include: { targetRestaurant: { select: { name: true } }, moderationResult: { select: { aiReason: true } } },
+        include: {
+          targetRestaurant: { select: { name: true } },
+          moderationResult: { select: { aiReason: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -366,7 +532,10 @@ export class ContributionService {
   async getContribution(id: string, userId: string) {
     const row = await this.prisma.contribution.findUnique({
       where: { id },
-      include: { targetRestaurant: { select: { name: true } }, moderationResult: { select: { aiReason: true } } },
+      include: {
+        targetRestaurant: { select: { name: true } },
+        moderationResult: { select: { aiReason: true } },
+      },
     });
     if (!row) {
       throw new NotFoundException('Không tìm thấy đóng góp');
@@ -379,14 +548,17 @@ export class ContributionService {
       type: row.type,
       targetRestaurantId: row.targetRestaurantId,
       targetRestaurantName: row.targetRestaurant?.name ?? null,
-      status: row.status as ContributionStatus,
+      status: row.status,
       aiReason: row.moderationResult?.aiReason ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
 
-  private async readCurrentFieldValue(restaurantId: string, fieldName: string): Promise<unknown> {
+  private async readCurrentFieldValue(
+    restaurantId: string,
+    fieldName: string,
+  ): Promise<unknown> {
     const restaurant = await this.prisma.restaurant.findFirst({
       where: { id: restaurantId, deletedAt: null },
       include: { address: true, openingHours: true, facilities: true },
@@ -428,7 +600,9 @@ export class ContributionService {
     const base = slugify(name);
     let candidate = base;
     let suffix = 1;
-    while (await this.prisma.restaurant.findUnique({ where: { slug: candidate } })) {
+    while (
+      await this.prisma.restaurant.findUnique({ where: { slug: candidate } })
+    ) {
       suffix += 1;
       candidate = `${base}-${suffix}`;
     }

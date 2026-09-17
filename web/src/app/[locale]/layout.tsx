@@ -7,10 +7,10 @@ import { routing } from '@/i18n/routing';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
+import { SITE_NAME } from '@/lib/constants';
 import '../globals.css';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
-const SITE_NAME = 'The Food Map of Vietnam';
 
 // next/font/google self-hosts at build time (fetches once, serves from this
 // app's own domain) — satisfies the redesign's "self-host in production"

@@ -18,8 +18,12 @@ import type {
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
+import { NotificationService } from '../notification/notification.service';
 import { CompositeScoreService } from './composite-score.service';
-import { ReviewModerationService, type ModerationCheckResult } from './review-moderation.service';
+import {
+  ReviewModerationService,
+  type ModerationCheckResult,
+} from './review-moderation.service';
 import type { CreateReviewDto } from './dto/create-review.dto';
 import type { UpdateReviewDto } from './dto/update-review.dto';
 import type { ReviewListQueryDto } from './dto/review-list-query.dto';
@@ -36,7 +40,9 @@ const REVIEW_INCLUDE = {
   ratings: { include: { criteria: true } },
 } satisfies Prisma.ReviewInclude;
 
-type ReviewWithRelations = Prisma.ReviewGetPayload<{ include: typeof REVIEW_INCLUDE }>;
+type ReviewWithRelations = Prisma.ReviewGetPayload<{
+  include: typeof REVIEW_INCLUDE;
+}>;
 
 // Shape shared by CreateReviewDto (minus restaurantId, all required) and
 // UpdateReviewDto (all optional) — CreateReviewDto's required fields are
@@ -44,7 +50,15 @@ type ReviewWithRelations = Prisma.ReviewGetPayload<{ include: typeof REVIEW_INCL
 type ReviewPatchInput = Partial<
   Pick<
     CreateReviewRequest,
-    'overallRating' | 'ratings' | 'comment' | 'dishesOrdered' | 'billTotalVnd' | 'partySize' | 'visitedAt' | 'waitTimeMinutes' | 'wouldReturn'
+    | 'overallRating'
+    | 'ratings'
+    | 'comment'
+    | 'dishesOrdered'
+    | 'billTotalVnd'
+    | 'partySize'
+    | 'visitedAt'
+    | 'waitTimeMinutes'
+    | 'wouldReturn'
   >
 > & { photoIds?: string[] };
 
@@ -57,14 +71,21 @@ export class ReviewService {
     private readonly moderationService: ReviewModerationService,
     private readonly compositeScoreService: CompositeScoreService,
     private readonly mediaService: MediaService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(dto: CreateReviewDto, userId: string): Promise<ReviewDto> {
     this.assertUniqueCriteria(dto.ratings);
-    const criteriaIdByCode = await this.resolveCriteriaIds(dto.ratings.map((r) => r.criteriaCode));
+    const criteriaIdByCode = await this.resolveCriteriaIds(
+      dto.ratings.map((r) => r.criteriaCode),
+    );
 
     const restaurant = await this.prisma.restaurant.findFirst({
-      where: { id: dto.restaurantId, deletedAt: null, status: { publicationStatus: 'published' } },
+      where: {
+        id: dto.restaurantId,
+        deletedAt: null,
+        status: { publicationStatus: 'published' },
+      },
     });
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
@@ -79,7 +100,10 @@ export class ReviewService {
       // §5) — re-submitting updates the existing row rather than creating a
       // duplicate, UNLESS it's within the 24h anti-spam window (US-E5), in
       // which case it's blocked outright.
-      const lastTouched = existing.updatedAt.getTime() > existing.createdAt.getTime() ? existing.updatedAt : existing.createdAt;
+      const lastTouched =
+        existing.updatedAt.getTime() > existing.createdAt.getTime()
+          ? existing.updatedAt
+          : existing.createdAt;
       if (Date.now() - lastTouched.getTime() < DUPLICATE_WINDOW_MS) {
         throw new ConflictException('Bạn đã đánh giá quán này gần đây');
       }
@@ -99,22 +123,41 @@ export class ReviewService {
         waitTimeMinutes: dto.waitTimeMinutes,
         wouldReturn: dto.wouldReturn,
         ratings: {
-          create: dto.ratings.map((r) => ({ criteriaId: criteriaIdByCode.get(r.criteriaCode)!, score: r.score })),
+          create: dto.ratings.map((r) => ({
+            criteriaId: criteriaIdByCode.get(r.criteriaCode)!,
+            score: r.score,
+          })),
         },
       },
     });
 
     if (dto.photoIds && dto.photoIds.length > 0) {
-      await this.mediaService.reparent(userId, dto.photoIds, 'review', created.id);
+      await this.mediaService.reparent(
+        userId,
+        dto.photoIds,
+        'review',
+        created.id,
+      );
     }
 
-    await this.runModerationAndFinalize(created.id, userId, dto.comment ?? null);
+    await this.runModerationAndFinalize(
+      created.id,
+      userId,
+      dto.restaurantId,
+      dto.comment ?? null,
+    );
     await this.compositeScoreService.enqueueRecompute(dto.restaurantId);
     return this.getByIdOrThrow(created.id);
   }
 
-  async update(reviewId: string, dto: UpdateReviewDto, userId: string): Promise<ReviewDto> {
-    const existing = await this.prisma.review.findFirst({ where: { id: reviewId, deletedAt: null } });
+  async update(
+    reviewId: string,
+    dto: UpdateReviewDto,
+    userId: string,
+  ): Promise<ReviewDto> {
+    const existing = await this.prisma.review.findFirst({
+      where: { id: reviewId, deletedAt: null },
+    });
     if (!existing) {
       throw new NotFoundException('Không tìm thấy đánh giá');
     }
@@ -125,21 +168,30 @@ export class ReviewService {
   }
 
   async remove(reviewId: string, userId: string): Promise<void> {
-    const existing = await this.prisma.review.findFirst({ where: { id: reviewId, deletedAt: null } });
+    const existing = await this.prisma.review.findFirst({
+      where: { id: reviewId, deletedAt: null },
+    });
     if (!existing) {
       throw new NotFoundException('Không tìm thấy đánh giá');
     }
     if (existing.userId !== userId) {
       throw new ForbiddenException('Bạn không có quyền xoá đánh giá này');
     }
-    await this.prisma.review.update({ where: { id: reviewId }, data: { deletedAt: new Date() } });
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { deletedAt: new Date() },
+    });
     await this.compositeScoreService.enqueueRecompute(existing.restaurantId);
   }
 
   // "My Reviews" (profile) — unlike listForRestaurant, deliberately includes
   // every status (pending/rejected/hidden too), not just 'published': this
   // is the author's own view of their history, not the public-facing list.
-  async listMine(userId: string, page = 1, pageSize = DEFAULT_MY_REVIEWS_PAGE_SIZE): Promise<MyReviewListResponse> {
+  async listMine(
+    userId: string,
+    page = 1,
+    pageSize = DEFAULT_MY_REVIEWS_PAGE_SIZE,
+  ): Promise<MyReviewListResponse> {
     const where: Prisma.ReviewWhereInput = { userId, deletedAt: null };
     const [rows, total] = await Promise.all([
       this.prisma.review.findMany({
@@ -153,7 +205,8 @@ export class ReviewService {
     ]);
 
     const restaurantIds = rows.map((r) => r.restaurantId);
-    const thumbnailByRestaurantId = await this.batchFetchRestaurantThumbnails(restaurantIds);
+    const thumbnailByRestaurantId =
+      await this.batchFetchRestaurantThumbnails(restaurantIds);
     const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
 
     return {
@@ -171,10 +224,16 @@ export class ReviewService {
     };
   }
 
-  private async batchFetchRestaurantThumbnails(restaurantIds: string[]): Promise<Map<string, string>> {
+  private async batchFetchRestaurantThumbnails(
+    restaurantIds: string[],
+  ): Promise<Map<string, string>> {
     if (restaurantIds.length === 0) return new Map();
     const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+      where: {
+        ownerType: 'restaurant',
+        ownerId: { in: restaurantIds },
+        deletedAt: null,
+      },
       orderBy: { createdAt: 'asc' },
     });
     const map = new Map<string, string>();
@@ -186,7 +245,10 @@ export class ReviewService {
     return map;
   }
 
-  async listForRestaurant(restaurantId: string, query: ReviewListQueryDto): Promise<ReviewListResponse> {
+  async listForRestaurant(
+    restaurantId: string,
+    query: ReviewListQueryDto,
+  ): Promise<ReviewListResponse> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
     const where: Prisma.ReviewWhereInput = {
@@ -263,42 +325,67 @@ export class ReviewService {
       .sort((a, b) => {
         const aHas = idsWithPhotos.has(a.id) ? 1 : 0;
         const bHas = idsWithPhotos.has(b.id) ? 1 : 0;
-        return aHas !== bHas ? bHas - aHas : b.createdAt.getTime() - a.createdAt.getTime();
+        return aHas !== bHas
+          ? bHas - aHas
+          : b.createdAt.getTime() - a.createdAt.getTime();
       })
       .map((r) => r.id);
-    const pageIds = sortedIds.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+    const pageIds = sortedIds.slice(
+      (page - 1) * pageSize,
+      (page - 1) * pageSize + pageSize,
+    );
 
-    const pageRows = await this.prisma.review.findMany({ where: { id: { in: pageIds } }, include: REVIEW_INCLUDE });
+    const pageRows = await this.prisma.review.findMany({
+      where: { id: { in: pageIds } },
+      include: REVIEW_INCLUDE,
+    });
     const rowById = new Map(pageRows.map((r) => [r.id, r]));
-    const orderedRows = pageIds.map((id) => rowById.get(id)).filter((row): row is ReviewWithRelations => row !== undefined);
+    const orderedRows = pageIds
+      .map((id) => rowById.get(id))
+      .filter((row): row is ReviewWithRelations => row !== undefined);
 
     return [orderedRows, allMatching.length];
   }
 
-  private async applyUpdate(existing: Review, patch: ReviewPatchInput): Promise<ReviewDto> {
+  private async applyUpdate(
+    existing: Review,
+    patch: ReviewPatchInput,
+  ): Promise<ReviewDto> {
     if (patch.ratings) {
       this.assertUniqueCriteria(patch.ratings);
     }
 
     const now = new Date();
-    const editedAt = now.getTime() - existing.createdAt.getTime() > EDIT_MARKER_WINDOW_MS ? now : existing.editedAt;
+    const editedAt =
+      now.getTime() - existing.createdAt.getTime() > EDIT_MARKER_WINDOW_MS
+        ? now
+        : existing.editedAt;
 
     const data: Prisma.ReviewUpdateInput = { editedAt };
-    if (patch.overallRating !== undefined) data.overallRating = patch.overallRating;
+    if (patch.overallRating !== undefined)
+      data.overallRating = patch.overallRating;
     if (patch.comment !== undefined) data.comment = patch.comment;
-    if (patch.dishesOrdered !== undefined) data.dishesOrdered = patch.dishesOrdered;
-    if (patch.billTotalVnd !== undefined) data.billTotalVnd = patch.billTotalVnd;
+    if (patch.dishesOrdered !== undefined)
+      data.dishesOrdered = patch.dishesOrdered;
+    if (patch.billTotalVnd !== undefined)
+      data.billTotalVnd = patch.billTotalVnd;
     if (patch.partySize !== undefined) data.partySize = patch.partySize;
-    if (patch.visitedAt !== undefined) data.visitedAt = new Date(patch.visitedAt);
-    if (patch.waitTimeMinutes !== undefined) data.waitTimeMinutes = patch.waitTimeMinutes;
+    if (patch.visitedAt !== undefined)
+      data.visitedAt = new Date(patch.visitedAt);
+    if (patch.waitTimeMinutes !== undefined)
+      data.waitTimeMinutes = patch.waitTimeMinutes;
     if (patch.wouldReturn !== undefined) data.wouldReturn = patch.wouldReturn;
 
     await this.prisma.review.update({ where: { id: existing.id }, data });
 
     if (patch.ratings) {
-      const criteriaIdByCode = await this.resolveCriteriaIds(patch.ratings.map((r) => r.criteriaCode));
+      const criteriaIdByCode = await this.resolveCriteriaIds(
+        patch.ratings.map((r) => r.criteriaCode),
+      );
       await this.prisma.$transaction([
-        this.prisma.reviewRating.deleteMany({ where: { reviewId: existing.id } }),
+        this.prisma.reviewRating.deleteMany({
+          where: { reviewId: existing.id },
+        }),
         this.prisma.reviewRating.createMany({
           data: patch.ratings.map((r) => ({
             reviewId: existing.id,
@@ -310,11 +397,22 @@ export class ReviewService {
     }
 
     if (patch.photoIds && patch.photoIds.length > 0) {
-      await this.mediaService.reparent(existing.userId, patch.photoIds, 'review', existing.id);
+      await this.mediaService.reparent(
+        existing.userId,
+        patch.photoIds,
+        'review',
+        existing.id,
+      );
     }
 
-    const commentForModeration = patch.comment !== undefined ? patch.comment : existing.comment;
-    await this.runModerationAndFinalize(existing.id, existing.userId, commentForModeration);
+    const commentForModeration =
+      patch.comment !== undefined ? patch.comment : existing.comment;
+    await this.runModerationAndFinalize(
+      existing.id,
+      existing.userId,
+      existing.restaurantId,
+      commentForModeration,
+    );
     await this.compositeScoreService.enqueueRecompute(existing.restaurantId);
     return this.getByIdOrThrow(existing.id);
   }
@@ -326,39 +424,112 @@ export class ReviewService {
   // instead. `status` defaults to 'pending' at creation anyway, so on
   // create() a thrown check is a no-op continuation of that default; on
   // update() it explicitly re-holds a possibly-already-published review.
-  private async runModerationAndFinalize(reviewId: string, userId: string, comment: string | null): Promise<void> {
-    let moderation: ModerationCheckResult;
+  private async runModerationAndFinalize(
+    reviewId: string,
+    userId: string,
+    restaurantId: string,
+    comment: string | null,
+  ): Promise<void> {
+    let moderation: ModerationCheckResult | null = null;
     try {
       moderation = await this.moderationService.check({ userId, comment });
     } catch (error) {
-      this.logger.error(`Moderation check failed for review ${reviewId}, holding for manual review: ${String(error)}`);
-      await this.prisma.review.update({ where: { id: reviewId }, data: { status: 'pending' } });
-      return;
+      this.logger.error(
+        `Moderation check failed for review ${reviewId}, holding for manual review: ${String(error)}`,
+      );
+      await this.prisma.review.update({
+        where: { id: reviewId },
+        data: { status: 'pending' },
+      });
     }
-    await this.moderationService.recordResult(reviewId, moderation);
-    await this.prisma.review.update({
-      where: { id: reviewId },
-      data: { status: moderation.recommendedAction === 'auto_approve' ? 'published' : 'pending' },
+    if (moderation) {
+      await this.moderationService.recordResult(reviewId, moderation);
+      await this.prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          status:
+            moderation.recommendedAction === 'auto_approve'
+              ? 'published'
+              : 'pending',
+        },
+      });
+    }
+    if (!moderation || moderation.recommendedAction !== 'auto_approve') {
+      await this.notifyAdminsOfPendingReview(reviewId, restaurantId);
+    }
+  }
+
+  // Best-effort — same "downstream producer failure must never break the
+  // core flow" philosophy as NotificationService.create()'s push-delivery
+  // call. A notification failure here must never fail the review submission
+  // itself, which has already been persisted.
+  private async notifyAdminsOfPendingReview(reviewId: string, restaurantId: string): Promise<void> {
+    try {
+      await this.sendPendingReviewNotification(reviewId, restaurantId);
+    } catch (error) {
+      this.logger.error(`Failed to notify admins of pending review ${reviewId}`, error instanceof Error ? error.stack : error);
+    }
+  }
+
+  private async sendPendingReviewNotification(reviewId: string, restaurantId: string): Promise<void> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { name: true },
+    });
+    await this.notificationService.notifyAdmins('moderation_queue_new', {
+      title: 'Đánh giá mới cần duyệt',
+      body: restaurant?.name ?? 'Một đánh giá mới',
+      deepLink: {
+        screen: 'AdminModeration',
+        moderationTargetType: 'review',
+        reviewId,
+        restaurantId,
+      },
     });
   }
 
   private async getByIdOrThrow(id: string): Promise<ReviewDto> {
-    const review = await this.prisma.review.findUniqueOrThrow({ where: { id }, include: REVIEW_INCLUDE });
-    const photos = await this.prisma.photo.findMany({ where: { ownerType: 'review', ownerId: id, deletedAt: null } });
-    return this.toDto(review, photos.map((p) => ({ id: p.id, url: this.mediaService.resolveUrl(p.storageKey), width: p.width, height: p.height })));
+    const review = await this.prisma.review.findUniqueOrThrow({
+      where: { id },
+      include: REVIEW_INCLUDE,
+    });
+    const photos = await this.prisma.photo.findMany({
+      where: { ownerType: 'review', ownerId: id, deletedAt: null },
+    });
+    return this.toDto(
+      review,
+      photos.map((p) => ({
+        id: p.id,
+        url: this.mediaService.resolveUrl(p.storageKey),
+        width: p.width,
+        height: p.height,
+      })),
+    );
   }
 
-  private async batchFetchPhotos(reviewIds: string[]): Promise<Map<string, PhotoDto[]>> {
+  private async batchFetchPhotos(
+    reviewIds: string[],
+  ): Promise<Map<string, PhotoDto[]>> {
     if (reviewIds.length === 0) return new Map();
     const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'review', ownerId: { in: reviewIds }, deletedAt: null, status: 'approved' },
+      where: {
+        ownerType: 'review',
+        ownerId: { in: reviewIds },
+        deletedAt: null,
+        status: 'approved',
+      },
       orderBy: { createdAt: 'asc' },
     });
     const map = new Map<string, PhotoDto[]>();
     for (const photo of photos) {
       if (!photo.ownerId) continue;
       const list = map.get(photo.ownerId) ?? [];
-      list.push({ id: photo.id, url: this.mediaService.resolveUrl(photo.storageKey), width: photo.width, height: photo.height });
+      list.push({
+        id: photo.id,
+        url: this.mediaService.resolveUrl(photo.storageKey),
+        width: photo.width,
+        height: photo.height,
+      });
       map.set(photo.ownerId, list);
     }
     return map;
@@ -420,9 +591,13 @@ export class ReviewService {
     }
   }
 
-  private async resolveCriteriaIds(codes: string[]): Promise<Map<string, string>> {
+  private async resolveCriteriaIds(
+    codes: string[],
+  ): Promise<Map<string, string>> {
     const unique = Array.from(new Set(codes));
-    const rows = await this.prisma.reviewCriteria.findMany({ where: { code: { in: unique } } });
+    const rows = await this.prisma.reviewCriteria.findMany({
+      where: { code: { in: unique } },
+    });
     const map = new Map(rows.map((r) => [r.code, r.id]));
     for (const code of unique) {
       if (!map.has(code)) {

@@ -255,6 +255,84 @@ textarea:focus-visible {
   font-weight: 700;
   flex: none;
 }
+.notification-bell-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-muted);
+}
+.notification-bell-btn:hover {
+  background: var(--color-border-hairline);
+  color: var(--color-ink);
+}
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: #dd00d8;
+  color: #fff;
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.account-menu-wrap {
+  position: relative;
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 190px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-lg);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 30;
+}
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.account-menu-item:hover {
+  background: var(--color-canvas);
+}
+.account-menu-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--color-border-hairline);
+}
+
 .topbar-login-cta {
   height: 36px;
   display: inline-flex;
@@ -466,6 +544,18 @@ textarea:focus-visible {
 }
 .search-field input::placeholder {
   color: var(--color-ink-subtle);
+}
+.search-field-select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  cursor: pointer;
 }
 .search-submit {
   flex: none;
@@ -1106,6 +1196,15 @@ textarea:focus-visible {
   height: 100%;
   font-family: var(--font-archivo), system-ui, sans-serif;
   background: #eff7f8;
+  /* Leaflet's own CSS assigns its internal panes/controls real z-index
+     values (tile/marker panes up to ~700, zoom control 1000) that are NOT
+     scoped to the map by default — without this, they can visually cover
+     unrelated, later-in-the-DOM page elements with a lower or auto
+     z-index ANYWHERE on the page (this bit the account dropdown menu in
+     the topbar, nowhere near the map itself). `isolation: isolate`
+     forces a new stacking context so every Leaflet z-index is contained
+     within this element and can never leak out. */
+  isolation: isolate;
 }
 .map-pin {
   position: absolute;

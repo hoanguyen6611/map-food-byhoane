@@ -134,6 +134,30 @@ export async function login(email: string, password: string): Promise<LoginResul
   return { ok: true };
 }
 
+/**
+ * Calls the backend directly (server-to-server, same as `login`). `idToken`
+ * is obtained client-side (Google Identity Services / Sign in with Apple JS,
+ * see LoginForm.tsx) and passed in as a plain Server Action argument — this
+ * function itself never runs in the browser, so the backend call still
+ * never touches CORS.
+ */
+export async function oauthLogin(provider: 'google' | 'apple', idToken: string): Promise<LoginResult> {
+  const res = await fetch(`${BACKEND_API_URL}/auth/oauth/${provider}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    return { ok: false, error: 'Đăng nhập thất bại. Vui lòng thử lại.' };
+  }
+
+  const body = (await res.json()) as AuthResponse;
+  await writeSessionCookie({ accessToken: body.accessToken, refreshToken: body.refreshToken, email: body.user.email });
+  return { ok: true };
+}
+
 /** Calls the backend directly (server-to-server, same as `login`). Mirrors `POST /auth/register`'s real contract — the design's sign-up tab is wired to this, not decorative. */
 export async function register(email: string, password: string): Promise<LoginResult> {
   const res = await fetch(`${BACKEND_API_URL}/auth/register`, {

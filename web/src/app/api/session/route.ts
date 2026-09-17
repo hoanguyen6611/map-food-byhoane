@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import type { MeResponse, NotificationListResponse } from '@foodmap/shared-types';
+import { getSession, backendFetchAuthorized } from '@/lib/auth';
+
+export interface SessionInfo {
+  email: string;
+  displayName: string | null;
+  unreadCount: number;
+}
 
 // Deliberately its own Route Handler rather than reading the session cookie
 // directly in the (static-generated) root layout — `cookies()` anywhere in
@@ -10,5 +17,20 @@ import { getSession } from '@/lib/auth';
 // anything else, and is fetched client-side by `AuthStatus`.
 export async function GET() {
   const session = await getSession();
-  return NextResponse.json(session);
+  if (!session) return NextResponse.json(null);
+
+  // Best-effort enrichment — the cookie's email alone is enough to render
+  // "signed in", so a failure here (network hiccup, dead refresh token)
+  // falls back to email-only display rather than treating the user as
+  // signed out; pages that actually gate on auth already redirect via
+  // `backendFetchAuthorized` returning null on their own.
+  const [meRes, notificationsRes] = await Promise.all([
+    backendFetchAuthorized('/me'),
+    backendFetchAuthorized('/me/notifications?page=1&pageSize=1'),
+  ]);
+  const displayName = meRes?.ok ? ((await meRes.json()) as MeResponse).profile.displayName : null;
+  const unreadCount = notificationsRes?.ok ? ((await notificationsRes.json()) as NotificationListResponse).unreadCount : 0;
+
+  const info: SessionInfo = { email: session.email, displayName: displayName || null, unreadCount };
+  return NextResponse.json(info);
 }

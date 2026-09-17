@@ -58,8 +58,13 @@ describe('Search & Filter (e2e)', () => {
       .post('/auth/register')
       .send({ email, password: 'password123' })
       .expect(201);
-    const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: 'admin' } });
-    await prisma.user.update({ where: { id: authBody(reg).user.id }, data: { roleId: roleRow.id } });
+    const roleRow = await prisma.role.findUniqueOrThrow({
+      where: { code: 'admin' },
+    });
+    await prisma.user.update({
+      where: { id: authBody(reg).user.id },
+      data: { roleId: roleRow.id },
+    });
     const login = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email, password: 'password123' })
@@ -70,7 +75,10 @@ describe('Search & Filter (e2e)', () => {
   // Mirrors review.e2e-spec.ts's createRestaurant/cleanupRestaurant fixture
   // pattern — a real restaurant via the admin API (immediately published),
   // not hand-rolled Prisma relations.
-  async function createRestaurant(adminToken: string, name: string): Promise<AdminRestaurantDetailDto> {
+  async function createRestaurant(
+    adminToken: string,
+    name: string,
+  ): Promise<AdminRestaurantDetailDto> {
     const res = await request(app.getHttpServer())
       .post('/admin/restaurants')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -78,14 +86,22 @@ describe('Search & Filter (e2e)', () => {
         name,
         categoryCode: 'quan_an',
         priceRangeCode: '50_100k',
-        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
+        address: {
+          line: '1 Test St',
+          ward: 'Phường Bến Nghé',
+          province: 'TP. Hồ Chí Minh',
+        },
         location: { lat: 10.7769, lng: 106.7009 },
       })
       .expect(201);
     return res.body as AdminRestaurantDetailDto;
   }
 
-  async function addMenuItem(adminToken: string, restaurantId: string, name: string): Promise<void> {
+  async function addMenuItem(
+    adminToken: string,
+    restaurantId: string,
+    name: string,
+  ): Promise<void> {
     await request(app.getHttpServer())
       .post(`/admin/restaurants/${restaurantId}/menu-items`)
       .set('Authorization', `Bearer ${adminToken}`)
@@ -138,7 +154,10 @@ describe('Search & Filter (e2e)', () => {
       // fixture can match is via the dish-name join (search.service.ts
       // branch (c)), proving that specific branch actually works end-to-end
       // now that MenuItem.dishId gets linked at creation time.
-      const restaurant = await createRestaurant(admin.token, `Search Dish Test Alpha ${Date.now()}`);
+      const restaurant = await createRestaurant(
+        admin.token,
+        `Search Dish Test Alpha ${Date.now()}`,
+      );
       await addMenuItem(admin.token, restaurant.id, 'Cơm tấm sườn bì chả');
 
       try {
@@ -159,7 +178,10 @@ describe('Search & Filter (e2e)', () => {
       // cross the old 0.2 trigram-similarity threshold despite being
       // semantically unrelated. No menu item is added, so this can only
       // match via the fuzzy-name branch (b), if the threshold fix regresses.
-      const restaurant = await createRestaurant(admin.token, `Quán Ăn Chị Tám Test ${Date.now()}`);
+      const restaurant = await createRestaurant(
+        admin.token,
+        `Quán Ăn Chị Tám Test ${Date.now()}`,
+      );
 
       try {
         const res = await request(app.getHttpServer())
@@ -212,7 +234,9 @@ describe('Search & Filter (e2e)', () => {
         const detail = await request(app.getHttpServer())
           .get(`/restaurants/${item.id}`)
           .expect(200);
-        expect((detail.body as RestaurantDetailDto).cuisineCodes).toContain('mon_nhat');
+        expect((detail.body as RestaurantDetailDto).cuisineCodes).toContain(
+          'mon_nhat',
+        );
       }
 
       const facilitiesRes = await request(app.getHttpServer())
@@ -240,7 +264,9 @@ describe('Search & Filter (e2e)', () => {
         .expect(200);
       const categoryItems = body(categoryRes).items;
       expect(categoryItems.length).toBeGreaterThan(0);
-      expect(categoryItems.every((r) => r.categoryCode === 'quan_ca_phe')).toBe(true);
+      expect(categoryItems.every((r) => r.categoryCode === 'quan_ca_phe')).toBe(
+        true,
+      );
 
       const districtRes = await request(app.getHttpServer())
         .get('/restaurants')

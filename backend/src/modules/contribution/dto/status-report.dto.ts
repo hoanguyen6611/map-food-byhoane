@@ -1,10 +1,36 @@
-import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
-import type { CrowdedLevel, PowerOutletLevel, SeatAvailabilityLevel } from '@foodmap/shared-types';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
+import type {
+  CrowdedLevel,
+  PowerOutletLevel,
+  SeatAvailabilityLevel,
+} from '@foodmap/shared-types';
 
-const STATUS_REPORT_KINDS = ['crowded', 'seat', 'outlet', 'parking', 'hours_change', 'moved', 'wrong_info', 'closure'] as const;
+const STATUS_REPORT_KINDS = [
+  'crowded',
+  'seat',
+  'outlet',
+  'parking',
+  'hours_change',
+  'moved',
+  'wrong_info',
+  'closure',
+] as const;
 export type StatusReportKind = (typeof STATUS_REPORT_KINDS)[number];
 
-const CROWDED_LEVELS: CrowdedLevel[] = ['empty', 'light', 'moderate', 'crowded', 'full'];
+const CROWDED_LEVELS: CrowdedLevel[] = [
+  'empty',
+  'light',
+  'moderate',
+  'crowded',
+  'full',
+];
 const SEAT_LEVELS: SeatAvailabilityLevel[] = ['plenty', 'limited', 'full'];
 const OUTLET_LEVELS: PowerOutletLevel[] = ['plenty', 'some', 'none'];
 
@@ -40,7 +66,12 @@ export class CreateStatusReportDto {
   @IsBoolean()
   isFree?: boolean;
 
-  @ValidateIf((o: CreateStatusReportDto) => o.kind === 'hours_change' || o.kind === 'moved' || o.kind === 'wrong_info')
+  @ValidateIf(
+    (o: CreateStatusReportDto) =>
+      o.kind === 'hours_change' ||
+      o.kind === 'moved' ||
+      o.kind === 'wrong_info',
+  )
   @IsString()
   @MaxLength(500)
   description?: string;

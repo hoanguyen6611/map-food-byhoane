@@ -44,7 +44,9 @@ describe('Favorites & Notifications (e2e)', () => {
       where: { deletedAt: null, status: { publicationStatus: 'published' } },
     });
     if (!restaurant) {
-      throw new Error('No published restaurant in the dev DB — run prisma/seed-restaurants.ts first.');
+      throw new Error(
+        'No published restaurant in the dev DB — run prisma/seed-restaurants.ts first.',
+      );
     }
     seededRestaurantId = restaurant.id;
   });
@@ -57,7 +59,9 @@ describe('Favorites & Notifications (e2e)', () => {
     `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const authBody = (res: request.Response) => res.body as AuthResponse;
 
-  async function registerUser(label: string): Promise<{ token: string; userId: string }> {
+  async function registerUser(
+    label: string,
+  ): Promise<{ token: string; userId: string }> {
     const email = uniqueEmail(label);
     const res = await request(app.getHttpServer())
       .post('/auth/register')
@@ -69,8 +73,12 @@ describe('Favorites & Notifications (e2e)', () => {
 
   describe('Favorites — US-H1', () => {
     it('rejects unauthenticated requests', async () => {
-      await request(app.getHttpServer()).post(`/favorites/${seededRestaurantId}`).expect(401);
-      await request(app.getHttpServer()).delete(`/favorites/${seededRestaurantId}`).expect(401);
+      await request(app.getHttpServer())
+        .post(`/favorites/${seededRestaurantId}`)
+        .expect(401);
+      await request(app.getHttpServer())
+        .delete(`/favorites/${seededRestaurantId}`)
+        .expect(401);
       await request(app.getHttpServer()).get('/me/favorites').expect(401);
     });
 
@@ -97,7 +105,9 @@ describe('Favorites & Notifications (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
-      const count = await prisma.favorite.count({ where: { userId, restaurantId: seededRestaurantId } });
+      const count = await prisma.favorite.count({
+        where: { userId, restaurantId: seededRestaurantId },
+      });
       expect(count).toBe(1);
 
       const list = await request(app.getHttpServer())
@@ -165,7 +175,13 @@ describe('Favorites & Notifications (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
       const body = res.body as NotificationListResponse;
-      expect(body).toEqual({ items: [], total: 0, unreadCount: 0, page: 1, pageSize: 20 });
+      expect(body).toEqual({
+        items: [],
+        total: 0,
+        unreadCount: 0,
+        page: 1,
+        pageSize: 20,
+      });
 
       await request(app.getHttpServer())
         .patch('/me/notifications/00000000-0000-0000-0000-000000000000/read')
@@ -181,7 +197,11 @@ describe('Favorites & Notifications (e2e)', () => {
         data: {
           userId: owner.userId,
           type: 'moderation_result',
-          payload: { title: 'Test', body: 'Test body', deepLink: { screen: 'Reviews', restaurantId: seededRestaurantId } },
+          payload: {
+            title: 'Test',
+            body: 'Test body',
+            deepLink: { screen: 'Reviews', restaurantId: seededRestaurantId },
+          },
         },
       });
 
@@ -193,7 +213,10 @@ describe('Favorites & Notifications (e2e)', () => {
       expect(listBody.total).toBe(1);
       expect(listBody.unreadCount).toBe(1);
       expect(listBody.items[0].isRead).toBe(false);
-      expect(listBody.items[0].payload.deepLink).toEqual({ screen: 'Reviews', restaurantId: seededRestaurantId });
+      expect(listBody.items[0].payload.deepLink).toEqual({
+        screen: 'Reviews',
+        restaurantId: seededRestaurantId,
+      });
 
       await request(app.getHttpServer())
         .patch(`/me/notifications/${notification.id}/read`)
@@ -217,11 +240,17 @@ describe('Favorites & Notifications (e2e)', () => {
   });
 
   describe('Push tokens', () => {
-    const fakeToken = (label: string) => `ExponentPushToken[${label}-${Date.now()}-${Math.random().toString(36).slice(2)}]`;
+    const fakeToken = (label: string) =>
+      `ExponentPushToken[${label}-${Date.now()}-${Math.random().toString(36).slice(2)}]`;
 
     it('rejects unauthenticated requests', async () => {
-      await request(app.getHttpServer()).post('/me/push-tokens').send({ token: 'x', platform: 'ios' }).expect(401);
-      await request(app.getHttpServer()).delete('/me/push-tokens/x').expect(401);
+      await request(app.getHttpServer())
+        .post('/me/push-tokens')
+        .send({ token: 'x', platform: 'ios' })
+        .expect(401);
+      await request(app.getHttpServer())
+        .delete('/me/push-tokens/x')
+        .expect(401);
     });
 
     it('registers a token, and re-registering it is idempotent (no duplicate rows)', async () => {
@@ -239,7 +268,9 @@ describe('Favorites & Notifications (e2e)', () => {
         .send({ token: pushToken, platform: 'ios' })
         .expect(201);
 
-      const count = await prisma.pushToken.count({ where: { userId, token: pushToken } });
+      const count = await prisma.pushToken.count({
+        where: { userId, token: pushToken },
+      });
       expect(count).toBe(1);
 
       await prisma.pushToken.deleteMany({ where: { userId } });
@@ -261,7 +292,9 @@ describe('Favorites & Notifications (e2e)', () => {
         .send({ token: pushToken, platform: 'android' })
         .expect(201);
 
-      const rows = await prisma.pushToken.findMany({ where: { token: pushToken } });
+      const rows = await prisma.pushToken.findMany({
+        where: { token: pushToken },
+      });
       expect(rows).toHaveLength(1);
       expect(rows[0].userId).toBe(userB.userId);
       expect(rows[0].platform).toBe('android');
@@ -286,13 +319,17 @@ describe('Favorites & Notifications (e2e)', () => {
         .delete(`/me/push-tokens/${encodeURIComponent(pushToken)}`)
         .set('Authorization', `Bearer ${stranger.token}`)
         .expect(200);
-      expect(await prisma.pushToken.count({ where: { token: pushToken } })).toBe(1);
+      expect(
+        await prisma.pushToken.count({ where: { token: pushToken } }),
+      ).toBe(1);
 
       await request(app.getHttpServer())
         .delete(`/me/push-tokens/${encodeURIComponent(pushToken)}`)
         .set('Authorization', `Bearer ${owner.token}`)
         .expect(200);
-      expect(await prisma.pushToken.count({ where: { token: pushToken } })).toBe(0);
+      expect(
+        await prisma.pushToken.count({ where: { token: pushToken } }),
+      ).toBe(0);
 
       // Unregistering again (already gone) must not error either.
       await request(app.getHttpServer())

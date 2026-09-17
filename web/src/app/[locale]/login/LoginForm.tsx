@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
+import Script from 'next/script';
 import { useLocale, useTranslations } from 'next-intl';
 import { routing } from '@/i18n/routing';
-import { loginAction, registerAction } from './actions';
+import { loginAction, registerAction, oauthLoginAction } from './actions';
 import { AlertIcon, MailIcon, LockIcon, CheckIcon, GoogleGIcon, AppleIcon } from '@/components/icons';
 
 interface FormState {
@@ -13,6 +14,33 @@ interface FormState {
 const EMAIL_RE = /.+@.+\..+/;
 
 type Tab = 'signin' | 'signup';
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID;
+const APPLE_CLIENT_ID = process.env.NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID;
+const APPLE_REDIRECT_URI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI;
+
+interface GoogleCredentialResponse {
+  credential: string;
+}
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (response: GoogleCredentialResponse) => void }) => void;
+          renderButton: (parent: HTMLElement, options: { type: 'standard' | 'icon' }) => void;
+        };
+      };
+    };
+    AppleID?: {
+      auth: {
+        init: (config: { clientId: string; scope: string; redirectURI: string; usePopup: boolean }) => void;
+        signIn: () => Promise<{ authorization: { id_token: string } }>;
+      };
+    };
+  }
+}
 
 /**
  * Client component so a successful login/sign-up can force a real page
@@ -27,6 +55,64 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthPending, setOauthPending] = useState<'google' | 'apple' | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  function goToApp() {
+    window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
+  }
+
+  async function handleOAuthToken(provider: 'google' | 'apple', idToken: string) {
+    setOauthPending(provider);
+    const result = await oauthLoginAction(provider, idToken);
+    setOauthPending(null);
+    if (result.ok) {
+      goToApp();
+      return;
+    }
+    setOauthError(result.error);
+  }
+
+  function handleGoogleClick() {
+    if (!GOOGLE_CLIENT_ID || !window.google) {
+      setOauthError(t('socialLoginError'));
+      return;
+    }
+    setOauthError(null);
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response) => void handleOAuthToken('google', response.credential),
+    });
+    // Custom-styled button that triggers Google's real consent popup: GSI's
+    // own rendered button (into a hidden container below) is what actually
+    // owns the click-to-open-popup behavior, so this button forwards the
+    // click to it rather than trying to open the popup itself.
+    if (googleButtonRef.current) {
+      window.google.accounts.id.renderButton(googleButtonRef.current, { type: 'standard' });
+      (googleButtonRef.current.querySelector('div[role="button"]') as HTMLElement | null)?.click();
+    }
+  }
+
+  async function handleAppleClick() {
+    if (!APPLE_CLIENT_ID || !APPLE_REDIRECT_URI || !window.AppleID) {
+      setOauthError(t('socialLoginError'));
+      return;
+    }
+    setOauthError(null);
+    try {
+      window.AppleID.auth.init({
+        clientId: APPLE_CLIENT_ID,
+        scope: 'email',
+        redirectURI: APPLE_REDIRECT_URI,
+        usePopup: true,
+      });
+      const response = await window.AppleID.auth.signIn();
+      await handleOAuthToken('apple', response.authorization.id_token);
+    } catch {
+      setOauthError(t('socialLoginError'));
+    }
+  }
 
   const emailInvalid = email.length > 0 && !EMAIL_RE.test(email);
   const emailValid = EMAIL_RE.test(email);
@@ -47,7 +133,7 @@ export function LoginForm() {
     if (!canSubmit) return { error: t('genericError') };
     const result = tab === 'signin' ? await loginAction(email, password) : await registerAction(email, password);
     if (result.ok) {
-      window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
+      goToApp();
       return { error: null };
     }
     return { error: result.error };
@@ -149,17 +235,31 @@ export function LoginForm() {
           <span className="login-divider-line" />
         </div>
 
+        {oauthError ? (
+          <p className="login-error" role="alert">
+            {oauthError}
+          </p>
+        ) : null}
+
         <div className="login-social-row">
-          <button type="button" className="login-social-btn" disabled>
+          <button type="button" className="login-social-btn" onClick={handleGoogleClick} disabled={oauthPending !== null}>
             <GoogleGIcon size={16} />
-            Google
+            {oauthPending === 'google' ? t('submitting') : t('continueWithGoogle')}
           </button>
-          <button type="button" className="login-social-btn" disabled>
+          <button type="button" className="login-social-btn" onClick={() => void handleAppleClick()} disabled={oauthPending !== null}>
             <AppleIcon size={16} />
-            Apple
+            {oauthPending === 'apple' ? t('submitting') : t('continueWithApple')}
           </button>
         </div>
+        {/* GSI's own rendered button actually owns the popup-opening click
+            handler — kept off-screen (not `display:none`, which some
+            browsers refuse to let receive a synthetic click) so the app's
+            custom-styled button above can forward a real click to it. */}
+        <div ref={googleButtonRef} style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }} />
       </form>
+
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+      <Script src="https://appleid.cdn-apple.com/appleauth/auth/appleid.auth.js" strategy="afterInteractive" />
     </div>
   );
 }

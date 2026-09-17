@@ -1,27 +1,34 @@
 /**
- * Photo attachment. There is no upload pipeline yet (Module 7 adds one) —
- * admin pastes an already-hosted HTTPS image URL directly, per
- * `AttachPhotoDto` (`url` HTTPS-only, optional `width`/`height`).
+ * Photo attachment — uploads straight from the browser to ImageKit.io
+ * (`@imagekit/javascript`'s `upload()`), authorized by a short-lived
+ * signature `GET /admin/media/imagekit-auth` mints server-side from the
+ * ImageKit PRIVATE key (admin-web has no server of its own to hold that
+ * key — see AdminMediaService's doc comment). The resulting URL is then
+ * attached the same way any HTTPS photo URL always has been, via the
+ * existing `POST /admin/restaurants/:id/photos` (PhotoService.attach,
+ * admin/moderator-gated, no origin restriction) — that part is unchanged.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useRef, useState } from 'react'
+import { upload } from '@imagekit/javascript'
 import type { PhotoDto } from '@foodmap/shared-types'
 import { ApiError } from '../../api/client'
 import { adminRestaurantsApi } from '../../api/admin-restaurants'
 import type { AttachPhotoBody } from '../../api/admin-restaurants'
+import { adminMediaApi } from '../../api/admin-media'
 
 interface PhotosSectionProps {
   restaurantId: string
   photos: PhotoDto[]
 }
 
+const MAX_PHOTOS = 10
+
 export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
   const queryClient = useQueryClient()
-  const [url, setUrl] = useState('')
-  const [width, setWidth] = useState('')
-  const [height, setHeight] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['admin-restaurant', restaurantId] })
@@ -29,13 +36,7 @@ export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
 
   const addMutation = useMutation({
     mutationFn: (body: AttachPhotoBody) => adminRestaurantsApi.attachPhoto(restaurantId, body),
-    onSuccess: () => {
-      setUrl('')
-      setWidth('')
-      setHeight('')
-      setError(null)
-      invalidate()
-    },
+    onSuccess: invalidate,
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể thêm ảnh.'),
   })
 
@@ -45,31 +46,45 @@ export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa ảnh.'),
   })
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmedUrl = url.trim()
-    if (!/^https:\/\/\S+/.test(trimmedUrl)) {
-      setError('URL ảnh phải bắt đầu bằng https://')
-      return
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return
+    setError(null)
+    const files = Array.from(fileList).slice(0, MAX_PHOTOS - photos.length)
+    setIsUploading(true)
+    try {
+      let hadError = false
+      for (const file of files) {
+        try {
+          const auth = await adminMediaApi.getImageKitAuth()
+          const result = await upload({
+            file,
+            fileName: file.name,
+            folder: '/foodmap/restaurant',
+            publicKey: auth.publicKey,
+            signature: auth.signature,
+            expire: auth.expire,
+            token: auth.token,
+          })
+          if (result.url) {
+            await addMutation.mutateAsync({ url: result.url, width: result.width, height: result.height })
+          } else {
+            hadError = true
+          }
+        } catch {
+          hadError = true
+        }
+      }
+      if (hadError) setError('Không tải được ảnh này. Vui lòng thử lại.')
+    } finally {
+      setIsUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
     }
-    const widthNum = width.trim() ? Number(width) : undefined
-    const heightNum = height.trim() ? Number(height) : undefined
-    if (widthNum !== undefined && (!Number.isInteger(widthNum) || widthNum <= 0)) {
-      setError('Chiều rộng phải là số nguyên dương.')
-      return
-    }
-    if (heightNum !== undefined && (!Number.isInteger(heightNum) || heightNum <= 0)) {
-      setError('Chiều cao phải là số nguyên dương.')
-      return
-    }
-    addMutation.mutate({ url: trimmedUrl, width: widthNum, height: heightNum })
   }
 
   return (
     <section className="detail-section">
       <h2>Ảnh</h2>
 
-      {photos.length === 0 && <p>Chưa có ảnh nào.</p>}
       <div className="photo-grid">
         {photos.map((photo) => (
           <div key={photo.id} className="photo-tile">
@@ -84,33 +99,21 @@ export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
             </button>
           </div>
         ))}
+        {photos.length < MAX_PHOTOS && (
+          <label className="photo-tile photo-tile-add">
+            <span>{isUploading ? 'Đang tải lên…' : '+ Thêm ảnh'}</span>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              disabled={isUploading}
+              onChange={(event) => handleFiles(event.target.files)}
+              style={{ display: 'none' }}
+            />
+          </label>
+        )}
       </div>
-
-      <form className="inline-form" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="https://…"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-        />
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="Rộng (px, tùy chọn)"
-          value={width}
-          onChange={(event) => setWidth(event.target.value)}
-        />
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="Cao (px, tùy chọn)"
-          value={height}
-          onChange={(event) => setHeight(event.target.value)}
-        />
-        <button type="submit" className="button button-primary" disabled={addMutation.isPending}>
-          {addMutation.isPending ? 'Đang thêm…' : 'Thêm ảnh'}
-        </button>
-      </form>
       {error && <p className="field-error">{error}</p>}
     </section>
   )

@@ -14,7 +14,12 @@ const JPEG_QUALITY_THUMBNAIL = 75;
  * Checks the actual file signature bytes, not metadata.
  */
 export function sniffImageMagicBytes(buffer: Buffer): SniffedImageType | null {
-  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
     return 'image/jpeg';
   }
   if (
@@ -67,13 +72,23 @@ export async function reencode(buffer: Buffer): Promise<ReencodedImage> {
 
   const display = await sharp(buffer)
     .rotate()
-    .resize({ width: DISPLAY_MAX_EDGE, height: DISPLAY_MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+    .resize({
+      width: DISPLAY_MAX_EDGE,
+      height: DISPLAY_MAX_EDGE,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .jpeg({ quality: JPEG_QUALITY_DISPLAY })
     .toBuffer();
 
   const thumbnail = await sharp(buffer)
     .rotate()
-    .resize({ width: THUMBNAIL_MAX_EDGE, height: THUMBNAIL_MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+    .resize({
+      width: THUMBNAIL_MAX_EDGE,
+      height: THUMBNAIL_MAX_EDGE,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .jpeg({ quality: JPEG_QUALITY_THUMBNAIL })
     .toBuffer();
 

@@ -32,7 +32,9 @@ export class AdminRestaurantService {
     private readonly photoService: PhotoService,
   ) {}
 
-  async list(query: AdminRestaurantQueryDto): Promise<Paginated<AdminRestaurantListItemDto>> {
+  async list(
+    query: AdminRestaurantQueryDto,
+  ): Promise<Paginated<AdminRestaurantListItemDto>> {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
 
@@ -40,15 +42,31 @@ export class AdminRestaurantService {
     // spreading `{address: {province: ...}}` and `{address: {district: ...}}`
     // separately would have the second spread silently clobber the first
     // (both use the key "address"), so combine them into one nested object.
-    const addressFilter: Record<string, { contains: string; mode: 'insensitive' }> = {};
-    if (query.province) addressFilter.province = { contains: query.province, mode: 'insensitive' };
-    if (query.district) addressFilter.district = { contains: query.district, mode: 'insensitive' };
-    if (query.ward) addressFilter.ward = { contains: query.ward, mode: 'insensitive' };
+    const addressFilter: Record<
+      string,
+      { contains: string; mode: 'insensitive' }
+    > = {};
+    if (query.province)
+      addressFilter.province = {
+        contains: query.province,
+        mode: 'insensitive',
+      };
+    if (query.district)
+      addressFilter.district = {
+        contains: query.district,
+        mode: 'insensitive',
+      };
+    if (query.ward)
+      addressFilter.ward = { contains: query.ward, mode: 'insensitive' };
 
     const where = {
       ...(query.status ? { status: { publicationStatus: query.status } } : {}),
-      ...(Object.keys(addressFilter).length > 0 ? { address: addressFilter } : {}),
-      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' as const } } : {}),
+      ...(Object.keys(addressFilter).length > 0
+        ? { address: addressFilter }
+        : {}),
+      ...(query.search
+        ? { name: { contains: query.search, mode: 'insensitive' as const } }
+        : {}),
     };
 
     const [rows, total] = await this.prisma.$transaction([
@@ -65,7 +83,8 @@ export class AdminRestaurantService {
     const items: AdminRestaurantListItemDto[] = rows.map((r) => ({
       id: r.id,
       name: r.name,
-      categoryCode: r.category.code as AdminRestaurantListItemDto['categoryCode'],
+      categoryCode: r.category
+        .code as AdminRestaurantListItemDto['categoryCode'],
       province: r.address.province,
       ward: r.address.ward,
       district: r.address.district,
@@ -77,7 +96,10 @@ export class AdminRestaurantService {
   }
 
   async getDetail(id: string): Promise<AdminRestaurantDetailDto> {
-    const restaurant = await this.restaurantService.findForAdminDetail(id, true);
+    const restaurant = await this.restaurantService.findForAdminDetail(
+      id,
+      true,
+    );
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
     }
@@ -91,12 +113,17 @@ export class AdminRestaurantService {
     };
   }
 
-  async create(dto: CreateRestaurantDto, actorId: string): Promise<AdminRestaurantDetailDto> {
+  async create(
+    dto: CreateRestaurantDto,
+    actorId: string,
+  ): Promise<AdminRestaurantDetailDto> {
     const category = await this.prisma.restaurantCategory.findUniqueOrThrow({
       where: { code: dto.categoryCode },
     });
     const priceRange = dto.priceRangeCode
-      ? await this.prisma.priceRange.findUniqueOrThrow({ where: { code: dto.priceRangeCode } })
+      ? await this.prisma.priceRange.findUniqueOrThrow({
+          where: { code: dto.priceRangeCode },
+        })
       : null;
 
     const slug = await this.generateUniqueSlug(dto.name);
@@ -113,7 +140,12 @@ export class AdminRestaurantService {
         // to satisfy the still-non-null DB column without a migration.
         district: dto.address.district ?? '',
         province: dto.address.province,
-        fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
+        fullAddressText: [
+          dto.address.line,
+          dto.address.ward,
+          dto.address.district,
+          dto.address.province,
+        ]
           .filter(Boolean)
           .join(', '),
       },
@@ -158,7 +190,11 @@ export class AdminRestaurantService {
     return this.getDetail(restaurant.id);
   }
 
-  async update(id: string, dto: UpdateRestaurantDto, actorId: string): Promise<AdminRestaurantDetailDto> {
+  async update(
+    id: string,
+    dto: UpdateRestaurantDto,
+    actorId: string,
+  ): Promise<AdminRestaurantDetailDto> {
     const before = await this.prisma.restaurant.findUniqueOrThrow({
       where: { id },
       include: { address: true, location: true },
@@ -196,7 +232,12 @@ export class AdminRestaurantService {
           // district text going forward.
           district: dto.address.district ?? '',
           province: dto.address.province,
-          fullAddressText: [dto.address.line, dto.address.ward, dto.address.district, dto.address.province]
+          fullAddressText: [
+            dto.address.line,
+            dto.address.ward,
+            dto.address.district,
+            dto.address.province,
+          ]
             .filter(Boolean)
             .join(', '),
         },
@@ -222,7 +263,11 @@ export class AdminRestaurantService {
       action: 'restaurant.update',
       targetType: 'restaurant',
       targetId: id,
-      beforeState: { name: before.name, phone: before.phone, description: before.description },
+      beforeState: {
+        name: before.name,
+        phone: before.phone,
+        description: before.description,
+      },
       afterState: dto,
     });
 
@@ -235,38 +280,73 @@ export class AdminRestaurantService {
       data: { publicationStatus: 'hidden' },
     });
     await this.restaurantService.invalidateViewportCache();
-    await this.auditLog.record({ actorId, action: 'restaurant.hide', targetType: 'restaurant', targetId: id });
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.hide',
+      targetType: 'restaurant',
+      targetId: id,
+    });
   }
 
   async restore(id: string, actorId: string): Promise<void> {
     await this.prisma.$transaction([
-      this.prisma.restaurant.update({ where: { id }, data: { deletedAt: null } }),
-      this.prisma.restaurantStatus.update({ where: { restaurantId: id }, data: { publicationStatus: 'published' } }),
+      this.prisma.restaurant.update({
+        where: { id },
+        data: { deletedAt: null },
+      }),
+      this.prisma.restaurantStatus.update({
+        where: { restaurantId: id },
+        data: { publicationStatus: 'published' },
+      }),
     ]);
     await this.restaurantService.invalidateViewportCache();
-    await this.auditLog.record({ actorId, action: 'restaurant.restore', targetType: 'restaurant', targetId: id });
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.restore',
+      targetType: 'restaurant',
+      targetId: id,
+    });
   }
 
   // Admin-only per docs/01-prd-mvp.md §10.11 business rule — RolesGuard on
   // the controller enforces `moderator` can never reach this method.
   async remove(id: string, actorId: string): Promise<void> {
     await this.prisma.$transaction([
-      this.prisma.restaurant.update({ where: { id }, data: { deletedAt: new Date() } }),
-      this.prisma.restaurantStatus.update({ where: { restaurantId: id }, data: { publicationStatus: 'removed' } }),
+      this.prisma.restaurant.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      }),
+      this.prisma.restaurantStatus.update({
+        where: { restaurantId: id },
+        data: { publicationStatus: 'removed' },
+      }),
     ]);
     await this.restaurantService.invalidateViewportCache();
-    await this.auditLog.record({ actorId, action: 'restaurant.delete', targetType: 'restaurant', targetId: id });
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.delete',
+      targetType: 'restaurant',
+      targetId: id,
+    });
   }
 
-  async replaceOpeningHours(id: string, dto: ReplaceOpeningHoursDto, actorId: string): Promise<void> {
+  async replaceOpeningHours(
+    id: string,
+    dto: ReplaceOpeningHoursDto,
+    actorId: string,
+  ): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.openingHour.deleteMany({ where: { restaurantId: id } }),
       this.prisma.openingHour.createMany({
         data: dto.days.map((day) => ({
           restaurantId: id,
           dayOfWeek: day.dayOfWeek,
-          openTime: day.isClosed || !day.openTime ? null : this.parseTime(day.openTime),
-          closeTime: day.isClosed || !day.closeTime ? null : this.parseTime(day.closeTime),
+          openTime:
+            day.isClosed || !day.openTime ? null : this.parseTime(day.openTime),
+          closeTime:
+            day.isClosed || !day.closeTime
+              ? null
+              : this.parseTime(day.closeTime),
           isClosed: day.isClosed,
         })),
       }),
@@ -281,13 +361,22 @@ export class AdminRestaurantService {
     });
   }
 
-  async replaceFacilities(id: string, dto: ReplaceFacilitiesDto, actorId: string): Promise<void> {
+  async replaceFacilities(
+    id: string,
+    dto: ReplaceFacilitiesDto,
+    actorId: string,
+  ): Promise<void> {
     await this.prisma.$transaction([
-      this.prisma.restaurantFacility.deleteMany({ where: { restaurantId: id } }),
+      this.prisma.restaurantFacility.deleteMany({
+        where: { restaurantId: id },
+      }),
       ...(dto.facilities.length > 0
         ? [
             this.prisma.restaurantFacility.createMany({
-              data: dto.facilities.map((facilityType) => ({ restaurantId: id, facilityType })),
+              data: dto.facilities.map((facilityType) => ({
+                restaurantId: id,
+                facilityType,
+              })),
             }),
           ]
         : []),
@@ -302,10 +391,16 @@ export class AdminRestaurantService {
     });
   }
 
-  async addMenuItem(restaurantId: string, dto: CreateMenuItemDto, actorId: string): Promise<MenuItemDto> {
+  async addMenuItem(
+    restaurantId: string,
+    dto: CreateMenuItemDto,
+    actorId: string,
+  ): Promise<MenuItemDto> {
     let menu = await this.prisma.menu.findFirst({ where: { restaurantId } });
     if (!menu) {
-      menu = await this.prisma.menu.create({ data: { restaurantId, isActive: true } });
+      menu = await this.prisma.menu.create({
+        data: { restaurantId, isActive: true },
+      });
     }
     // Best-effort link to the curated Dish catalog (docs/06-database-erd.md:
     // "not user-creatable in MVP") — never creates a new Dish from
@@ -313,7 +408,9 @@ export class AdminRestaurantService {
     // existing catalog entry exactly. Powers search's dish-name matching
     // (search.service.ts) for whatever menu items do match; anything else
     // stays dishId: null, same as before this existed.
-    const dish = await this.prisma.dish.findFirst({ where: { name: { equals: dto.name, mode: 'insensitive' } } });
+    const dish = await this.prisma.dish.findFirst({
+      where: { name: { equals: dto.name, mode: 'insensitive' } },
+    });
     const item = await this.prisma.menuItem.create({
       data: {
         menuId: menu.id,
@@ -331,12 +428,27 @@ export class AdminRestaurantService {
       targetId: restaurantId,
       afterState: dto,
     });
-    return { id: item.id, name: item.name, priceVnd: item.priceVnd, category: item.category, isPopular: item.isPopular };
+    return {
+      id: item.id,
+      name: item.name,
+      priceVnd: item.priceVnd,
+      category: item.category,
+      isPopular: item.isPopular,
+    };
   }
 
-  async updateMenuItem(itemId: string, dto: UpdateMenuItemDto, actorId: string): Promise<MenuItemDto> {
-    const before = await this.prisma.menuItem.findUniqueOrThrow({ where: { id: itemId } });
-    const item = await this.prisma.menuItem.update({ where: { id: itemId }, data: dto });
+  async updateMenuItem(
+    itemId: string,
+    dto: UpdateMenuItemDto,
+    actorId: string,
+  ): Promise<MenuItemDto> {
+    const before = await this.prisma.menuItem.findUniqueOrThrow({
+      where: { id: itemId },
+    });
+    const item = await this.prisma.menuItem.update({
+      where: { id: itemId },
+      data: dto,
+    });
     await this.auditLog.record({
       actorId,
       action: 'restaurant.menu_item.update',
@@ -345,7 +457,13 @@ export class AdminRestaurantService {
       beforeState: before,
       afterState: dto,
     });
-    return { id: item.id, name: item.name, priceVnd: item.priceVnd, category: item.category, isPopular: item.isPopular };
+    return {
+      id: item.id,
+      name: item.name,
+      priceVnd: item.priceVnd,
+      category: item.category,
+      isPopular: item.isPopular,
+    };
   }
 
   async removeMenuItem(itemId: string, actorId: string): Promise<void> {
@@ -358,7 +476,11 @@ export class AdminRestaurantService {
     });
   }
 
-  async attachPhoto(restaurantId: string, dto: AttachPhotoDto, actorId: string): Promise<PhotoDto> {
+  async attachPhoto(
+    restaurantId: string,
+    dto: AttachPhotoDto,
+    actorId: string,
+  ): Promise<PhotoDto> {
     const photo = await this.photoService.attach({
       ownerType: 'restaurant',
       ownerId: restaurantId,
@@ -379,7 +501,12 @@ export class AdminRestaurantService {
     // from the restaurant's first photo, see RestaurantService.hydrateOpenNow)
     // could stay stale for up to VIEWPORT_CACHE_TTL_SECONDS after attach/remove.
     await this.restaurantService.invalidateViewportCache();
-    return { id: photo.id, url: photo.storageKey, width: photo.width, height: photo.height };
+    return {
+      id: photo.id,
+      url: photo.storageKey,
+      width: photo.width,
+      height: photo.height,
+    };
   }
 
   async removePhoto(photoId: string, actorId: string): Promise<void> {
@@ -393,8 +520,13 @@ export class AdminRestaurantService {
     await this.restaurantService.invalidateViewportCache();
   }
 
-  private async setCuisines(restaurantId: string, cuisineCodes: CuisineCode[]): Promise<void> {
-    const cuisines = await this.prisma.cuisine.findMany({ where: { code: { in: cuisineCodes } } });
+  private async setCuisines(
+    restaurantId: string,
+    cuisineCodes: CuisineCode[],
+  ): Promise<void> {
+    const cuisines = await this.prisma.cuisine.findMany({
+      where: { code: { in: cuisineCodes } },
+    });
     await this.prisma.$transaction([
       this.prisma.restaurantCuisine.deleteMany({ where: { restaurantId } }),
       ...(cuisines.length > 0
@@ -411,7 +543,9 @@ export class AdminRestaurantService {
     const base = slugify(name);
     let candidate = base;
     let suffix = 1;
-    while (await this.prisma.restaurant.findUnique({ where: { slug: candidate } })) {
+    while (
+      await this.prisma.restaurant.findUnique({ where: { slug: candidate } })
+    ) {
       suffix += 1;
       candidate = `${base}-${suffix}`;
     }

@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsLatitude, IsLongitude, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsLatitude,
+  IsLongitude,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class DuplicateCheckDto {
   @Type(() => Number)

@@ -15,6 +15,10 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   moderation_result: <AlertIcon size={17} />,
   report_resolved: <CheckIcon size={17} />,
   contribution_status: <CameraIcon size={17} />,
+  // Admin/moderator-facing (see NotificationService.notifyAdmins) — only
+  // ever seen here if an admin/moderator account also browses the public
+  // web app, since /me/notifications isn't role-scoped.
+  moderation_queue_new: <AlertIcon size={17} />,
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

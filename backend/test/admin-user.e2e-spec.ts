@@ -2,7 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import type { AdminUserDetailDto, AdminUserListItemDto, ApiErrorResponse, AuthResponse, Paginated } from '@foodmap/shared-types';
+import type {
+  AdminUserDetailDto,
+  AdminUserListItemDto,
+  ApiErrorResponse,
+  AuthResponse,
+  Paginated,
+} from '@foodmap/shared-types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -40,7 +46,9 @@ describe('Admin User Management (e2e)', () => {
   const authBody = (res: request.Response) => res.body as AuthResponse;
   const errorBody = (res: request.Response) => res.body as ApiErrorResponse;
 
-  async function registerAs(role: 'admin' | 'moderator' | 'user'): Promise<{ token: string; userId: string; email: string }> {
+  async function registerAs(
+    role: 'admin' | 'moderator' | 'user',
+  ): Promise<{ token: string; userId: string; email: string }> {
     const email = uniqueEmail(role);
     const reg = await request(app.getHttpServer())
       .post('/auth/register')
@@ -49,8 +57,13 @@ describe('Admin User Management (e2e)', () => {
     const userId = authBody(reg).user.id;
 
     if (role !== 'user') {
-      const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: role } });
-      await prisma.user.update({ where: { id: userId }, data: { roleId: roleRow.id } });
+      const roleRow = await prisma.role.findUniqueOrThrow({
+        where: { code: role },
+      });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { roleId: roleRow.id },
+      });
     }
 
     const login = await request(app.getHttpServer())
@@ -106,7 +119,9 @@ describe('Admin User Management (e2e)', () => {
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(204);
 
-    const suspended = await prisma.user.findUniqueOrThrow({ where: { id: target.userId } });
+    const suspended = await prisma.user.findUniqueOrThrow({
+      where: { id: target.userId },
+    });
     expect(suspended.status).toBe('suspended');
 
     // Suspended accounts must be blocked from logging in immediately.
@@ -119,14 +134,19 @@ describe('Admin User Management (e2e)', () => {
       .patch(`/admin/users/${target.userId}/reactivate`)
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(204);
-    const reactivated = await prisma.user.findUniqueOrThrow({ where: { id: target.userId } });
+    const reactivated = await prisma.user.findUniqueOrThrow({
+      where: { id: target.userId },
+    });
     expect(reactivated.status).toBe('active');
 
     const auditActions = await prisma.auditLog.findMany({
       where: { targetType: 'user', targetId: target.userId },
       orderBy: { createdAt: 'asc' },
     });
-    expect(auditActions.map((a) => a.action)).toEqual(['user.suspend', 'user.reactivate']);
+    expect(auditActions.map((a) => a.action)).toEqual([
+      'user.suspend',
+      'user.reactivate',
+    ]);
     expect(auditActions.every((a) => a.actorId === admin.userId)).toBe(true);
   });
 
@@ -139,7 +159,10 @@ describe('Admin User Management (e2e)', () => {
       .set('Authorization', `Bearer ${admin.token}`)
       .send({ roleCode: 'moderator' })
       .expect(204);
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.userId }, include: { role: true } });
+    const updated = await prisma.user.findUniqueOrThrow({
+      where: { id: target.userId },
+      include: { role: true },
+    });
     expect(updated.role.code).toBe('moderator');
 
     const selfChange = await request(app.getHttpServer())
@@ -158,7 +181,9 @@ describe('Admin User Management (e2e)', () => {
       .expect(400);
     expect(errorBody(res).message).toContain('tự khoá');
 
-    const stillActive = await prisma.user.findUniqueOrThrow({ where: { id: admin.userId } });
+    const stillActive = await prisma.user.findUniqueOrThrow({
+      where: { id: admin.userId },
+    });
     expect(stillActive.status).toBe('active');
   });
 
@@ -169,7 +194,10 @@ describe('Admin User Management (e2e)', () => {
     // the search-by-name assertion has a deterministic, unique value to
     // match on (avoids relying on the email-derived default).
     const uniqueName = `SearchName-${Date.now()}`;
-    await prisma.userProfile.update({ where: { userId: target.userId }, data: { displayName: uniqueName } });
+    await prisma.userProfile.update({
+      where: { userId: target.userId },
+      data: { displayName: uniqueName },
+    });
 
     const res = await request(app.getHttpServer())
       .get('/admin/users')
@@ -192,7 +220,11 @@ describe('Admin User Management (e2e)', () => {
         name: `Detail Test Restaurant ${Date.now()}`,
         categoryCode: 'quan_an',
         priceRangeCode: '50_100k',
-        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
+        address: {
+          line: '1 Test St',
+          ward: 'Phường Bến Nghé',
+          province: 'TP. Hồ Chí Minh',
+        },
         location: { lat: 10.7769, lng: 106.7009 },
       })
       .expect(201);
@@ -230,15 +262,21 @@ describe('Admin User Management (e2e)', () => {
     // created rather than leaving them behind permanently (a prior run of
     // this exact test left a real "Detail Test Restaurant ..." row in the
     // dev DB before this cleanup existed).
-    await prisma.report.deleteMany({ where: { targetType: 'review', targetId: reviewId } });
-    await prisma.moderationResult.deleteMany({ where: { targetType: 'review', targetId: reviewId } });
+    await prisma.report.deleteMany({
+      where: { targetType: 'review', targetId: reviewId },
+    });
+    await prisma.moderationResult.deleteMany({
+      where: { targetType: 'review', targetId: reviewId },
+    });
     await prisma.reviewRating.deleteMany({ where: { reviewId } });
     await prisma.review.delete({ where: { id: reviewId } });
     await prisma.restaurantStatus.deleteMany({ where: { restaurantId } });
     await prisma.restaurantCuisine.deleteMany({ where: { restaurantId } });
     await prisma.openingHour.deleteMany({ where: { restaurantId } });
     await prisma.restaurantFacility.deleteMany({ where: { restaurantId } });
-    const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
     await prisma.restaurant.delete({ where: { id: restaurantId } });
     if (restaurant) {
       await prisma.address.delete({ where: { id: restaurant.addressId } });

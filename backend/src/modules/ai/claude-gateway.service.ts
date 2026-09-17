@@ -2,7 +2,10 @@ import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { PrismaService } from '../../prisma/prisma.service';
-import { recommendActionForRiskScore, scoreTextContentRuleBased } from '../moderation/rule-based-moderation.util';
+import {
+  recommendActionForRiskScore,
+  scoreTextContentRuleBased,
+} from '../moderation/rule-based-moderation.util';
 import type {
   AIGateway,
   AISummaryResult,
@@ -26,7 +29,8 @@ const MODERATION_SCHEMA = {
     },
     reason: {
       type: 'string',
-      description: '1-2 câu tiếng Việt giải thích lý do, hiển thị cho người kiểm duyệt.',
+      description:
+        '1-2 câu tiếng Việt giải thích lý do, hiển thị cho người kiểm duyệt.',
     },
     isSevereViolation: {
       type: 'boolean',
@@ -43,17 +47,20 @@ const SUMMARY_SCHEMA = {
   properties: {
     summaryText: {
       type: 'string',
-      description: 'Một đoạn văn tiếng Việt tóm tắt trung thực cảm nhận chung của thực khách.',
+      description:
+        'Một đoạn văn tiếng Việt tóm tắt trung thực cảm nhận chung của thực khách.',
     },
     pros: {
       type: 'array',
       items: { type: 'string' },
-      description: '3-5 điểm tích cực ngắn gọn, chỉ dựa trên nội dung đánh giá thật.',
+      description:
+        '3-5 điểm tích cực ngắn gọn, chỉ dựa trên nội dung đánh giá thật.',
     },
     cons: {
       type: 'array',
       items: { type: 'string' },
-      description: '0-5 điểm hạn chế ngắn gọn, chỉ dựa trên nội dung đánh giá thật (mảng rỗng nếu không có).',
+      description:
+        '0-5 điểm hạn chế ngắn gọn, chỉ dựa trên nội dung đánh giá thật (mảng rỗng nếu không có).',
     },
   },
   required: ['summaryText', 'pros', 'cons'],
@@ -101,11 +108,21 @@ export class ClaudeGatewayService implements AIGateway {
     const apiKey = this.config.get<string>('ANTHROPIC_API_KEY');
     this.hasApiKey = Boolean(apiKey);
     this.client = new Anthropic({ apiKey });
-    this.moderationModel = this.config.get<string>('AI_MODERATION_MODEL', 'claude-haiku-4-5');
-    this.moderationTimeoutMs = Number(this.config.get<string>('AI_MODERATION_TIMEOUT_MS', '8000'));
-    this.summaryModel = this.config.get<string>('AI_SUMMARY_MODEL', 'claude-opus-5');
+    this.moderationModel = this.config.get<string>(
+      'AI_MODERATION_MODEL',
+      'claude-haiku-4-5',
+    );
+    this.moderationTimeoutMs = Number(
+      this.config.get<string>('AI_MODERATION_TIMEOUT_MS', '8000'),
+    );
+    this.summaryModel = this.config.get<string>(
+      'AI_SUMMARY_MODEL',
+      'claude-opus-5',
+    );
     if (!this.hasApiKey) {
-      this.logger.warn('ANTHROPIC_API_KEY is not set — moderate() will use the free rule-based fallback instead of Claude.');
+      this.logger.warn(
+        'ANTHROPIC_API_KEY is not set — moderate() will use the free rule-based fallback instead of Claude.',
+      );
     }
   }
 
@@ -128,11 +145,18 @@ export class ClaudeGatewayService implements AIGateway {
    * URL that fails to fetch is logged and skipped rather than failing the
    * whole call — one bad photo shouldn't block moderation of the rest.
    */
-  async moderate(content: ModerateContentInput): Promise<ModerationCheckResult> {
+  async moderate(
+    content: ModerateContentInput,
+  ): Promise<ModerationCheckResult> {
     const text = content.text?.trim() || null;
     const imageUrls = content.imageUrls?.filter(Boolean) ?? [];
     if (!text && imageUrls.length === 0) {
-      return { riskScore: 0, labels: [], aiReason: 'Không có nội dung để kiểm duyệt.', recommendedAction: 'auto_approve' };
+      return {
+        riskScore: 0,
+        labels: [],
+        aiReason: 'Không có nội dung để kiểm duyệt.',
+        recommendedAction: 'auto_approve',
+      };
     }
 
     if (!this.hasApiKey) {
@@ -145,20 +169,30 @@ export class ClaudeGatewayService implements AIGateway {
         return {
           riskScore: 0.5,
           labels: ['image_unscreened_no_api_key'],
-          aiReason: 'Chưa cấu hình Claude API — không thể tự động kiểm tra nội dung ảnh, cần người kiểm duyệt xem xét.',
+          aiReason:
+            'Chưa cấu hình Claude API — không thể tự động kiểm tra nội dung ảnh, cần người kiểm duyệt xem xét.',
           recommendedAction: 'hold_for_review',
         };
       }
-      const { riskScore, labels, reason } = scoreTextContentRuleBased(text!);
-      return { riskScore, labels, aiReason: reason, recommendedAction: recommendActionForRiskScore(riskScore) };
+      const { riskScore, labels, reason } = scoreTextContentRuleBased(text);
+      return {
+        riskScore,
+        labels,
+        aiReason: reason,
+        recommendedAction: recommendActionForRiskScore(riskScore),
+      };
     }
 
     const imageBlocks = await this.fetchImageBlocks(imageUrls);
-    const contentBlocks: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
+    const contentBlocks: Array<
+      Anthropic.TextBlockParam | Anthropic.ImageBlockParam
+    > = [];
     if (text) contentBlocks.push({ type: 'text', text });
     contentBlocks.push(...imageBlocks);
     if (contentBlocks.length === 0) {
-      throw new Error('Không thể tải ảnh để kiểm duyệt và không có nội dung văn bản đi kèm.');
+      throw new Error(
+        'Không thể tải ảnh để kiểm duyệt và không có nội dung văn bản đi kèm.',
+      );
     }
 
     const response = await this.client.messages.create(
@@ -173,7 +207,9 @@ export class ClaudeGatewayService implements AIGateway {
             : '') +
           'Không tự chế ra vi phạm không có thật. Nội dung bình thường (khen/chê quán ăn thật, ảnh món ăn/không gian quán thật) phải có riskScore thấp.',
         messages: [{ role: 'user', content: contentBlocks }],
-        output_config: { format: { type: 'json_schema', schema: MODERATION_SCHEMA } },
+        output_config: {
+          format: { type: 'json_schema', schema: MODERATION_SCHEMA },
+        },
       },
       { timeout: this.moderationTimeoutMs },
     );
@@ -181,7 +217,9 @@ export class ClaudeGatewayService implements AIGateway {
     if (response.stop_reason === 'refusal') {
       throw new Error('Claude từ chối kiểm duyệt nội dung này (refusal).');
     }
-    const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === 'text');
+    const textBlock = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === 'text',
+    );
     if (!textBlock) {
       throw new Error('Claude không trả về nội dung kiểm duyệt hợp lệ.');
     }
@@ -193,7 +231,9 @@ export class ClaudeGatewayService implements AIGateway {
       isSevereViolation: boolean;
     };
     const riskScore = Math.min(1, Math.max(0, parsed.riskScore));
-    const recommendedAction = parsed.isSevereViolation ? 'reject' : recommendActionForRiskScore(riskScore);
+    const recommendedAction = parsed.isSevereViolation
+      ? 'reject'
+      : recommendActionForRiskScore(riskScore);
 
     return {
       riskScore,
@@ -204,7 +244,9 @@ export class ClaudeGatewayService implements AIGateway {
   }
 
   /** Fetches each URL and base64-encodes it for Claude vision input; a failed fetch is logged and skipped, not thrown. */
-  private async fetchImageBlocks(urls: string[]): Promise<Anthropic.ImageBlockParam[]> {
+  private async fetchImageBlocks(
+    urls: string[],
+  ): Promise<Anthropic.ImageBlockParam[]> {
     const results = await Promise.all(
       urls.map(async (url): Promise<Anthropic.ImageBlockParam | null> => {
         try {
@@ -213,18 +255,33 @@ export class ClaudeGatewayService implements AIGateway {
             throw new Error(`HTTP ${response.status}`);
           }
           const buffer = Buffer.from(await response.arrayBuffer());
-          const mediaType = this.imageMediaTypeFromContentType(response.headers.get('content-type'));
-          return { type: 'image', source: { type: 'base64', media_type: mediaType, data: buffer.toString('base64') } };
+          const mediaType = this.imageMediaTypeFromContentType(
+            response.headers.get('content-type'),
+          );
+          return {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mediaType,
+              data: buffer.toString('base64'),
+            },
+          };
         } catch (error) {
-          this.logger.warn(`Failed to fetch image for moderation (${url}): ${String(error)}`);
+          this.logger.warn(
+            `Failed to fetch image for moderation (${url}): ${String(error)}`,
+          );
           return null;
         }
       }),
     );
-    return results.filter((block): block is Anthropic.ImageBlockParam => block !== null);
+    return results.filter(
+      (block): block is Anthropic.ImageBlockParam => block !== null,
+    );
   }
 
-  private imageMediaTypeFromContentType(contentType: string | null): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' {
+  private imageMediaTypeFromContentType(
+    contentType: string | null,
+  ): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' {
     switch (contentType) {
       case 'image/png':
         return 'image/png';
@@ -242,9 +299,17 @@ export class ClaudeGatewayService implements AIGateway {
 
   async summarize(restaurantId: string): Promise<AISummaryResult> {
     const [restaurant, reviews] = await Promise.all([
-      this.prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { name: true } }),
+      this.prisma.restaurant.findUniqueOrThrow({
+        where: { id: restaurantId },
+        select: { name: true },
+      }),
       this.prisma.review.findMany({
-        where: { restaurantId, status: 'published', deletedAt: null, comment: { not: null } },
+        where: {
+          restaurantId,
+          status: 'published',
+          deletedAt: null,
+          comment: { not: null },
+        },
         orderBy: { createdAt: 'desc' },
         take: MAX_REVIEWS_FOR_SUMMARY,
         select: { comment: true, overallRating: true },
@@ -268,22 +333,37 @@ export class ClaudeGatewayService implements AIGateway {
           content: `Quán: ${restaurant.name}\n\nCác đánh giá (mới nhất trước):\n${reviewsText}`,
         },
       ],
-      output_config: { format: { type: 'json_schema', schema: SUMMARY_SCHEMA } },
+      output_config: {
+        format: { type: 'json_schema', schema: SUMMARY_SCHEMA },
+      },
     });
 
     if (response.stop_reason === 'refusal') {
       throw new Error('Claude từ chối tạo tóm tắt cho quán này (refusal).');
     }
-    const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === 'text');
+    const textBlock = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === 'text',
+    );
     if (!textBlock) {
       throw new Error('Claude không trả về tóm tắt hợp lệ.');
     }
 
-    const parsed = JSON.parse(textBlock.text) as { summaryText: string; pros: string[]; cons: string[] };
-    return { summaryText: parsed.summaryText, pros: parsed.pros, cons: parsed.cons };
+    const parsed = JSON.parse(textBlock.text) as {
+      summaryText: string;
+      pros: string[];
+      cons: string[];
+    };
+    return {
+      summaryText: parsed.summaryText,
+      pros: parsed.pros,
+      cons: parsed.cons,
+    };
   }
 
-  parseQuery(_text: string, _context?: Record<string, unknown>): Promise<StructuredFilter> {
+  parseQuery(
+    _text: string,
+    _context?: Record<string, unknown>,
+  ): Promise<StructuredFilter> {
     throw new NotImplementedException(
       'AIGateway.parseQuery() has no callers anywhere in the app yet — not implemented.',
     );

@@ -15,6 +15,8 @@ import { AdminReviewController } from './admin-review.controller';
 import { AdminReviewService } from './admin-review.service';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminMediaController } from './admin-media.controller';
+import { AdminMediaService } from './admin-media.service';
 import { AuditLogService } from './audit-log.service';
 import { PhotoService } from './photo.service';
 
@@ -27,14 +29,29 @@ import { PhotoService } from './photo.service';
 // "what does approving X actually do" lives in one place), and
 // NotificationModule (first real producer of Notification rows).
 @Module({
-  imports: [AuthModule, RestaurantModule, ModerationModule, ContributionModule, NotificationModule, ReviewModule],
-  controllers: [AdminRestaurantController, AdminUserController, AdminModerationController, AdminReviewController, AdminDashboardController],
+  imports: [
+    AuthModule,
+    RestaurantModule,
+    ModerationModule,
+    ContributionModule,
+    NotificationModule,
+    ReviewModule,
+  ],
+  controllers: [
+    AdminRestaurantController,
+    AdminUserController,
+    AdminModerationController,
+    AdminReviewController,
+    AdminDashboardController,
+    AdminMediaController,
+  ],
   providers: [
     AdminRestaurantService,
     AdminUserService,
     AdminModerationService,
     AdminReviewService,
     AdminDashboardService,
+    AdminMediaService,
     AuditLogService,
     PhotoService,
   ],

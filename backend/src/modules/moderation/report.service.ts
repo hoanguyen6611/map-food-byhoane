@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { ReportDto, ReportReason } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -40,7 +44,10 @@ export class ReportService {
       // Surfaces the (reporterId, targetType, targetId) unique constraint
       // as a clean, actionable error — "duplicate-report prevention
       // surfaced from the API's unique-constraint error" per the doc.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_ERROR_CODE) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_CONSTRAINT_ERROR_CODE
+      ) {
         throw new ConflictException('Bạn đã báo cáo nội dung này rồi');
       }
       throw error;
@@ -74,7 +81,10 @@ export class ReportService {
     });
   }
 
-  async findByTarget(targetType: 'restaurant' | 'review', targetId: string): Promise<ReportDto[]> {
+  async findByTarget(
+    targetType: 'restaurant' | 'review',
+    targetId: string,
+  ): Promise<ReportDto[]> {
     const reports = await this.prisma.report.findMany({
       where: { targetType, targetId },
       orderBy: { createdAt: 'desc' },
@@ -82,8 +92,14 @@ export class ReportService {
     return reports.map((r) => this.toDto(r));
   }
 
-  async resolve(reportId: string, status: 'resolved' | 'dismissed', actorId: string): Promise<ReportDto> {
-    const existing = await this.prisma.report.findUnique({ where: { id: reportId } });
+  async resolve(
+    reportId: string,
+    status: 'resolved' | 'dismissed',
+    actorId: string,
+  ): Promise<ReportDto> {
+    const existing = await this.prisma.report.findUnique({
+      where: { id: reportId },
+    });
     if (!existing) {
       throw new NotFoundException('Không tìm thấy báo cáo');
     }

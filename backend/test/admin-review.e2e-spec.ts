@@ -49,7 +49,9 @@ describe('Admin Review Management (e2e)', () => {
     `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const authBody = (res: request.Response) => res.body as AuthResponse;
 
-  async function registerUser(label: string): Promise<{ token: string; userId: string; email: string }> {
+  async function registerUser(
+    label: string,
+  ): Promise<{ token: string; userId: string; email: string }> {
     const email = uniqueEmail(label);
     const res = await request(app.getHttpServer())
       .post('/auth/register')
@@ -59,20 +61,35 @@ describe('Admin Review Management (e2e)', () => {
     return { token: body.accessToken, userId: body.user.id, email };
   }
 
-  async function registerAs(role: 'admin' | 'moderator' | 'user', label: string): Promise<{ token: string; userId: string; email: string }> {
+  async function registerAs(
+    role: 'admin' | 'moderator' | 'user',
+    label: string,
+  ): Promise<{ token: string; userId: string; email: string }> {
     const registered = await registerUser(label);
     if (role !== 'user') {
-      const roleRow = await prisma.role.findUniqueOrThrow({ where: { code: role } });
-      await prisma.user.update({ where: { id: registered.userId }, data: { roleId: roleRow.id } });
+      const roleRow = await prisma.role.findUniqueOrThrow({
+        where: { code: role },
+      });
+      await prisma.user.update({
+        where: { id: registered.userId },
+        data: { roleId: roleRow.id },
+      });
     }
     const login = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: registered.email, password: 'password123' })
       .expect(200);
-    return { token: authBody(login).accessToken, userId: registered.userId, email: registered.email };
+    return {
+      token: authBody(login).accessToken,
+      userId: registered.userId,
+      email: registered.email,
+    };
   }
 
-  async function createRestaurant(adminToken: string, nameSuffix: string): Promise<AdminRestaurantDetailDto> {
+  async function createRestaurant(
+    adminToken: string,
+    nameSuffix: string,
+  ): Promise<AdminRestaurantDetailDto> {
     const res = await request(app.getHttpServer())
       .post('/admin/restaurants')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -80,7 +97,11 @@ describe('Admin Review Management (e2e)', () => {
         name: `Admin Review Test Restaurant ${nameSuffix}`,
         categoryCode: 'quan_an',
         priceRangeCode: '50_100k',
-        address: { line: '1 Test St', ward: 'Phường Bến Nghé', province: 'TP. Hồ Chí Minh' },
+        address: {
+          line: '1 Test St',
+          ward: 'Phường Bến Nghé',
+          province: 'TP. Hồ Chí Minh',
+        },
         location: { lat: 10.7769, lng: 106.7009 },
       })
       .expect(201);
@@ -89,9 +110,21 @@ describe('Admin Review Management (e2e)', () => {
 
   async function cleanupRestaurant(id: string): Promise<void> {
     await prisma.moderationResult.deleteMany({
-      where: { targetType: 'review', targetId: { in: (await prisma.review.findMany({ where: { restaurantId: id }, select: { id: true } })).map((r) => r.id) } },
+      where: {
+        targetType: 'review',
+        targetId: {
+          in: (
+            await prisma.review.findMany({
+              where: { restaurantId: id },
+              select: { id: true },
+            })
+          ).map((r) => r.id),
+        },
+      },
     });
-    await prisma.reviewRating.deleteMany({ where: { review: { restaurantId: id } } });
+    await prisma.reviewRating.deleteMany({
+      where: { review: { restaurantId: id } },
+    });
     await prisma.review.deleteMany({ where: { restaurantId: id } });
     await prisma.restaurantStatus.deleteMany({ where: { restaurantId: id } });
     await prisma.restaurantCuisine.deleteMany({ where: { restaurantId: id } });
@@ -105,7 +138,10 @@ describe('Admin Review Management (e2e)', () => {
     }
   }
 
-  async function createPublishedReview(reviewerToken: string, restaurantId: string): Promise<ReviewDto> {
+  async function createPublishedReview(
+    reviewerToken: string,
+    restaurantId: string,
+  ): Promise<ReviewDto> {
     const res = await request(app.getHttpServer())
       .post('/reviews')
       .set('Authorization', `Bearer ${reviewerToken}`)
@@ -165,7 +201,9 @@ describe('Admin Review Management (e2e)', () => {
       .patch(`/admin/reviews/${review.id}/hide`)
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(204);
-    const hidden = await prisma.review.findUniqueOrThrow({ where: { id: review.id } });
+    const hidden = await prisma.review.findUniqueOrThrow({
+      where: { id: review.id },
+    });
     expect(hidden.status).toBe('hidden');
 
     // Hiding an already-hidden review conflicts.
@@ -178,7 +216,9 @@ describe('Admin Review Management (e2e)', () => {
       .patch(`/admin/reviews/${review.id}/restore`)
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(204);
-    const restored = await prisma.review.findUniqueOrThrow({ where: { id: review.id } });
+    const restored = await prisma.review.findUniqueOrThrow({
+      where: { id: review.id },
+    });
     expect(restored.status).toBe('published');
 
     // Restoring a non-hidden review conflicts.
@@ -191,7 +231,10 @@ describe('Admin Review Management (e2e)', () => {
       where: { targetType: 'review', targetId: review.id },
       orderBy: { createdAt: 'asc' },
     });
-    expect(auditActions.map((a) => a.action)).toEqual(['review.hide', 'review.restore']);
+    expect(auditActions.map((a) => a.action)).toEqual([
+      'review.hide',
+      'review.restore',
+    ]);
     expect(auditActions.every((a) => a.actorId === admin.userId)).toBe(true);
 
     await cleanupRestaurant(restaurant.id);
@@ -208,7 +251,9 @@ describe('Admin Review Management (e2e)', () => {
       .set('Authorization', `Bearer ${admin.token}`)
       .expect(204);
 
-    const deleted = await prisma.review.findUniqueOrThrow({ where: { id: review.id } });
+    const deleted = await prisma.review.findUniqueOrThrow({
+      where: { id: review.id },
+    });
     expect(deleted.deletedAt).not.toBeNull();
 
     const res = await request(app.getHttpServer())

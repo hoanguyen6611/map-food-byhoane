@@ -1,6 +1,21 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { AdminModerationQueueItemDto, Paginated, ReportDto } from '@foodmap/shared-types';
+import type {
+  AdminModerationQueueItemDto,
+  Paginated,
+  ReportDto,
+} from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -27,7 +42,9 @@ export class AdminModerationController {
   ) {}
 
   @Get('moderation-queue')
-  list(@Query() query: AdminModerationQueryDto): Promise<Paginated<AdminModerationQueueItemDto>> {
+  list(
+    @Query() query: AdminModerationQueryDto,
+  ): Promise<Paginated<AdminModerationQueueItemDto>> {
     return this.adminModerationService.list(query);
   }
 

@@ -18,7 +18,13 @@
  * not resurrected production code.
  */
 const URL_PATTERN = /https?:\/\/|www\./i;
-const SPAM_PHRASES = ['kiếm tiền online', 'quảng cáo', 'click vào link', 'inbox zalo', 'liên hệ zalo'];
+const SPAM_PHRASES = [
+  'kiếm tiền online',
+  'quảng cáo',
+  'click vào link',
+  'inbox zalo',
+  'liên hệ zalo',
+];
 
 export function buildMockClaudeGateway() {
   return {
@@ -42,7 +48,8 @@ export function buildMockClaudeGateway() {
           labels.length === 0
             ? 'Không phát hiện dấu hiệu bất thường (test double).'
             : `Phát hiện dấu hiệu: ${labels.join(', ')} (test double).`,
-        recommendedAction: riskScore >= 0.5 ? 'hold_for_review' : 'auto_approve',
+        recommendedAction:
+          riskScore >= 0.5 ? 'hold_for_review' : 'auto_approve',
       };
     }),
     // Rejects rather than resolving: CompositeScoreService.recompute() runs
@@ -56,7 +63,9 @@ export function buildMockClaudeGateway() {
     // this is a safe no-op from every spec's point of view — no e2e spec
     // asserts anything about AI-summary generation via this trigger path
     // (ai-summary.e2e-spec.ts tests the read side directly via Prisma).
-    summarize: jest.fn().mockRejectedValue(new Error('summarize() not exercised by e2e specs')),
+    summarize: jest
+      .fn()
+      .mockRejectedValue(new Error('summarize() not exercised by e2e specs')),
     parseQuery: jest.fn(),
   };
 }

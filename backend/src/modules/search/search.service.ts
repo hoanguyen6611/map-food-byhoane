@@ -239,9 +239,15 @@ export class SearchService {
 
     const restaurantIds = rows.map((r) => r.id);
     const [openingHours, photos] = await Promise.all([
-      this.prisma.openingHour.findMany({ where: { restaurantId: { in: restaurantIds } } }),
+      this.prisma.openingHour.findMany({
+        where: { restaurantId: { in: restaurantIds } },
+      }),
       this.prisma.photo.findMany({
-        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+        where: {
+          ownerType: 'restaurant',
+          ownerId: { in: restaurantIds },
+          deletedAt: null,
+        },
         orderBy: { createdAt: 'asc' },
       }),
     ]);
@@ -257,7 +263,10 @@ export class SearchService {
       // query always filters by ownerId IN (restaurant ids), so it's never
       // null here.
       if (photo.ownerId && !firstPhotoByRestaurant.has(photo.ownerId)) {
-        firstPhotoByRestaurant.set(photo.ownerId, this.s3.publicUrl(photo.storageKey));
+        firstPhotoByRestaurant.set(
+          photo.ownerId,
+          this.s3.publicUrl(photo.storageKey),
+        );
       }
     }
     const vnNow = toVnNow(new Date());

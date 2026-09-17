@@ -37,18 +37,32 @@ export class FavoriteService {
 
   // Idempotent the other direction too — un-favoriting something that isn't
   // favorited just reflects the (already-true) end state, no error.
-  async remove(userId: string, restaurantId: string): Promise<FavoriteStatusDto> {
+  async remove(
+    userId: string,
+    restaurantId: string,
+  ): Promise<FavoriteStatusDto> {
     await this.prisma.favorite.deleteMany({ where: { userId, restaurantId } });
     return { restaurantId, isFavorited: false };
   }
 
-  async list(userId: string, page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE): Promise<FavoriteListResponse> {
+  async list(
+    userId: string,
+    page = DEFAULT_PAGE,
+    pageSize = DEFAULT_PAGE_SIZE,
+  ): Promise<FavoriteListResponse> {
     const where = { userId, restaurant: { deletedAt: null } };
     const [rows, total] = await Promise.all([
       this.prisma.favorite.findMany({
         where,
         include: {
-          restaurant: { include: { category: true, priceRange: true, address: true, status: true } },
+          restaurant: {
+            include: {
+              category: true,
+              priceRange: true,
+              address: true,
+              status: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -61,7 +75,11 @@ export class FavoriteService {
     const photos =
       restaurantIds.length > 0
         ? await this.prisma.photo.findMany({
-            where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null },
+            where: {
+              ownerType: 'restaurant',
+              ownerId: { in: restaurantIds },
+              deletedAt: null,
+            },
             orderBy: { createdAt: 'asc' },
           })
         : [];
@@ -71,7 +89,10 @@ export class FavoriteService {
       // query always filters by ownerId IN (restaurant ids), so it's never
       // null here.
       if (photo.ownerId && !firstPhotoByRestaurant.has(photo.ownerId)) {
-        firstPhotoByRestaurant.set(photo.ownerId, this.s3.publicUrl(photo.storageKey));
+        firstPhotoByRestaurant.set(
+          photo.ownerId,
+          this.s3.publicUrl(photo.storageKey),
+        );
       }
     }
 
@@ -86,7 +107,9 @@ export class FavoriteService {
           name: f.restaurant.name,
           categoryCode: f.restaurant.category.code as RestaurantCategoryCode,
           thumbnailUrl: firstPhotoByRestaurant.get(f.restaurantId) ?? null,
-          compositeScore: f.restaurant.status?.compositeScore ? Number(f.restaurant.status.compositeScore) : null,
+          compositeScore: f.restaurant.status?.compositeScore
+            ? Number(f.restaurant.status.compositeScore)
+            : null,
           reviewCount: f.restaurant.status?.reviewCount ?? 0,
           priceRange: f.restaurant.priceRange
             ? {

@@ -83,7 +83,9 @@ export class RestaurantService {
    * later removed/hidden must not be shown just because the row still exists.
    */
   async getAiSummary(id: string): Promise<AISummaryResponseDto> {
-    const minReviewThreshold = Number(this.config.get<string>('AI_SUMMARY_MIN_REVIEW_COUNT', '5'));
+    const minReviewThreshold = Number(
+      this.config.get<string>('AI_SUMMARY_MIN_REVIEW_COUNT', '5'),
+    );
 
     const [status, summary] = await Promise.all([
       this.prisma.restaurantStatus.findUnique({ where: { restaurantId: id } }),
@@ -112,7 +114,11 @@ export class RestaurantService {
   /** Public detail — only ever returns a published, non-deleted restaurant. */
   async getDetail(id: string): Promise<RestaurantDetailDto> {
     const restaurant = await this.prisma.restaurant.findFirst({
-      where: { id, deletedAt: null, status: { publicationStatus: 'published' } },
+      where: {
+        id,
+        deletedAt: null,
+        status: { publicationStatus: 'published' },
+      },
       include: RESTAURANT_DETAIL_INCLUDE,
     });
     if (!restaurant) {
@@ -131,7 +137,11 @@ export class RestaurantService {
    */
   async getDetailBySlug(slug: string): Promise<RestaurantDetailDto> {
     const restaurant = await this.prisma.restaurant.findFirst({
-      where: { slug, deletedAt: null, status: { publicationStatus: 'published' } },
+      where: {
+        slug,
+        deletedAt: null,
+        status: { publicationStatus: 'published' },
+      },
       include: RESTAURANT_DETAIL_INCLUDE,
     });
     if (!restaurant) {
@@ -146,7 +156,10 @@ export class RestaurantService {
       where: { deletedAt: null, status: { publicationStatus: 'published' } },
       select: { slug: true, updatedAt: true },
     });
-    return rows.map((r) => ({ slug: r.slug, updatedAt: r.updatedAt.toISOString() }));
+    return rows.map((r) => ({
+      slug: r.slug,
+      updatedAt: r.updatedAt.toISOString(),
+    }));
   }
 
   /**
@@ -154,22 +167,39 @@ export class RestaurantService {
    * regardless of publication status (pending/hidden/etc.) — never used by
    * any public-facing endpoint.
    */
-  async findForAdminDetail(id: string, includeDeleted = false): Promise<RestaurantWithDetailRelations | null> {
+  async findForAdminDetail(
+    id: string,
+    includeDeleted = false,
+  ): Promise<RestaurantWithDetailRelations | null> {
     return this.prisma.restaurant.findFirst({
       where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
       include: RESTAURANT_DETAIL_INCLUDE,
     });
   }
 
-  async buildDetailDto(restaurant: RestaurantWithDetailRelations): Promise<RestaurantDetailDto> {
+  async buildDetailDto(
+    restaurant: RestaurantWithDetailRelations,
+  ): Promise<RestaurantDetailDto> {
     const [photos, reviewRows] = await Promise.all([
       this.prisma.photo.findMany({
-        where: { ownerType: 'restaurant', ownerId: restaurant.id, deletedAt: null, status: 'approved' },
+        where: {
+          ownerType: 'restaurant',
+          ownerId: restaurant.id,
+          deletedAt: null,
+          status: 'approved',
+        },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.review.findMany({
-        where: { restaurantId: restaurant.id, status: 'published', deletedAt: null },
-        include: { user: { include: { profile: true } }, ratings: { include: { criteria: true } } },
+        where: {
+          restaurantId: restaurant.id,
+          status: 'published',
+          deletedAt: null,
+        },
+        include: {
+          user: { include: { profile: true } },
+          ratings: { include: { criteria: true } },
+        },
         orderBy: { createdAt: 'desc' },
         take: REVIEW_PREVIEW_COUNT,
       }),
@@ -183,7 +213,9 @@ export class RestaurantService {
       slug: restaurant.slug,
       description: restaurant.description,
       categoryCode: restaurant.category.code as RestaurantCategoryCode,
-      cuisineCodes: restaurant.cuisines.map((rc) => rc.cuisine.code as CuisineCode),
+      cuisineCodes: restaurant.cuisines.map(
+        (rc) => rc.cuisine.code as CuisineCode,
+      ),
       phone: restaurant.phone,
       address: {
         line: restaurant.address.line,
@@ -192,7 +224,10 @@ export class RestaurantService {
         province: restaurant.address.province,
         fullAddressText: restaurant.address.fullAddressText,
       },
-      location: { lat: Number(restaurant.location.lat), lng: Number(restaurant.location.lng) },
+      location: {
+        lat: Number(restaurant.location.lat),
+        lng: Number(restaurant.location.lng),
+      },
       priceRange: restaurant.priceRange
         ? {
             code: restaurant.priceRange.code as PriceRangeCode,
@@ -202,7 +237,7 @@ export class RestaurantService {
         : null,
       openingHours: this.formatOpeningHours(restaurant.openingHours),
       isOpenNow: isOpenNow(openingHourRows, vnNow),
-      facilities: restaurant.facilities.map((f) => f.facilityType as FacilityType),
+      facilities: restaurant.facilities.map((f) => f.facilityType),
       menus: restaurant.menus.map((menu) => ({
         id: menu.id,
         name: menu.name,
@@ -214,21 +249,44 @@ export class RestaurantService {
           isPopular: item.isPopular,
         })),
       })),
-      photos: photos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey), width: p.width, height: p.height })),
-      compositeScore: restaurant.status?.compositeScore ? Number(restaurant.status.compositeScore) : null,
+      photos: photos.map((p) => ({
+        id: p.id,
+        url: this.s3.publicUrl(p.storageKey),
+        width: p.width,
+        height: p.height,
+      })),
+      compositeScore: restaurant.status?.compositeScore
+        ? Number(restaurant.status.compositeScore)
+        : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
       reviews: await Promise.all(
-        reviewRows.map(async (r) => this.toReviewPreviewDto(r, await this.fetchReviewPhotos(r.id))),
+        reviewRows.map(async (r) =>
+          this.toReviewPreviewDto(r, await this.fetchReviewPhotos(r.id)),
+        ),
       ),
     };
   }
 
-  private async fetchReviewPhotos(reviewId: string): Promise<{ id: string; url: string; width: number | null; height: number | null }[]> {
+  private async fetchReviewPhotos(
+    reviewId: string,
+  ): Promise<
+    { id: string; url: string; width: number | null; height: number | null }[]
+  > {
     const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'review', ownerId: reviewId, deletedAt: null, status: 'approved' },
+      where: {
+        ownerType: 'review',
+        ownerId: reviewId,
+        deletedAt: null,
+        status: 'approved',
+      },
       orderBy: { createdAt: 'asc' },
     });
-    return photos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey), width: p.width, height: p.height }));
+    return photos.map((p) => ({
+      id: p.id,
+      url: this.s3.publicUrl(p.storageKey),
+      width: p.width,
+      height: p.height,
+    }));
   }
 
   private toReviewPreviewDto(
@@ -249,14 +307,25 @@ export class RestaurantService {
       editedAt: Date | null;
       createdAt: Date;
     },
-    photos: { id: string; url: string; width: number | null; height: number | null }[],
+    photos: {
+      id: string;
+      url: string;
+      width: number | null;
+      height: number | null;
+    }[],
   ): ReviewDto {
     return {
       id: review.id,
       restaurantId: review.restaurantId,
-      author: { id: review.user.id, displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh' },
+      author: {
+        id: review.user.id,
+        displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh',
+      },
       overallRating: review.overallRating,
-      ratings: review.ratings.map((r) => ({ criteriaCode: r.criteria.code as ReviewCriteriaCode, score: r.score })),
+      ratings: review.ratings.map((r) => ({
+        criteriaCode: r.criteria.code as ReviewCriteriaCode,
+        score: r.score,
+      })),
       comment: review.comment,
       dishesOrdered: review.dishesOrdered,
       billTotalVnd: review.billTotalVnd,
@@ -272,12 +341,18 @@ export class RestaurantService {
   }
 
   private formatOpeningHours(
-    hours: { dayOfWeek: number; openTime: Date | null; closeTime: Date | null; isClosed: boolean }[],
+    hours: {
+      dayOfWeek: number;
+      openTime: Date | null;
+      closeTime: Date | null;
+      isClosed: boolean;
+    }[],
   ): OpeningHourDto[] {
     const byDay = new Map(hours.map((h) => [h.dayOfWeek, h]));
     return Array.from({ length: 7 }, (_, dayOfWeek) => {
       const h = byDay.get(dayOfWeek);
-      if (!h) return { dayOfWeek, openTime: null, closeTime: null, isClosed: true };
+      if (!h)
+        return { dayOfWeek, openTime: null, closeTime: null, isClosed: true };
       return {
         dayOfWeek,
         openTime: h.isClosed ? null : this.formatTime(h.openTime),
@@ -419,9 +494,16 @@ export class RestaurantService {
 
     const restaurantIds = rows.map((r) => r.id);
     const [openingHours, photos] = await Promise.all([
-      this.prisma.openingHour.findMany({ where: { restaurantId: { in: restaurantIds } } }),
+      this.prisma.openingHour.findMany({
+        where: { restaurantId: { in: restaurantIds } },
+      }),
       this.prisma.photo.findMany({
-        where: { ownerType: 'restaurant', ownerId: { in: restaurantIds }, deletedAt: null, status: 'approved' },
+        where: {
+          ownerType: 'restaurant',
+          ownerId: { in: restaurantIds },
+          deletedAt: null,
+          status: 'approved',
+        },
         orderBy: { createdAt: 'asc' },
       }),
     ]);
