@@ -5,15 +5,26 @@
  * attach `Authorization: Bearer <accessToken>` from the stored admin
  * session (see `../auth/session.ts`) — callers don't need to pass it
  * manually. There is no refresh-token wiring for the admin app in this
- * pass (access tokens expire after 15 minutes); a 401 on an
- * already-authenticated request is surfaced as a normal `ApiError` and the
- * caller (or a future interceptor) should force a re-login rather than
- * silently retrying. TODO(module-2+): add refresh-token rotation if the
- * admin portal needs longer-lived sessions.
+ * pass (access tokens expire after 15 minutes) — instead, a 401 on any
+ * request other than the login call itself is treated as "the session is
+ * dead" here, globally: the stored session is cleared and the browser is
+ * hard-redirected to `/login` (a full navigation, not client-side
+ * `react-router` nav, so `AuthProvider`'s in-memory state — which only
+ * reads `localStorage` once, on mount — can't stay stale). Without this,
+ * every admin got silently logged out every 15 minutes with no explanation:
+ * each page's own error handling just showed a raw "Unauthorized" message
+ * next to a "Thử lại" button that could never succeed, while the header
+ * still looked fully signed in. TODO(module-2+): add refresh-token rotation
+ * if the admin portal needs longer-lived sessions instead of this.
  */
-import { loadStoredSession } from '../auth/session'
+import { clearStoredSession, loadStoredSession } from '../auth/session'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
+
+// The one endpoint allowed to 401 without triggering the redirect above —
+// a failed login attempt (wrong password) is a normal, expected outcome
+// the login form already handles itself, not a dead session to react to.
+const LOGIN_PATH = '/auth/login'
 
 export class ApiError extends Error {
   readonly status: number
@@ -72,6 +83,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     const message = await extractErrorMessage(response)
+    if (response.status === 401 && path !== LOGIN_PATH) {
+      clearStoredSession()
+      window.location.href = '/login'
+    }
     throw new ApiError(message, response.status)
   }
 
