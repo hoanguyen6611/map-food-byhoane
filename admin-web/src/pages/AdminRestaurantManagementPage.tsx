@@ -15,9 +15,10 @@ import type { RestaurantPublicationStatus } from '@foodmap/shared-types'
 import { VN_PROVINCES } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminRestaurantsApi } from '../api/admin-restaurants'
+import { adminCategoriesApi } from '../api/admin-categories'
 import { useAuth } from '../auth/AuthContext'
 import { SearchableSelect } from '../components/SearchableSelect'
-import { categoryLabel, formatDateTime, statusLabel, STATUS_OPTIONS } from './restaurant-admin/constants'
+import { formatDateTime, statusLabel, STATUS_OPTIONS } from './restaurant-admin/constants'
 import { useDebouncedValue } from './restaurant-admin/useDebouncedValue'
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
@@ -39,6 +40,19 @@ export function AdminRestaurantManagementPage() {
   const [actionError, setActionError] = useState<string | null>(null)
 
   const debouncedSearch = useDebouncedValue(searchInput, 400)
+
+  // Live list, same reasoning as RestaurantCoreForm.tsx — categories are a
+  // real admin-editable table now, not a fixed compile-time set, so this
+  // list's own label column needs live data too (not just the create/edit
+  // form) or a newly-added category would show its raw code here.
+  const categoriesQuery = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: () => adminCategoriesApi.list(),
+  })
+  const categoryLabelByCode = useMemo(
+    () => new Map((categoriesQuery.data ?? []).map((c) => [c.code, c.label])),
+    [categoriesQuery.data],
+  )
 
   const selectedProvince = useMemo(() => VN_PROVINCES.find((p) => p.code === provinceCode), [provinceCode])
   const wardOptions = selectedProvince?.wards ?? []
@@ -247,7 +261,7 @@ export function AdminRestaurantManagementPage() {
               {data.items.map((item) => (
                 <tr key={item.id}>
                   <td>{item.name}</td>
-                  <td>{categoryLabel(item.categoryCode)}</td>
+                  <td>{categoryLabelByCode.get(item.categoryCode) ?? item.categoryCode}</td>
                   <td>{item.province}</td>
                   <td>{item.ward ?? '—'}</td>
                   <td>

@@ -13,6 +13,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/moderation', label: 'Danh sách Phê duyệt' },
   { to: '/reviews', label: 'Quản lý Đánh giá' },
   { to: '/users', label: 'Quản lý Người dùng' },
+  { to: '/categories', label: 'Quản lý Danh mục' },
+  { to: '/facilities', label: 'Quản lý Tiện ích' },
+  { to: '/cuisines', label: 'Quản lý Ẩm thực' },
 ]
 
 function navLinkClassName({ isActive }: { isActive: boolean }): string {

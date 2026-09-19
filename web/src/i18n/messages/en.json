@@ -121,6 +121,7 @@
     "facilitiesLabel": "Facilities",
     "hoursHeading": "Opening hours",
     "closedDay": "Closed",
+    "open24h": "Open 24 hours",
     "menuHeading": "Menu",
     "noMenu": "This restaurant hasn't added a menu yet.",
     "menuCaption": "{name}'s menu",
@@ -129,6 +130,18 @@
     "noReviews": "No reviews for this restaurant yet.",
     "photoAlt": "Photo {index} of {name}",
     "noPhotos": "No photos for this restaurant yet.",
+    "seeAllPhotos": "See all {count} photos",
+    "morePhotosCount": "+{count}",
+    "socialHeading": "Social media",
+    "socialCaption": "Provided by the owner or the community",
+    "socialVerifiedNote": "A blue checkmark means the owner has verified this account.",
+    "socialReportHint": "See a wrong link? Let us know",
+    "socialPlatform": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "website": "Website"
+    },
     "ratingSummary": "★ {score} ({count} reviews)",
     "reviewsPaginationLabel": "Reviews pagination",
     "infoTab": "Info",
@@ -138,7 +151,8 @@
     "reportLabel": "Report",
     "helpfulLabel": "Helpful",
     "openUntil": "until {time}",
-    "reviewCountShort": "{count, plural, one {# review} other {# reviews}}"
+    "reviewCountShort": "{count, plural, one {# review} other {# reviews}}",
+    "viewCount": "{count, plural, one {# view} other {# views}}"
   },
   "notFound": {
     "title": "Page not found",
@@ -298,7 +312,11 @@
     "layerTop": "Rated ≥ 4.5",
     "layerCheap": "Under 50k",
     "viewDetail": "View restaurant →",
-    "locateError": "Couldn't get your location"
+    "locateError": "Couldn't get your location",
+    "locating": "Locating…",
+    "nearMeTitle": "Near you",
+    "nearMeEmpty": "No restaurants found within 3km of you.",
+    "backToProvince": "← Back to {province}"
   },
   "about": {
     "pageTitle": "How scoring works",
@@ -365,8 +383,11 @@
     "wardLabel": "Ward",
     "provinceLabel": "Province / city",
     "locationLabel": "Coordinates",
-    "latPlaceholder": "Latitude",
-    "lngPlaceholder": "Longitude",
+    "mapLinkPlaceholder": "Paste the restaurant's Google Maps link",
+    "mapLinkApply": "Apply",
+    "mapLinkResolving": "Resolving…",
+    "mapLinkResolved": "Location found ✓ ({lat}, {lng})",
+    "mapLinkError": "Couldn't read coordinates from that link. Please check the Google Maps link.",
     "useMyLocation": "Use my current location",
     "photosLabel": "Photos (at least 1)",
     "selectPlaceholder": "Select…",

@@ -2,12 +2,12 @@
  * Facility checkboxes. `PUT /admin/restaurants/:id/facilities` replaces the
  * full set every time, so this section submits the whole checked list.
  */
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FacilityType } from '@foodmap/shared-types'
 import { ApiError } from '../../api/client'
 import { adminRestaurantsApi } from '../../api/admin-restaurants'
-import { FACILITY_OPTIONS } from './constants'
+import { adminFacilitiesApi } from '../../api/admin-facilities'
 
 interface FacilitiesSectionProps {
   restaurantId: string
@@ -19,6 +19,14 @@ export function FacilitiesSection({ restaurantId, facilities }: FacilitiesSectio
   const [selected, setSelected] = useState<FacilityType[]>(facilities)
   const [serverError, setServerError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // Live list (Quản lý Tiện ích) instead of a hardcoded array — facilities
+  // were a fixed Postgres enum, now a real admin-editable table.
+  const facilitiesQuery = useQuery({
+    queryKey: ['admin-facilities'],
+    queryFn: () => adminFacilitiesApi.list(),
+  })
+  const facilityOptions = facilitiesQuery.data ?? []
 
   const mutation = useMutation({
     mutationFn: () => adminRestaurantsApi.replaceFacilities(restaurantId, { facilities: selected }),
@@ -44,12 +52,12 @@ export function FacilitiesSection({ restaurantId, facilities }: FacilitiesSectio
     <section className="detail-section">
       <h2>Tiện ích</h2>
       <div className="checkbox-group">
-        {FACILITY_OPTIONS.map((option) => (
-          <label key={option.value} className="checkbox-item">
+        {facilityOptions.map((option) => (
+          <label key={option.code} className="checkbox-item">
             <input
               type="checkbox"
-              checked={selected.includes(option.value)}
-              onChange={() => toggle(option.value)}
+              checked={selected.includes(option.code)}
+              onChange={() => toggle(option.code)}
             />
             {option.label}
           </label>

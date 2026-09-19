@@ -60,6 +60,12 @@ export interface CreateRestaurantBody {
   address: AddressInput
   location: LocationInput
   cuisineCodes?: CuisineCode[]
+  facebookUrl?: string
+  facebookVerified?: boolean
+  instagramUrl?: string
+  instagramVerified?: boolean
+  tiktokUrl?: string
+  websiteUrl?: string
 }
 
 /**
@@ -76,13 +82,24 @@ export interface UpdateRestaurantBody {
   address?: AddressInput
   location?: LocationInput
   cuisineCodes?: CuisineCode[]
+  facebookUrl?: string
+  facebookVerified?: boolean
+  instagramUrl?: string
+  instagramVerified?: boolean
+  tiktokUrl?: string
+  websiteUrl?: string
 }
 
 export interface OpeningHourEntryInput {
   dayOfWeek: number // 0=Sunday..6=Saturday
-  openTime?: string // "HH:mm", ignored when isClosed
+  openTime?: string // "HH:mm", ignored when isClosed or isOpen24h
   closeTime?: string
   isClosed: boolean
+  isOpen24h?: boolean
+  // Optional second range for the same day (e.g. lunch + dinner split) —
+  // only counted when both ends are set, same as openTime/closeTime.
+  openTime2?: string
+  closeTime2?: string
 }
 
 /** Body for PUT /admin/restaurants/:id/opening-hours — always exactly 7 entries. */

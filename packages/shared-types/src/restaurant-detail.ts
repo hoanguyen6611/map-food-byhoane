@@ -23,9 +23,17 @@ export interface LocationDto {
 
 export interface OpeningHourDto {
   dayOfWeek: number; // 0=Sunday..6=Saturday
-  openTime: string | null; // "HH:mm", null when isClosed
+  openTime: string | null; // "HH:mm", null when isClosed or isOpen24h
   closeTime: string | null;
   isClosed: boolean;
+  // Open all 24 hours of this day — when true, openTime/closeTime/
+  // openTime2/closeTime2 are all null and should be ignored by callers.
+  isOpen24h: boolean;
+  // Optional second range for the same day (e.g. 11:00-14:00 lunch, this
+  // pair for 17:00-22:00 dinner) — either both set or both null, never one
+  // without the other.
+  openTime2: string | null;
+  closeTime2: string | null;
 }
 
 export interface PhotoDto {
@@ -49,6 +57,18 @@ export interface MenuDto {
   items: MenuItemDto[];
 }
 
+export type SocialPlatform = 'facebook' | 'instagram' | 'tiktok' | 'website';
+
+// Admin-entered/verified only for now — no self-service owner-claim flow
+// exists yet. `verified` is only meaningful for facebook/instagram (the two
+// platforms an admin can actually confirm ownership of); it's always false
+// for tiktok/website, which have no verification concept in the UI.
+export interface RestaurantSocialLinkDto {
+  platform: SocialPlatform;
+  url: string;
+  verified: boolean;
+}
+
 // `reviews` (build-prompts/06) is a small newest-first PREVIEW (not the full
 // list — see GET /restaurants/:id/reviews in review.ts for the paginated
 // view with the full rating breakdown). AI Summary (build-prompts/07,
@@ -62,6 +82,8 @@ export interface RestaurantDetailDto {
   slug: string;
   description: string | null;
   categoryCode: RestaurantCategoryCode;
+  /** RestaurantCategory.label, resolved server-side — see RestaurantSummaryDto's comment. */
+  categoryLabel: string;
   cuisineCodes: CuisineCode[];
   phone: string | null;
   address: AddressDto;
@@ -72,8 +94,14 @@ export interface RestaurantDetailDto {
   facilities: FacilityType[];
   menus: MenuDto[];
   photos: PhotoDto[];
+  // Only platforms that actually have a URL set — same "don't fabricate
+  // sections you have no real data for" convention as `facilities`/
+  // `cuisineCodes` above. Empty array is normal/common, not an error.
+  socialLinks: RestaurantSocialLinkDto[];
   compositeScore: number | null;
   reviewCount: number;
+  /** Raw page-view counter (every detail-page load, no dedup) — see AdminRestaurantService/RestaurantService's `viewCount` schema comment. */
+  viewCount: number;
   reviews: ReviewDto[];
 }
 

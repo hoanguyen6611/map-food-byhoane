@@ -6,6 +6,7 @@ import { RestaurantService } from '../restaurant/restaurant.service';
 import { assertDecisionAllowed } from '../moderation/moderation-decision.util';
 import type { ModerationCheckResult } from '../review/review-moderation.service';
 import { NotificationService } from '../notification/notification.service';
+import { WebRevalidationService } from '../revalidation/web-revalidation.service';
 
 const CONTRIBUTION_TYPE_TITLE: Record<Contribution['type'], string> = {
   new_restaurant: 'Quán mới cần duyệt',
@@ -52,7 +53,16 @@ export class ContributionFinalizeService {
     private readonly prisma: PrismaService,
     private readonly restaurantService: RestaurantService,
     private readonly notificationService: NotificationService,
+    private readonly webRevalidation: WebRevalidationService,
   ) {}
+
+  /** Same reasoning as AdminRestaurantService's own copy of this — see its doc comment. */
+  private async revalidateRestaurant(id: string): Promise<void> {
+    const slug = (await this.prisma.restaurant.findUnique({ where: { id }, select: { slug: true } }))?.slug;
+    const tags = ['restaurants', `restaurant:${id}`];
+    if (slug) tags.push(`restaurant:${slug}`);
+    void this.webRevalidation.revalidate(tags);
+  }
 
   /** Called immediately after a Contribution + its ModerationResult are created (no moderator involved yet). */
   async finalizeAfterModeration(
@@ -168,6 +178,7 @@ export class ContributionFinalizeService {
           data: { publicationStatus: 'published' },
         });
         await this.restaurantService.invalidateViewportCache();
+        void this.revalidateRestaurant(contribution.targetRestaurantId);
         return;
       }
       case 'edit_suggestion': {
@@ -180,6 +191,7 @@ export class ContributionFinalizeService {
           payload.newValue,
         );
         await this.restaurantService.invalidateViewportCache();
+        void this.revalidateRestaurant(contribution.targetRestaurantId);
         return;
       }
       case 'status_update': {
@@ -189,6 +201,7 @@ export class ContributionFinalizeService {
           contribution.userId,
           contribution.payload as unknown as StatusReportPayload,
         );
+        void this.revalidateRestaurant(contribution.targetRestaurantId);
         return;
       }
       case 'closure_report':
@@ -342,9 +355,9 @@ export class ContributionFinalizeService {
           ...(facilities.length > 0
             ? [
                 this.prisma.restaurantFacility.createMany({
-                  data: facilities.map((facilityType) => ({
+                  data: facilities.map((facilityCode) => ({
                     restaurantId,
-                    facilityType: facilityType as never,
+                    facilityCode,
                   })),
                 }),
               ]

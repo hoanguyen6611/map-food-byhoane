@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { searchRestaurants } from '@/lib/api';
+import { getCategories, searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { PlaceRow } from '@/components/PlaceRow';
 import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/components/SearchFilterForm';
-import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { CUISINE_OPTIONS, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
-import { getHomeProvince, HCMC_LEGACY_PROVINCE_NAME } from '@/lib/home-province';
+import { getHomeProvince, HCMC_PROVINCE_NAME } from '@/lib/home-province';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
@@ -59,11 +59,12 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
 
   const effectiveProvince = await resolveProvince(search.province);
 
-  const [t, tCommon, tLabels, title] = await Promise.all([
+  const [t, tCommon, tLabels, title, categories] = await Promise.all([
     getTranslations('search'),
     getTranslations('common'),
     getTranslations('labels'),
     buildTitle(search.q, search.district, effectiveProvince),
+    getCategories(),
   ]);
 
   const [result, totalCountResult, categoryCounts] = await Promise.all([
@@ -82,7 +83,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       pageSize: PAGE_SIZE,
     }),
     searchRestaurants({ pageSize: 1, province: effectiveProvince }),
-    Promise.all(CATEGORY_OPTIONS.map((code) => searchRestaurants({ category: code, pageSize: 1, province: effectiveProvince }))),
+    Promise.all(categories.map((c) => searchRestaurants({ category: c.code, pageSize: 1, province: effectiveProvince }))),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
@@ -104,7 +105,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   if (search.category) {
     activeChips.push({
       key: 'category',
-      label: tLabels(`category.${search.category}`),
+      label: categories.find((c) => c.code === search.category)?.label ?? search.category,
       clearHref: buildSearchHref(search, { category: undefined }),
     });
   }
@@ -150,10 +151,10 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       <div className="search-sidebar">
         <SearchFilterForm
           search={search}
-          categoryCounts={CATEGORY_OPTIONS.map((code, i) => ({ code, count: categoryCounts[i].total }))}
+          categoryCounts={categories.map((c, i) => ({ code: c.code, label: c.label, count: categoryCounts[i].total }))}
           totalCount={totalCountResult.total}
           locale={locale}
-          isHcmc={effectiveProvince === HCMC_LEGACY_PROVINCE_NAME}
+          isHcmc={effectiveProvince === HCMC_PROVINCE_NAME}
         />
       </div>
 

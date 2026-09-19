@@ -54,6 +54,10 @@ export default async function MapPage() {
         noRating: tCommon('noRating'),
         viewDetail: t('viewDetail'),
         locateError: t('locateError'),
+        locating: t('locating'),
+        nearMeTitle: t('nearMeTitle'),
+        nearMeEmpty: t('nearMeEmpty'),
+        backToProvince: t('backToProvince', { province }),
       }}
     />
   );

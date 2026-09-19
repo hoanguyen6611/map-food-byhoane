@@ -5,6 +5,7 @@
 export * from './common';
 export * from './identity';
 export * from './restaurant';
+export * from './category-icons';
 export * from './auth';
 export * from './search';
 export * from './restaurant-detail';

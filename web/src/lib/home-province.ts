@@ -12,20 +12,16 @@ import { getSession, backendFetchAuthorized } from './auth';
 const HOME_PROVINCE_COOKIE = 'fm_home_province';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
-// Current restaurant data was seeded before the VN_PROVINCES dataset (code
-// '79') was adopted app-wide, using this abbreviated literal instead of the
-// dataset's official "Thành phố Hồ Chí Minh" — every existing row's
-// `Address.province` is this exact string. Every province-scoped fetch on
-// the site must default to it (not the dataset's own HCMC entry, which
-// correctly but unhelpfully matches zero of today's rows).
-export const HCMC_LEGACY_PROVINCE_NAME = 'TP. Hồ Chí Minh';
-
-// The dataset's own HCMC entry — also excluded from Home's province select
-// options (see page.tsx) for the same reason. Used below to translate a
-// profile's `homeCity` (which stores a real VN_PROVINCES name) back to the
-// legacy string when it happens to be HCMC.
+// The dataset's own HCMC entry (code '79') — every write path (add-restaurant
+// forms on web/admin-web/mobile, profile's homeCity select) already saves
+// this exact string when someone picks Ho Chi Minh City, so this is what
+// every province-scoped fetch on the site must default to as well. (Older
+// rows were seeded with the abbreviated "TP. Hồ Chí Minh" literal before
+// this dataset was adopted app-wide — those get backfilled to this string
+// rather than the other way around, since every live write path already
+// produces this one.)
 export const HCMC_DATASET_CODE = '79';
-const HCMC_DATASET_NAME = VN_PROVINCES.find((p) => p.code === HCMC_DATASET_CODE)?.name;
+export const HCMC_PROVINCE_NAME = VN_PROVINCES.find((p) => p.code === HCMC_DATASET_CODE)!.name;
 
 /** Cheap check first (`getSession` just reads a cookie) — the `/me` round-trip only happens for a signed-in visitor, and only once there's no explicit cookie choice to use instead. */
 async function getProfileHomeCity(): Promise<string | null> {
@@ -49,10 +45,8 @@ export async function getHomeProvince(): Promise<string> {
   if (cookieValue) return cookieValue;
 
   const profileHomeCity = await getProfileHomeCity();
-  if (profileHomeCity) {
-    return profileHomeCity === HCMC_DATASET_NAME ? HCMC_LEGACY_PROVINCE_NAME : profileHomeCity;
-  }
-  return HCMC_LEGACY_PROVINCE_NAME;
+  if (profileHomeCity) return profileHomeCity;
+  return HCMC_PROVINCE_NAME;
 }
 
 export async function setHomeProvince(province: string): Promise<void> {

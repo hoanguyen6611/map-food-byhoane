@@ -26,39 +26,12 @@ import type {
   RestaurantCategoryCode,
 } from '@foodmap/shared-types';
 
-const CATEGORY_CODES: RestaurantCategoryCode[] = [
-  'quan_an',
-  'quan_ca_phe',
-  'nha_hang',
-  'xe_day',
-  'quan_via_he',
-  'quan_bar',
-];
 const PRICE_RANGE_CODES: PriceRangeCode[] = [
   'under_50k',
   '50_100k',
   '100_200k',
   '200_500k',
   'above_500k',
-];
-const CUISINE_CODES: CuisineCode[] = [
-  'mon_viet',
-  'mon_han',
-  'mon_nhat',
-  'mon_chay',
-  'mon_thai',
-  'mon_au',
-];
-const FACILITY_TYPES: FacilityType[] = [
-  'wifi',
-  'parking_car',
-  'parking_motorbike',
-  'air_conditioner',
-  'outdoor_seating',
-  'kid_friendly',
-  'pet_friendly',
-  'card_payment',
-  'private_room',
 ];
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 // A much higher hard ceiling than the admin flow's trusted-input cap
@@ -153,7 +126,7 @@ export class CreateRestaurantContributionDto {
   @MaxLength(2000)
   description?: string;
 
-  @IsIn(CATEGORY_CODES)
+  @IsString()
   categoryCode!: RestaurantCategoryCode;
 
   @IsOptional()
@@ -174,7 +147,7 @@ export class CreateRestaurantContributionDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(CUISINE_CODES, { each: true })
+  @IsString({ each: true })
   cuisineCodes?: CuisineCode[];
 
   @IsOptional()
@@ -186,7 +159,7 @@ export class CreateRestaurantContributionDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(FACILITY_TYPES, { each: true })
+  @IsString({ each: true })
   facilities?: FacilityType[];
 
   @IsOptional()

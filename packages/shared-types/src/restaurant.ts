@@ -2,21 +2,23 @@
 // DTOs are added by build-prompts/03..05 — this module only defines the
 // catalog enums seeded in Module 1's migrations.
 
-export type RestaurantCategoryCode =
-  | 'quan_an'
-  | 'quan_ca_phe'
-  | 'nha_hang'
-  | 'xe_day'
-  | 'quan_via_he'
-  | 'quan_bar';
+// Was a fixed string-literal union — widened to `string` now that
+// RestaurantCategory is admin-editable at runtime (see AdminCategory*),
+// not just the 6 values seeded at launch. The 6 original codes
+// ('quan_an', 'quan_ca_phe', 'nha_hang', 'xe_day', 'quan_via_he',
+// 'quan_bar') still exist as real rows — this alias just stops pretending
+// they're the only ones that can ever exist.
+export type RestaurantCategoryCode = string;
 
-export type CuisineCode =
-  | 'mon_viet'
-  | 'mon_han'
-  | 'mon_nhat'
-  | 'mon_chay'
-  | 'mon_thai'
-  | 'mon_au';
+// Was a fixed string-literal union — widened to `string` now that Cuisine
+// is admin-editable at runtime (see AdminCuisine*), not just the 6 values
+// seeded at launch. The 6 original codes ('mon_viet', 'mon_han', 'mon_nhat',
+// 'mon_chay', 'mon_thai', 'mon_au') still exist as real rows — this alias
+// just stops pretending they're the only ones that can ever exist. Unlike
+// RestaurantCategoryCode/FacilityType, `Cuisine` was already a real table
+// (not a Postgres enum) before this widening — only the application-layer
+// validation was still pretending it was fixed.
+export type CuisineCode = string;
 
 export type PriceRangeCode =
   | 'under_50k'
@@ -25,16 +27,11 @@ export type PriceRangeCode =
   | '200_500k'
   | 'above_500k';
 
-export type FacilityType =
-  | 'wifi'
-  | 'parking_car'
-  | 'parking_motorbike'
-  | 'air_conditioner'
-  | 'outdoor_seating'
-  | 'kid_friendly'
-  | 'pet_friendly'
-  | 'card_payment'
-  | 'private_room';
+// Was a fixed Postgres enum (mirrored here as a string-literal union) —
+// widened to `string` now that Facility is a real admin-editable table
+// (see AdminFacility*). The original 9 codes ('wifi', 'parking_car', …)
+// still exist as seeded rows, same reasoning as RestaurantCategoryCode above.
+export type FacilityType = string;
 
 export type RestaurantPublicationStatus =
   | 'pending'
@@ -63,6 +60,11 @@ export interface RestaurantSummaryDto {
   slug: string;
   name: string;
   categoryCode: RestaurantCategoryCode;
+  /** RestaurantCategory.label, resolved server-side — category is an
+   * admin-editable table now, not a fixed set of codes a client can
+   * translate itself, so always display this instead of re-deriving a
+   * label from `categoryCode` via a static i18n dictionary. */
+  categoryLabel: string;
   thumbnailUrl: string | null;
   compositeScore: number | null;
   reviewCount: number;
@@ -85,4 +87,60 @@ export interface BoundsRestaurantsQuery {
   swLng: number;
   neLat: number;
   neLng: number;
+}
+
+// ---------- Category/Facility catalogs — admin-editable lookup tables,
+// exposed publicly (GET /categories, GET /facilities) so web/admin-web can
+// build dropdowns/checkboxes from live data instead of a hardcoded list. ----------
+
+export interface CategoryDto {
+  id: string;
+  code: string;
+  label: string;
+  icon: string | null;
+}
+
+export interface FacilityDto {
+  id: string;
+  code: string;
+  label: string;
+  icon: string | null;
+}
+
+export interface CreateCategoryRequest {
+  code: string;
+  label: string;
+  icon?: string;
+}
+
+export interface UpdateCategoryRequest {
+  label?: string;
+  icon?: string;
+}
+
+export interface CreateFacilityRequest {
+  code: string;
+  label: string;
+  icon?: string;
+}
+
+export interface UpdateFacilityRequest {
+  label?: string;
+  icon?: string;
+}
+
+// No `icon` column on Cuisine (unlike Category/Facility above).
+export interface CuisineDto {
+  id: string;
+  code: string;
+  label: string;
+}
+
+export interface CreateCuisineRequest {
+  code: string;
+  label: string;
+}
+
+export interface UpdateCuisineRequest {
+  label?: string;
 }

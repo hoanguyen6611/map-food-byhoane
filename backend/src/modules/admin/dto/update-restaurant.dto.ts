@@ -1,10 +1,12 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsPhoneNumber,
   IsString,
+  IsUrl,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -16,28 +18,12 @@ import type {
 } from '@foodmap/shared-types';
 import { AddressInputDto, LocationInputDto } from './create-restaurant.dto';
 
-const CATEGORY_CODES: RestaurantCategoryCode[] = [
-  'quan_an',
-  'quan_ca_phe',
-  'nha_hang',
-  'xe_day',
-  'quan_via_he',
-  'quan_bar',
-];
 const PRICE_RANGE_CODES: PriceRangeCode[] = [
   'under_50k',
   '50_100k',
   '100_200k',
   '200_500k',
   'above_500k',
-];
-const CUISINE_CODES: CuisineCode[] = [
-  'mon_viet',
-  'mon_han',
-  'mon_nhat',
-  'mon_chay',
-  'mon_thai',
-  'mon_au',
 ];
 
 // All fields optional (PATCH semantics) — nested address/location, when
@@ -55,7 +41,7 @@ export class UpdateRestaurantDto {
   description?: string;
 
   @IsOptional()
-  @IsIn(CATEGORY_CODES)
+  @IsString()
   categoryCode?: RestaurantCategoryCode;
 
   @IsOptional()
@@ -78,6 +64,30 @@ export class UpdateRestaurantDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(CUISINE_CODES, { each: true })
+  @IsString({ each: true })
   cuisineCodes?: CuisineCode[];
+
+  @IsOptional()
+  @IsUrl()
+  facebookUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  facebookVerified?: boolean;
+
+  @IsOptional()
+  @IsUrl()
+  instagramUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  instagramVerified?: boolean;
+
+  @IsOptional()
+  @IsUrl()
+  tiktokUrl?: string;
+
+  @IsOptional()
+  @IsUrl()
+  websiteUrl?: string;
 }

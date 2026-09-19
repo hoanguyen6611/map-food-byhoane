@@ -1,11 +1,54 @@
 'use server';
 
 import { backendFetchAuthorized } from '@/lib/auth';
+import { extractLatLngFromUrl, isGoogleMapsHost, isShortGoogleMapsLink, type LatLng } from '@/lib/google-maps-link';
 import type {
   CreateRestaurantContributionRequest,
   CreateRestaurantContributionResponse,
   DuplicateCandidateDto,
 } from '@foodmap/shared-types';
+
+export type ResolveMapLinkResult = { ok: true; location: LatLng } | { ok: false };
+
+/**
+ * Turns a pasted Google Maps link into {lat, lng} for the Add Restaurant
+ * form's coordinate field. Runs server-side for two reasons: short links
+ * (maps.app.goo.gl/goo.gl) only reveal real coordinates after following a
+ * redirect, which a browser fetch can't do cross-origin; and even the
+ * direct-fetch step itself needs the isGoogleMapsHost allowlist enforced
+ * somewhere trusted, not left to the client.
+ */
+export async function resolveGoogleMapsLinkAction(rawUrl: string): Promise<ResolveMapLinkResult> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    return { ok: false };
+  }
+  if (!isGoogleMapsHost(url.hostname)) {
+    return { ok: false };
+  }
+
+  let finalUrl = url.toString();
+  if (isShortGoogleMapsLink(url.hostname)) {
+    try {
+      const res = await fetch(url.toString(), { redirect: 'follow' });
+      finalUrl = res.url;
+    } catch {
+      return { ok: false };
+    }
+    // The redirect target should still be a Google domain — belt-and-braces
+    // against a compromised/unexpected redirect before we regex the result.
+    try {
+      if (!isGoogleMapsHost(new URL(finalUrl).hostname)) return { ok: false };
+    } catch {
+      return { ok: false };
+    }
+  }
+
+  const location = extractLatLngFromUrl(finalUrl);
+  return location ? { ok: true, location } : { ok: false };
+}
 
 export type SubmitContributionResult =
   | { ok: true; status: CreateRestaurantContributionResponse['status'] }

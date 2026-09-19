@@ -100,26 +100,26 @@ model User {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  profile              UserProfile?
-  submittedRestaurants Restaurant[]         @relation("SubmittedRestaurants")
-  ownedRestaurants     Restaurant[]         @relation("OwnedRestaurants")
-  refreshTokens        RefreshToken[]
-  passwordResetTokens  PasswordResetToken[]
-  searchHistory        SearchHistory[]
-  uploadedPhotos       Photo[]
-  auditLogs            AuditLog[]
-  reviews              Review[]
-  moderationDecisions  ModerationResult[] @relation("ModerationDecidedBy")
-  favorites            Favorite[]
-  notifications        Notification[]
-  pushTokens           PushToken[]
-  contributions        Contribution[]
-  reportsFiled         Report[]             @relation("ReportedBy")
-  reportsResolved      Report[]             @relation("ReportResolvedBy")
-  crowdedStatusReports CrowdedStatus[]      @relation("CrowdedStatusReportedBy")
-  seatAvailabilityReports SeatAvailability[] @relation("SeatAvailabilityReportedBy")
-  powerOutletReports   PowerOutletStatus[]  @relation("PowerOutletReportedBy")
-  parkingInfoUpdates   ParkingInformation[] @relation("ParkingLastUpdatedBy")
+  profile                 UserProfile?
+  submittedRestaurants    Restaurant[]         @relation("SubmittedRestaurants")
+  ownedRestaurants        Restaurant[]         @relation("OwnedRestaurants")
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  searchHistory           SearchHistory[]
+  uploadedPhotos          Photo[]
+  auditLogs               AuditLog[]
+  reviews                 Review[]
+  moderationDecisions     ModerationResult[]   @relation("ModerationDecidedBy")
+  favorites               Favorite[]
+  notifications           Notification[]
+  pushTokens              PushToken[]
+  contributions           Contribution[]
+  reportsFiled            Report[]             @relation("ReportedBy")
+  reportsResolved         Report[]             @relation("ReportResolvedBy")
+  crowdedStatusReports    CrowdedStatus[]      @relation("CrowdedStatusReportedBy")
+  seatAvailabilityReports SeatAvailability[]   @relation("SeatAvailabilityReportedBy")
+  powerOutletReports      PowerOutletStatus[]  @relation("PowerOutletReportedBy")
+  parkingInfoUpdates      ParkingInformation[] @relation("ParkingLastUpdatedBy")
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
   // treats NULL as distinct per standard unique-index semantics — this is
@@ -189,16 +189,20 @@ enum RestaurantPublicationStatus {
   removed
 }
 
-enum FacilityType {
-  wifi
-  parking_car
-  parking_motorbike
-  air_conditioner
-  outdoor_seating
-  kid_friendly
-  pet_friendly
-  card_payment
-  private_room
+// Was a fixed Postgres enum (FacilityType) — converted to a real lookup
+// table (same shape as RestaurantCategory/Cuisine below) so admin-web can
+// manage the facility list at runtime instead of every addition/rename
+// needing a schema migration. `code` (not `id`) is what RestaurantFacility
+// references, keeping the existing enum values ('wifi', 'parking_car', …)
+// as-is — see migration 20260919000000_facility_type_to_table.
+model Facility {
+  id                   String               @id @default(uuid())
+  code                 String               @unique
+  label                String
+  icon                 String?
+  restaurantFacilities RestaurantFacility[]
+
+  @@map("facilities")
 }
 
 model RestaurantCategory {
@@ -233,11 +237,11 @@ model RestaurantCuisine {
 }
 
 model Dish {
-  id            String      @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
-  cuisineId     String?     @map("cuisine_id")
-  cuisine       Cuisine?    @relation(fields: [cuisineId], references: [id])
-  aliasKeywords String[]    @map("alias_keywords")
+  cuisineId     String?    @map("cuisine_id")
+  cuisine       Cuisine?   @relation(fields: [cuisineId], references: [id])
+  aliasKeywords String[]   @map("alias_keywords")
   menuItems     MenuItem[]
 
   // Dish is a curated/admin-managed catalog (not user-creatable, per
@@ -270,9 +274,9 @@ model Address {
 }
 
 model Location {
-  id       String @id @default(uuid())
-  lat      Decimal @db.Decimal(9, 6)
-  lng      Decimal @db.Decimal(9, 6)
+  id       String                                 @id @default(uuid())
+  lat      Decimal                                @db.Decimal(9, 6)
+  lng      Decimal                                @db.Decimal(9, 6)
   // Kept in sync with lat/lng via a DB trigger — see migration.sql.
   geoPoint Unsupported("geography(Point, 4326)")? @map("geo_point")
 
@@ -282,26 +286,37 @@ model Location {
 }
 
 model Restaurant {
-  id            String                       @id @default(uuid())
-  name          String
-  slug          String                       @unique
-  description   String?
-  categoryId    String                       @map("category_id")
-  category      RestaurantCategory           @relation(fields: [categoryId], references: [id])
-  priceRangeId  String?                      @map("price_range_id")
-  priceRange    PriceRange?                  @relation(fields: [priceRangeId], references: [id])
-  phone         String?
-  addressId     String                       @unique @map("address_id")
-  address       Address                      @relation(fields: [addressId], references: [id])
-  locationId    String                       @unique @map("location_id")
-  location      Location                     @relation(fields: [locationId], references: [id])
-  submittedBy   String?                      @map("submitted_by")
-  submitter     User?                        @relation("SubmittedRestaurants", fields: [submittedBy], references: [id])
-  ownerId       String?                      @map("owner_id")
-  owner         User?                        @relation("OwnedRestaurants", fields: [ownerId], references: [id])
-  createdAt     DateTime                     @default(now()) @map("created_at")
-  updatedAt     DateTime                     @updatedAt @map("updated_at")
-  deletedAt     DateTime?                    @map("deleted_at")
+  id                String             @id @default(uuid())
+  name              String
+  slug              String             @unique
+  description       String?
+  categoryId        String             @map("category_id")
+  category          RestaurantCategory @relation(fields: [categoryId], references: [id])
+  priceRangeId      String?            @map("price_range_id")
+  priceRange        PriceRange?        @relation(fields: [priceRangeId], references: [id])
+  phone             String?
+  // Admin-entered/verified only for now (no self-service owner-claim flow
+  // exists yet — Restaurant.ownerId above is an unused stub). `verified`
+  // only applies to facebook/instagram (the two platforms an admin can
+  // actually confirm ownership of); tiktok/website have no such concept in
+  // the UI, so there's no verified column for them.
+  facebookUrl       String?            @map("facebook_url")
+  facebookVerified  Boolean            @default(false) @map("facebook_verified")
+  instagramUrl      String?            @map("instagram_url")
+  instagramVerified Boolean            @default(false) @map("instagram_verified")
+  tiktokUrl         String?            @map("tiktok_url")
+  websiteUrl        String?            @map("website_url")
+  addressId         String             @unique @map("address_id")
+  address           Address            @relation(fields: [addressId], references: [id])
+  locationId        String             @unique @map("location_id")
+  location          Location           @relation(fields: [locationId], references: [id])
+  submittedBy       String?            @map("submitted_by")
+  submitter         User?              @relation("SubmittedRestaurants", fields: [submittedBy], references: [id])
+  ownerId           String?            @map("owner_id")
+  owner             User?              @relation("OwnedRestaurants", fields: [ownerId], references: [id])
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  deletedAt         DateTime?          @map("deleted_at")
 
   // Generated STORED column (name + description, unaccented) + GIN index —
   // see migration.sql; Prisma has no schema-level syntax for GENERATED ALWAYS
@@ -310,9 +325,9 @@ model Restaurant {
   // docs/build-prompts/04-search-filter.md) is NOT folded into this column —
   // Postgres generated columns can only reference the same row, not joined
   // tables — so SearchService joins menu_items/dishes at query time instead.
-  searchVector  Unsupported("tsvector")?    @map("search_vector")
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
-  status             RestaurantStatus?
+  status              RestaurantStatus?
   cuisines            RestaurantCuisine[]
   openingHours        OpeningHour[]
   facilities          RestaurantFacility[]
@@ -332,13 +347,18 @@ model Restaurant {
 }
 
 model RestaurantStatus {
-  restaurantId       String                      @id @map("restaurant_id")
-  restaurant         Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  publicationStatus  RestaurantPublicationStatus @default(pending) @map("publication_status")
-  compositeScore     Decimal?                     @db.Decimal(3, 2) @map("composite_score")
-  reviewCount        Int                          @default(0) @map("review_count")
-  lastReviewAt       DateTime?                    @map("last_review_at")
-  lastComputedAt     DateTime?                    @map("last_computed_at")
+  restaurantId      String                      @id @map("restaurant_id")
+  restaurant        Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  publicationStatus RestaurantPublicationStatus @default(pending) @map("publication_status")
+  compositeScore    Decimal?                    @map("composite_score") @db.Decimal(3, 2)
+  reviewCount       Int                         @default(0) @map("review_count")
+  lastReviewAt      DateTime?                   @map("last_review_at")
+  lastComputedAt    DateTime?                   @map("last_computed_at")
+  // Raw page-view counter — every detail-page load counts, including repeat
+  // views by the same visitor (no dedup), same convention as public video/
+  // map platforms' "lượt xem". Incremented via an atomic `increment` update
+  // from RestaurantService.getDetail/getDetailBySlug, never read-then-write.
+  viewCount         Int                         @default(0) @map("view_count")
 
   @@map("restaurant_status")
 }
@@ -348,22 +368,34 @@ model OpeningHour {
   restaurantId String     @map("restaurant_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   dayOfWeek    Int        @map("day_of_week")
-  openTime     DateTime?  @db.Time @map("open_time")
-  closeTime    DateTime?  @db.Time @map("close_time")
+  openTime     DateTime?  @map("open_time") @db.Time
+  closeTime    DateTime?  @map("close_time") @db.Time
   isClosed     Boolean    @default(false) @map("is_closed")
+  // Open all 24 hours of this day — when true, openTime/closeTime/openTime2/
+  // closeTime2 are all irrelevant (and normalized to null on write). Kept as
+  // its own flag rather than a 00:00–23:59 sentinel, since that range would
+  // otherwise need special-casing everywhere it's compared.
+  isOpen24h    Boolean    @default(false) @map("is_open_24h")
+  // Second time range for the same day (e.g. 11:00–14:00 lunch, then this
+  // pair for 17:00–22:00 dinner) — exactly one extra range, not an
+  // arbitrary list, matching the one real pattern this needs to support.
+  // Still one row per (restaurantId, dayOfWeek); no unique-constraint change.
+  openTime2    DateTime?  @map("open_time_2") @db.Time
+  closeTime2   DateTime?  @map("close_time_2") @db.Time
 
   @@unique([restaurantId, dayOfWeek])
   @@map("opening_hours")
 }
 
 model RestaurantFacility {
-  id           String       @id @default(uuid())
-  restaurantId String       @map("restaurant_id")
-  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  facilityType FacilityType @map("facility_type")
+  id           String     @id @default(uuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  facilityCode String     @map("facility_code")
+  facility     Facility   @relation(fields: [facilityCode], references: [code])
   notes        String?
 
-  @@unique([restaurantId, facilityType])
+  @@unique([restaurantId, facilityCode])
   @@map("restaurant_facilities")
 }
 
@@ -477,12 +509,12 @@ model Photo {
 // ---------- Reviews & Ratings (docs/06-database-erd.md §5) ----------
 
 model ReviewCriteria {
-  id                 String              @id @default(uuid())
-  code               String              @unique
-  label              String
-  appliesToCategoryId String?            @map("applies_to_category_id")
-  appliesToCategory  RestaurantCategory? @relation(fields: [appliesToCategoryId], references: [id])
-  ratings            ReviewRating[]
+  id                  String              @id @default(uuid())
+  code                String              @unique
+  label               String
+  appliesToCategoryId String?             @map("applies_to_category_id")
+  appliesToCategory   RestaurantCategory? @relation(fields: [appliesToCategoryId], references: [id])
+  ratings             ReviewRating[]
 
   @@map("review_criteria")
 }
@@ -516,7 +548,7 @@ model Review {
   updatedAt       DateTime     @updatedAt @map("updated_at")
   deletedAt       DateTime?    @map("deleted_at")
 
-  ratings         ReviewRating[]
+  ratings ReviewRating[]
 
   // "One active review per user per restaurant" (docs/06-database-erd.md §5)
   // needs a PARTIAL unique index (`WHERE deleted_at IS NULL`), which Prisma's
@@ -573,19 +605,19 @@ enum ModerationDecision {
 // real one Module 7 will use unchanged, only the scoring implementation
 // swaps out.
 model ModerationResult {
-  id                String                       @id @default(uuid())
-  targetType        ModerationTargetType         @map("target_type")
-  targetId          String                       @map("target_id")
-  riskScore         Decimal                      @db.Decimal(3, 2) @map("risk_score")
+  id                String                      @id @default(uuid())
+  targetType        ModerationTargetType        @map("target_type")
+  targetId          String                      @map("target_id")
+  riskScore         Decimal                     @map("risk_score") @db.Decimal(3, 2)
   labels            String[]
-  aiReason          String                       @map("ai_reason")
-  recommendedAction ModerationRecommendedAction  @map("recommended_action")
-  decidedBy         String?                      @map("decided_by")
-  decider           User?                        @relation("ModerationDecidedBy", fields: [decidedBy], references: [id])
-  decision          ModerationDecision           @default(pending)
-  decidedAt         DateTime?                    @map("decided_at")
-  modelVersion      String                       @map("model_version")
-  createdAt         DateTime                     @default(now()) @map("created_at")
+  aiReason          String                      @map("ai_reason")
+  recommendedAction ModerationRecommendedAction @map("recommended_action")
+  decidedBy         String?                     @map("decided_by")
+  decider           User?                       @relation("ModerationDecidedBy", fields: [decidedBy], references: [id])
+  decision          ModerationDecision          @default(pending)
+  decidedAt         DateTime?                   @map("decided_at")
+  modelVersion      String                      @map("model_version")
+  createdAt         DateTime                    @default(now()) @map("created_at")
 
   contribution Contribution?
   photos       Photo[]
@@ -624,19 +656,19 @@ enum ContributionStatus {
 // brand-new restaurant submission (the restaurant is created *together with*
 // this row, in the same transaction — see ContributionService.createNewRestaurant).
 model Contribution {
-  id                 String              @id @default(uuid())
-  userId             String              @map("user_id")
-  user               User                @relation(fields: [userId], references: [id])
+  id                 String             @id @default(uuid())
+  userId             String             @map("user_id")
+  user               User               @relation(fields: [userId], references: [id])
   type               ContributionType
-  targetRestaurantId String?             @map("target_restaurant_id")
-  targetRestaurant   Restaurant?         @relation(fields: [targetRestaurantId], references: [id])
+  targetRestaurantId String?            @map("target_restaurant_id")
+  targetRestaurant   Restaurant?        @relation(fields: [targetRestaurantId], references: [id])
   payload            Json
-  status             ContributionStatus  @default(pending)
-  moderationResultId String?             @unique @map("moderation_result_id")
-  moderationResult   ModerationResult?   @relation(fields: [moderationResultId], references: [id])
+  status             ContributionStatus @default(pending)
+  moderationResultId String?            @unique @map("moderation_result_id")
+  moderationResult   ModerationResult?  @relation(fields: [moderationResultId], references: [id])
   editSuggestion     EditSuggestion?
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   @@index([userId, status])
   @@index([targetRestaurantId])
@@ -759,13 +791,13 @@ enum SeatAvailabilityLevel {
 }
 
 model SeatAvailability {
-  id           String                 @id @default(uuid())
-  restaurantId String                 @map("restaurant_id")
-  restaurant   Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  id           String                @id @default(uuid())
+  restaurantId String                @map("restaurant_id")
+  restaurant   Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   level        SeatAvailabilityLevel
-  reportedBy   String                 @map("reported_by")
-  reporter     User                   @relation("SeatAvailabilityReportedBy", fields: [reportedBy], references: [id])
-  reportedAt   DateTime               @default(now()) @map("reported_at")
+  reportedBy   String                @map("reported_by")
+  reporter     User                  @relation("SeatAvailabilityReportedBy", fields: [reportedBy], references: [id])
+  reportedAt   DateTime              @default(now()) @map("reported_at")
 
   @@index([restaurantId, reportedAt])
   @@map("seat_availabilities")

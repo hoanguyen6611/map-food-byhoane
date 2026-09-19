@@ -21,9 +21,9 @@ interface Props {
  * showing them would mean inventing data the API never returned.
  */
 export async function PlaceRow({ restaurant, thumb = 88, showStatus = true, area }: Props) {
-  const [tCommon, tLabels] = await Promise.all([getTranslations('common'), getTranslations('labels')]);
+  const tCommon = await getTranslations('common');
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
-  const categoryLabel = restaurant.categoryCode ? tLabels(`category.${restaurant.categoryCode}`) : null;
+  const categoryLabel = restaurant.categoryLabel ?? null;
 
   return (
     <Link href={`/restaurant/${restaurant.slug}`} className="place-row">

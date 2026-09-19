@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import type { RestaurantCategoryCode } from '@foodmap/shared-types';
-import { CATEGORY_OPTIONS, CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { DISTRICTS } from '@/lib/districts';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FacilityIcon } from './icons';
@@ -36,7 +35,7 @@ function toggleInCsv(csv: string | undefined, value: string): string | undefined
 
 interface Props {
   search: SearchParamsRecord;
-  categoryCounts: { code: RestaurantCategoryCode; count: number }[];
+  categoryCounts: { code: string; label: string; count: number }[];
   totalCount: number;
   locale: string;
   // "Khu vực" (Quận 1/3/Bình Thạnh/Phú Nhuận) only exists for HCMC — see
@@ -82,14 +81,14 @@ export async function SearchFilterForm({ search, categoryCounts, totalCount, loc
           <span className={`radio-label ${!search.category ? 'radio-label-selected' : ''}`}>{t('all')}</span>
           <span className="radio-count">{totalCount}</span>
         </Link>
-        {categoryCounts.map(({ code, count }) => {
+        {categoryCounts.map(({ code, label, count }) => {
           const active = search.category === code;
           return (
             <Link key={code} href={buildHref(search, { category: active ? undefined : code })} className="radio-row">
               <span className={`radio-dot ${active ? 'radio-dot-selected' : ''}`}>
                 {active ? <span className="radio-dot-inner" /> : null}
               </span>
-              <span className={`radio-label ${active ? 'radio-label-selected' : ''}`}>{tLabels(`category.${code}`)}</span>
+              <span className={`radio-label ${active ? 'radio-label-selected' : ''}`}>{label}</span>
               <span className="radio-count">{count}</span>
             </Link>
           );

@@ -8,6 +8,9 @@ import { AdminRestaurantEditPage } from './pages/AdminRestaurantEditPage'
 import { AdminRestaurantManagementPage } from './pages/AdminRestaurantManagementPage'
 import { AdminReviewManagementPage } from './pages/AdminReviewManagementPage'
 import { AdminUserManagementPage } from './pages/AdminUserManagementPage'
+import { AdminCategoryManagementPage } from './pages/AdminCategoryManagementPage'
+import { AdminFacilityManagementPage } from './pages/AdminFacilityManagementPage'
+import { AdminCuisineManagementPage } from './pages/AdminCuisineManagementPage'
 
 function App() {
   return (
@@ -22,6 +25,9 @@ function App() {
           <Route path="/moderation" element={<AdminModerationQueuePage />} />
           <Route path="/reviews" element={<AdminReviewManagementPage />} />
           <Route path="/users" element={<AdminUserManagementPage />} />
+          <Route path="/categories" element={<AdminCategoryManagementPage />} />
+          <Route path="/facilities" element={<AdminFacilityManagementPage />} />
+          <Route path="/cuisines" element={<AdminCuisineManagementPage />} />
         </Route>
       </Route>
     </Routes>

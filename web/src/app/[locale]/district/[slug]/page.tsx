@@ -49,10 +49,9 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
     notFound();
   }
 
-  const [t, tCommon, tLabels] = await Promise.all([
+  const [t, tCommon] = await Promise.all([
     getTranslations('district'),
     getTranslations('common'),
-    getTranslations('labels'),
   ]);
 
   const page = Number(pageParam ?? '1') || 1;
@@ -65,11 +64,13 @@ export default async function DistrictPage({ params, searchParams }: PageProps) 
   const rated = statsResult.items.filter((r) => r.compositeScore !== null);
   const avgScore = rated.length > 0 ? rated.reduce((sum, r) => sum + (r.compositeScore ?? 0), 0) / rated.length : null;
   const categoryTally = new Map<string, number>();
+  const categoryLabelByCode = new Map<string, string>();
   for (const r of statsResult.items) {
     categoryTally.set(r.categoryCode, (categoryTally.get(r.categoryCode) ?? 0) + 1);
+    categoryLabelByCode.set(r.categoryCode, r.categoryLabel);
   }
   const topCategoryCode = [...categoryTally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const topCategoryLabel = topCategoryCode ? tLabels(`category.${topCategoryCode}`) : null;
+  const topCategoryLabel = topCategoryCode ? (categoryLabelByCode.get(topCategoryCode) ?? null) : null;
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',

@@ -1,7 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
-import { COMPOSITE_SCORE_QUEUE } from './composite-score.service';
+import {
+  COMPOSITE_SCORE_JOB,
+  COMPOSITE_SCORE_QUEUE,
+  RECONCILE_ALL_JOB,
+} from './composite-score.service';
 import { CompositeScoreService } from './composite-score.service';
 
 interface RecomputeJobData {
@@ -17,7 +21,15 @@ export class CompositeScoreProcessor extends WorkerHost {
   }
 
   async process(job: Job<RecomputeJobData>): Promise<void> {
-    await this.compositeScoreService.recompute(job.data.restaurantId);
+    if (job.name === RECONCILE_ALL_JOB) {
+      await this.compositeScoreService.reconcileAll();
+      return;
+    }
+    if (job.name === COMPOSITE_SCORE_JOB) {
+      await this.compositeScoreService.recompute(job.data.restaurantId);
+      return;
+    }
+    this.logger.warn(`Unknown job name on ${COMPOSITE_SCORE_QUEUE} queue: ${job.name}`);
   }
 
   // Runs within the same NestJS process (modular monolith — no separate

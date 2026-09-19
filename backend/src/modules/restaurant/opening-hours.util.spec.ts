@@ -80,4 +80,68 @@ describe('isOpenNow', () => {
       isOpenNow(hours, { dayOfWeek: 2, minutesSinceMidnight: 12 * 60 }),
     ).toBe(false);
   });
+
+  it('is open at any time of day when isOpen24h is set, regardless of openTime/closeTime', () => {
+    const hours: OpeningHourRow[] = [
+      { dayOfWeek: 2, openTime: null, closeTime: null, isClosed: false, isOpen24h: true },
+    ];
+    expect(isOpenNow(hours, { dayOfWeek: 2, minutesSinceMidnight: 0 })).toBe(true);
+    expect(isOpenNow(hours, { dayOfWeek: 2, minutesSinceMidnight: 23 * 60 + 59 })).toBe(true);
+  });
+
+  it('a 24h day does not spill isOpen24h into the next calendar day', () => {
+    const hours: OpeningHourRow[] = [
+      { dayOfWeek: 2, openTime: null, closeTime: null, isClosed: false, isOpen24h: true },
+      { dayOfWeek: 3, openTime: time(8), closeTime: time(22), isClosed: false },
+    ];
+    // Wednesday 00:01 — Wednesday's own (non-24h) row governs, not Tuesday's.
+    expect(isOpenNow(hours, { dayOfWeek: 3, minutesSinceMidnight: 1 })).toBe(false);
+  });
+
+  it('handles a lunch + dinner split (two ranges the same day), closed in the gap', () => {
+    const hours: OpeningHourRow[] = [
+      {
+        dayOfWeek: 4,
+        openTime: time(11),
+        closeTime: time(14),
+        isClosed: false,
+        openTime2: time(17),
+        closeTime2: time(22),
+      },
+    ];
+    expect(isOpenNow(hours, { dayOfWeek: 4, minutesSinceMidnight: 12 * 60 })).toBe(true); // lunch
+    expect(isOpenNow(hours, { dayOfWeek: 4, minutesSinceMidnight: 15 * 60 + 30 })).toBe(false); // gap
+    expect(isOpenNow(hours, { dayOfWeek: 4, minutesSinceMidnight: 19 * 60 })).toBe(true); // dinner
+    expect(isOpenNow(hours, { dayOfWeek: 4, minutesSinceMidnight: 23 * 60 })).toBe(false); // after close
+  });
+
+  it('a lone openTime2 without closeTime2 is ignored as "no second range"', () => {
+    const hours: OpeningHourRow[] = [
+      {
+        dayOfWeek: 4,
+        openTime: time(11),
+        closeTime: time(14),
+        isClosed: false,
+        openTime2: time(17),
+        closeTime2: null,
+      },
+    ];
+    expect(isOpenNow(hours, { dayOfWeek: 4, minutesSinceMidnight: 19 * 60 })).toBe(false);
+  });
+
+  it('handles an overnight second range spilling into the next day', () => {
+    const hours: OpeningHourRow[] = [
+      {
+        dayOfWeek: 5,
+        openTime: time(11),
+        closeTime: time(14),
+        isClosed: false,
+        openTime2: time(22),
+        closeTime2: time(2),
+      },
+    ];
+    // Saturday 01:00 — spillover from Friday's overnight *second* range.
+    expect(isOpenNow(hours, { dayOfWeek: 6, minutesSinceMidnight: 1 * 60 })).toBe(true);
+    expect(isOpenNow(hours, { dayOfWeek: 6, minutesSinceMidnight: 3 * 60 })).toBe(false);
+  });
 });

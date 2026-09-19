@@ -3,6 +3,7 @@ import { RestaurantModule } from '../restaurant/restaurant.module';
 import { MediaModule } from '../media/media.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { NotificationModule } from '../notification/notification.module';
+import { RevalidationModule } from '../revalidation/revalidation.module';
 import { ContributionController } from './contribution.controller';
 import { ContributionService } from './contribution.service';
 import { ContributionFinalizeService } from './contribution-finalize.service';
@@ -18,6 +19,7 @@ import { ContributionFinalizeService } from './contribution-finalize.service';
     MediaModule,
     ModerationModule,
     NotificationModule,
+    RevalidationModule,
   ],
   controllers: [ContributionController],
   providers: [ContributionService, ContributionFinalizeService],

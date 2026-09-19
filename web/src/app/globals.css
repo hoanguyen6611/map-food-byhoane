@@ -816,7 +816,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
 }
-/* One tile color per category, in CATEGORY_OPTIONS order (lib/labels.ts). */
+/* Cycled by index over the live /categories list (page.tsx's CAT_TILE_CLASSES), not any fixed order. */
 .cat-tile-0 {
   background: #fff8eb;
 }
@@ -1322,6 +1322,28 @@ textarea:focus-visible {
   border: none;
   cursor: pointer;
   color: var(--color-ink);
+}
+.map-control-btn:disabled {
+  cursor: default;
+}
+.map-locate-spin {
+  animation: map-locate-spin 900ms linear infinite;
+}
+@keyframes map-locate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.map-page-back-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  align-self: flex-start;
 }
 
 /* ---------- Chips / pills / toggles (shared filter primitives) ---------- */
@@ -1833,17 +1855,194 @@ textarea:focus-visible {
   font-size: 13px;
   color: var(--color-ink-faint);
 }
-.detail-photos {
+/* PhotoGalleryHero: 1 large tile + up to 2 stacked tiles + a 4th tile that
+   becomes a dimmed "+N/see all" overlay once there are more photos than
+   fit. Height is a fixed clamp() (not aspect-ratio) so the 2-row main tile
+   and the 2 stacked secondary tiles line up exactly regardless of photo
+   count — grid-template-rows: 1fr 1fr on a fixed-height container. */
+.photo-hero-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  height: clamp(220px, 30vw, 320px);
+  grid-template-columns: 1.6fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 8px;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
 }
-.detail-photos img {
+/* Fewer than 4 photos: fall back to an even split so there's no empty grid cell. */
+.photo-hero-grid-1 {
+  grid-template-columns: 1fr;
+}
+.photo-hero-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.photo-hero-grid-3 {
+  grid-template-columns: 1.6fr 1fr;
+}
+.photo-hero-tile {
+  position: relative;
+  border: none;
+  padding: 0;
+  background: var(--color-cream);
+  cursor: pointer;
+  overflow: hidden;
+}
+.photo-hero-tile-0 {
+  grid-row: 1 / 3;
+}
+.photo-hero-grid-3 .photo-hero-tile-0 {
+  grid-row: 1 / 3;
+}
+.photo-hero-grid-3 .photo-hero-tile-1,
+.photo-hero-grid-3 .photo-hero-tile-2 {
+  grid-column: 2;
+}
+.photo-hero-more-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #fff;
+}
+.photo-hero-more-count {
+  font-size: 22px;
+  font-weight: 700;
+}
+.photo-hero-more-cta {
+  font-size: 13px;
+  font-weight: 500;
+}
+.photo-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.photo-lightbox-panel {
+  position: relative;
   width: 100%;
-  height: auto;
+  max-width: 960px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  padding: 20px;
+}
+.photo-lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-lightbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 10px;
+}
+.photo-lightbox-item {
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+.photo-lightbox-item img {
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+}
+/* Full-size single-photo viewer, layered on top of the grid lightbox —
+   opened by clicking any thumbnail there. */
+.photo-full-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.photo-full-frame {
+  position: relative;
+  width: min(90vw, 1100px);
+  height: min(85vh, 800px);
+}
+.photo-full-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-full-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.photo-full-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-full-nav:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.photo-full-nav-prev {
+  left: 16px;
+}
+.photo-full-nav-next {
+  right: 16px;
+}
+.photo-full-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
 }
 
 .detail-layout {
@@ -1961,6 +2160,108 @@ textarea:focus-visible {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  margin: 0;
+}
+.info-hours-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+}
+.info-hours-day {
+  flex-shrink: 0;
+}
+.info-hours-times {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: var(--color-ink-muted);
+  text-align: right;
+}
+.social-links-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.social-links-caption {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  color: var(--color-ink-faint);
+}
+.social-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+}
+.social-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink);
+  min-width: 0;
+}
+.social-link-item:hover {
+  border-color: var(--color-chip-selected-border);
+}
+.social-link-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--color-ink-subtle);
+}
+.social-link-icon-facebook {
+  background: #1877f2;
+}
+.social-link-icon-instagram {
+  background: linear-gradient(135deg, #f58529, #dd2a7b 60%, #8134af);
+}
+.social-link-icon-tiktok {
+  background: #111;
+}
+.social-link-icon-website {
+  background: var(--color-ink-muted);
+}
+.social-link-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.social-link-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.social-link-verified {
+  color: var(--color-primary);
+  flex: none;
+}
+.social-link-handle {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.social-links-note {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 12px;
+  color: var(--color-ink-faint);
   margin: 0;
 }
 .info-grid {
@@ -2236,6 +2537,9 @@ table.menu-table td.price {
   border: 1px solid var(--color-border-hairline);
   flex: none;
   display: block;
+  padding: 0;
+  background: none;
+  cursor: pointer;
 }
 .review-card-photo img {
   width: 100%;
@@ -2323,16 +2627,11 @@ table.menu-table td.price {
   justify-content: space-between;
   padding: 14px 16px 10px;
 }
-.hours-open-note {
-  font-family: var(--font-figtree), sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-open-fg);
-}
 .hours-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
   padding: 9px 16px;
   border-top: 1px solid var(--color-border-hairline);
   font-size: 15px;
@@ -2342,10 +2641,16 @@ table.menu-table td.price {
 }
 .hours-day {
   letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 .hours-time {
   font-family: var(--font-inter-tight), sans-serif;
   color: var(--color-ink-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
 }
 
 .similar-card {

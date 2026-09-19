@@ -5,6 +5,7 @@ import { ModerationModule } from '../moderation/moderation.module';
 import { ContributionModule } from '../contribution/contribution.module';
 import { NotificationModule } from '../notification/notification.module';
 import { ReviewModule } from '../review/review.module';
+import { RevalidationModule } from '../revalidation/revalidation.module';
 import { AdminRestaurantController } from './admin-restaurant.controller';
 import { AdminRestaurantService } from './admin-restaurant.service';
 import { AdminUserController } from './admin-user.controller';
@@ -17,6 +18,12 @@ import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminMediaController } from './admin-media.controller';
 import { AdminMediaService } from './admin-media.service';
+import { AdminCategoryController } from './admin-category.controller';
+import { AdminCategoryService } from './admin-category.service';
+import { AdminFacilityController } from './admin-facility.controller';
+import { AdminFacilityService } from './admin-facility.service';
+import { AdminCuisineController } from './admin-cuisine.controller';
+import { AdminCuisineService } from './admin-cuisine.service';
 import { AuditLogService } from './audit-log.service';
 import { PhotoService } from './photo.service';
 
@@ -36,6 +43,7 @@ import { PhotoService } from './photo.service';
     ContributionModule,
     NotificationModule,
     ReviewModule,
+    RevalidationModule,
   ],
   controllers: [
     AdminRestaurantController,
@@ -44,6 +52,9 @@ import { PhotoService } from './photo.service';
     AdminReviewController,
     AdminDashboardController,
     AdminMediaController,
+    AdminCategoryController,
+    AdminFacilityController,
+    AdminCuisineController,
   ],
   providers: [
     AdminRestaurantService,
@@ -52,6 +63,9 @@ import { PhotoService } from './photo.service';
     AdminReviewService,
     AdminDashboardService,
     AdminMediaService,
+    AdminCategoryService,
+    AdminFacilityService,
+    AdminCuisineService,
     AuditLogService,
     PhotoService,
   ],

@@ -108,9 +108,16 @@ export class ContributionService {
       }
     }
 
-    const category = await this.prisma.restaurantCategory.findUniqueOrThrow({
+    // categoryCode is no longer validated against a fixed compile-time set
+    // at the DTO layer (categories are now a live-editable table) — an
+    // unknown code must fail cleanly here rather than as an uncaught
+    // Prisma "not found" 500.
+    const category = await this.prisma.restaurantCategory.findUnique({
       where: { code: dto.categoryCode },
     });
+    if (!category) {
+      throw new BadRequestException('Danh mục không hợp lệ');
+    }
     const priceRange = dto.priceRangeCode
       ? await this.prisma.priceRange.findUniqueOrThrow({
           where: { code: dto.priceRangeCode },
@@ -209,12 +216,24 @@ export class ContributionService {
         }
 
         if (dto.facilities && dto.facilities.length > 0) {
-          await tx.restaurantFacility.createMany({
-            data: dto.facilities.map((facilityType) => ({
-              restaurantId: restaurant.id,
-              facilityType,
-            })),
+          // Same "silently drop unrecognized codes" convention as
+          // cuisineCodes above, now that facility codes aren't a fixed
+          // compile-time set either — avoids an uncaught FK-violation 500
+          // for a stale/typo'd code from an untrusted community submission.
+          const knownFacilities = await tx.facility.findMany({
+            where: { code: { in: dto.facilities } },
+            select: { code: true },
           });
+          const knownCodes = new Set(knownFacilities.map((f) => f.code));
+          const facilityCodes = dto.facilities.filter((code) => knownCodes.has(code));
+          if (facilityCodes.length > 0) {
+            await tx.restaurantFacility.createMany({
+              data: facilityCodes.map((facilityCode) => ({
+                restaurantId: restaurant.id,
+                facilityCode,
+              })),
+            });
+          }
         }
 
         if (dto.menuItems && dto.menuItems.length > 0) {
@@ -590,7 +609,7 @@ export class ContributionService {
           isClosed: h.isClosed,
         }));
       case 'facilities':
-        return restaurant.facilities.map((f) => f.facilityType);
+        return restaurant.facilities.map((f) => f.facilityCode);
       default:
         throw new BadRequestException('Trường không hợp lệ');
     }

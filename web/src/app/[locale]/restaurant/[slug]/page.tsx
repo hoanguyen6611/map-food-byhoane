@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant, searchRestaurants } from '@/lib/api';
 import { formatPriceRange, formatVndFull, placeTileClass } from '@/lib/format';
+import { getDayHoursLines, getActiveRangeCloseTime } from '@/lib/opening-hours-display';
 import { FACILITY_ICON_PATH } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
@@ -14,7 +15,10 @@ import { OpenBadge } from '@/components/OpenBadge';
 import { AxisBars } from '@/components/AxisBars';
 import { ReviewCard } from '@/components/ReviewCard';
 import { MapCanvas } from '@/components/MapCanvas';
-import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, CameraIcon } from '@/components/icons';
+import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
+import { SocialLinksCard } from '@/components/SocialLinksCard';
+import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon } from '@/components/icons';
+import type { SocialPlatform } from '@foodmap/shared-types';
 import { getSession } from '@/lib/auth';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
@@ -39,15 +43,12 @@ async function loadRestaurant(slug: string) {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await params;
   const restaurant = await loadRestaurant(slug);
-  const [t, tLabels] = await Promise.all([
-    getTranslations({ locale, namespace: 'restaurant' }),
-    getTranslations({ locale, namespace: 'labels' }),
-  ]);
+  const t = await getTranslations({ locale, namespace: 'restaurant' });
   if (!restaurant) {
     return { title: t('notFoundTitle') };
   }
 
-  const categoryLabel = tLabels(`category.${restaurant.categoryCode}`);
+  const categoryLabel = restaurant.categoryLabel;
   const description = restaurant.description
     ? restaurant.description.slice(0, 155)
     : t('metaDescriptionFallback', {
@@ -103,13 +104,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
   const firstMenu = restaurant.menus[0];
-  const categoryLabel = tLabels(`category.${restaurant.categoryCode}`);
+  const categoryLabel = restaurant.categoryLabel;
 
   const todayIndex = new Date().getDay();
   const todayHours = restaurant.openingHours.find((h) => h.dayOfWeek === todayIndex);
-  const openNote =
-    restaurant.isOpenNow && todayHours && !todayHours.isClosed && todayHours.closeTime
-      ? t('openUntil', { time: todayHours.closeTime })
+  // With two possible ranges per day (e.g. lunch + dinner), "open until X"
+  // must reflect whichever range is active right now, not always the first
+  // one — see getActiveRangeCloseTime's doc comment for the bug this fixes.
+  const activeRangeCloseTime = restaurant.isOpenNow ? getActiveRangeCloseTime(todayHours, new Date()) : null;
+  const openNote = todayHours?.isOpen24h
+    ? t('open24h')
+    : activeRangeCloseTime
+      ? t('openUntil', { time: activeRangeCloseTime })
       : undefined;
 
   // schema.org/Restaurant structured data — the concrete SEO artifact this
@@ -195,26 +201,13 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
         <span aria-current="page">{restaurant.name}</span>
       </nav>
 
-      {restaurant.photos.length > 0 ? (
-        <div className="detail-photos" style={{ marginTop: 16 }}>
-          {restaurant.photos.map((photo, index) => (
-            <Image
-              key={photo.id}
-              src={photo.url}
-              alt={t('photoAlt', { index: index + 1, name: restaurant.name })}
-              width={photo.width ?? 400}
-              height={photo.height ?? 300}
-              sizes="(max-width: 640px) 45vw, 200px"
-              priority={index === 0}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="detail-photo-empty" style={{ marginTop: 16 }}>
-          <CameraIcon size={30} style={{ color: 'var(--color-ink-disabled)' }} />
-          <span className="detail-photo-empty-text">{t('noPhotos')}</span>
-        </div>
-      )}
+      <PhotoGalleryHero
+        photos={restaurant.photos}
+        photoAlts={restaurant.photos.map((_, index) => t('photoAlt', { index: index + 1, name: restaurant.name }))}
+        emptyText={t('noPhotos')}
+        seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
+        moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
+      />
 
       <div className="detail-layout" style={{ marginTop: 20 }}>
         <div className="detail-main">
@@ -234,6 +227,8 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               {categoryLabel}
               {priceLabel ? ` · ${priceLabel}đ` : ''} · {restaurant.address.district}
             </span>
+            <span className="detail-divider" aria-hidden="true" />
+            <span className="detail-meta-text">{t('viewCount', { count: restaurant.viewCount })}</span>
             <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
           </div>
 
@@ -292,13 +287,26 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                 ) : null}
               </div>
 
+              {restaurant.socialLinks.length > 0 ? (
+                <SocialLinksCard
+                  links={restaurant.socialLinks}
+                  heading={t('socialHeading')}
+                  caption={t('socialCaption')}
+                  verifiedNote={t('socialVerifiedNote')}
+                  reportHint={t('socialReportHint')}
+                  platformLabel={(platform: SocialPlatform) => t(`socialPlatform.${platform}`)}
+                />
+              ) : null}
+
               <div className="info-card">
                 <h2 className="info-card-title">{t('hoursHeading')}</h2>
                 {restaurant.openingHours.map((hour) => (
-                  <div key={hour.dayOfWeek} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 15 }}>
-                    <span>{tLabels(`day.${hour.dayOfWeek}`)}</span>
-                    <span className="font-num" style={{ color: 'var(--color-ink-muted)' }}>
-                      {hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}
+                  <div key={hour.dayOfWeek} className="info-hours-row">
+                    <span className="info-hours-day">{tLabels(`day.${hour.dayOfWeek}`)}</span>
+                    <span className="font-num info-hours-times">
+                      {getDayHoursLines(hour, t('closedDay'), t('open24h')).map((line) => (
+                        <span key={line}>{line}</span>
+                      ))}
                     </span>
                   </div>
                 ))}
@@ -412,12 +420,22 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               <span className="filter-section-title" style={{ padding: 0 }}>
                 {t('hoursHeading')}
               </span>
-              {openNote ? <span className="hours-open-note">{openNote}</span> : null}
+              {openNote ? (
+                <OpenBadge
+                  isOpen
+                  label={todayHours?.isOpen24h ? t('open24h') : tCommon('openNow')}
+                  note={todayHours?.isOpen24h ? undefined : openNote}
+                />
+              ) : null}
             </div>
             {restaurant.openingHours.map((hour) => (
               <div key={hour.dayOfWeek} className={`hours-row ${hour.dayOfWeek === todayIndex ? 'hours-row-highlight' : ''}`}>
                 <span className="hours-day">{tLabels(`day.${hour.dayOfWeek}`)}</span>
-                <span className="hours-time">{hour.isClosed ? t('closedDay') : `${hour.openTime} - ${hour.closeTime}`}</span>
+                <span className="hours-time">
+                  {getDayHoursLines(hour, t('closedDay'), t('open24h')).map((line) => (
+                    <span key={line}>{line}</span>
+                  ))}
+                </span>
               </div>
             ))}
           </div>

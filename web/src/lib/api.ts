@@ -4,6 +4,7 @@
 // is read directly from `process.env` rather than threaded through
 // `NEXT_PUBLIC_*`/Expo's `extra` mechanism the other two client apps use.
 import type {
+  CategoryDto,
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
@@ -20,8 +21,13 @@ export class ApiNotFoundError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string, revalidateSeconds: number): Promise<T> {
-  const res = await fetch(`${BACKEND_API_URL}${path}`, { next: { revalidate: revalidateSeconds } });
+// `tags` let backend's WebRevalidationService drop just this cache entry
+// on-demand (POST /api/revalidate) right after an admin write, instead of
+// every caller having to wait out `revalidateSeconds`. Both apply together —
+// tags are the fast path, the time window is the fallback when nothing
+// calls revalidate (e.g. WEB_APP_URL/REVALIDATE_SECRET left unconfigured).
+async function apiFetch<T>(path: string, revalidateSeconds: number, tags?: string[]): Promise<T> {
+  const res = await fetch(`${BACKEND_API_URL}${path}`, { next: { revalidate: revalidateSeconds, tags } });
   if (res.status === 404) {
     throw new ApiNotFoundError(path);
   }
@@ -41,6 +47,13 @@ const DETAIL_REVALIDATE_SECONDS = 300;
 const LISTING_REVALIDATE_SECONDS = 60;
 // The sitemap only needs to be roughly current, not real-time.
 const SITEMAP_REVALIDATE_SECONDS = 3600;
+// Categories are admin-editable but change rarely (nowhere near as often as
+// a restaurant's price/hours) — a longer window than listings is fine.
+const CATALOG_REVALIDATE_SECONDS = 300;
+
+export async function getCategories(): Promise<CategoryDto[]> {
+  return apiFetch<CategoryDto[]>('/categories', CATALOG_REVALIDATE_SECONDS, ['categories']);
+}
 
 export interface SearchParams {
   q?: string;
@@ -69,11 +82,14 @@ function toQueryString(params: object): string {
 
 export async function searchRestaurants(params: SearchParams): Promise<Paginated<RestaurantSummaryDto>> {
   const qs = toQueryString(params);
-  return apiFetch<Paginated<RestaurantSummaryDto>>(`/search${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS);
+  return apiFetch<Paginated<RestaurantSummaryDto>>(`/search${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS, ['restaurants']);
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<RestaurantDetailDto> {
-  return apiFetch<RestaurantDetailDto>(`/restaurants/slug/${encodeURIComponent(slug)}`, DETAIL_REVALIDATE_SECONDS);
+  return apiFetch<RestaurantDetailDto>(`/restaurants/slug/${encodeURIComponent(slug)}`, DETAIL_REVALIDATE_SECONDS, [
+    'restaurants',
+    `restaurant:${slug}`,
+  ]);
 }
 
 /**
@@ -90,8 +106,26 @@ export async function getRestaurantBySlug(slug: string): Promise<RestaurantDetai
 export async function getRestaurantSlugsByIds(ids: string[]): Promise<Map<string, string>> {
   if (ids.length === 0) return new Map();
   const qs = ids.map(encodeURIComponent).join(',');
-  const rows = await apiFetch<RestaurantSlugLookupDto[]>(`/restaurants/slugs?ids=${qs}`, DETAIL_REVALIDATE_SECONDS);
+  const rows = await apiFetch<RestaurantSlugLookupDto[]>(`/restaurants/slugs?ids=${qs}`, DETAIL_REVALIDATE_SECONDS, [
+    'restaurants',
+  ]);
   return new Map(rows.map((r) => [r.id, r.slug]));
+}
+
+/**
+ * Restaurants within `radiusKm` of a point, nearest-first (each item's
+ * `distanceMeters` is set) — the Map page's "use my location" flow.
+ * `cache: 'no-store'`, not the shared `apiFetch` helper's revalidate-based
+ * caching: real GPS coordinates are effectively unique per call, so a
+ * revalidate-keyed cache here would just grow unbounded for zero reuse.
+ */
+export async function getNearbyRestaurants(lat: number, lng: number, radiusKm?: number): Promise<RestaurantSummaryDto[]> {
+  const qs = toQueryString({ lat, lng, radiusKm });
+  const res = await fetch(`${BACKEND_API_URL}/restaurants/nearby?${qs}`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`Backend request failed: GET /restaurants/nearby -> ${res.status}`);
+  }
+  return res.json() as Promise<RestaurantSummaryDto[]>;
 }
 
 export async function listSitemapEntries(): Promise<RestaurantSitemapEntryDto[]> {
@@ -105,5 +139,6 @@ export async function getReviewsForRestaurant(
   return apiFetch<ReviewListResponse>(
     `/restaurants/${restaurantId}/reviews?page=${page}&pageSize=10`,
     LISTING_REVALIDATE_SECONDS,
+    [`restaurant:${restaurantId}`],
   );
 }

@@ -10,6 +10,24 @@ function formatVndShort(amountVnd: number): string {
   return `${amountVnd}đ`;
 }
 
+/** e.g. "https://www.facebook.com/caphephincu" -> "facebook.com/caphephincu". Falls back to the raw URL if it fails to parse (never throws on unusual input). */
+export function formatSocialLinkDisplay(url: string): string {
+  try {
+    const { hostname, pathname } = new URL(url);
+    const host = hostname.replace(/^www\./, '');
+    const path = pathname.replace(/\/$/, '');
+    return `${host}${path}`;
+  } catch {
+    return url;
+  }
+}
+
+/** e.g. 650 -> "650m", 1850 -> "1.9km". */
+export function formatDistanceMeters(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  return `${(meters / 1000).toFixed(1)}km`;
+}
+
 /** e.g. { minVnd: 50000, maxVnd: 100000 } -> "50k - 100k". Null-safe. */
 export function formatPriceRange(range: PriceRangeDto | null, t: (key: string) => string): string | null {
   if (!range) return null;

@@ -1,21 +1,11 @@
-import { IsArray, IsIn } from 'class-validator';
-import type { FacilityType } from '@foodmap/shared-types';
+import { IsArray, IsString } from 'class-validator';
 
-const FACILITY_TYPES: FacilityType[] = [
-  'wifi',
-  'parking_car',
-  'parking_motorbike',
-  'air_conditioner',
-  'outdoor_seating',
-  'kid_friendly',
-  'pet_friendly',
-  'card_payment',
-  'private_room',
-];
-
-// Full-set replacement, same rationale as ReplaceOpeningHoursDto.
+// Facility codes are no longer a fixed compile-time set (FacilityType used
+// to be a Postgres enum — see the facilities lookup table migration) — this
+// DTO only checks shape; AdminRestaurantService.replaceFacilities checks
+// each code actually exists in the facilities table before writing.
 export class ReplaceFacilitiesDto {
   @IsArray()
-  @IsIn(FACILITY_TYPES, { each: true })
-  facilities!: FacilityType[];
+  @IsString({ each: true })
+  facilities!: string[];
 }

@@ -9,6 +9,7 @@
  */
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type {
   AdminRestaurantDetailDto,
   CuisineCode,
@@ -17,8 +18,10 @@ import type {
 } from '@foodmap/shared-types'
 import { VN_PROVINCES, findVnProvinceByName, findVnWardByName } from '@foodmap/shared-types'
 import type { CreateRestaurantBody } from '../../api/admin-restaurants'
+import { adminCategoriesApi } from '../../api/admin-categories'
+import { adminCuisinesApi } from '../../api/admin-cuisines'
 import { SearchableSelect } from '../../components/SearchableSelect'
-import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_RANGE_OPTIONS } from './constants'
+import { PRICE_RANGE_OPTIONS } from './constants'
 
 export interface CoreFormValues {
   name: string
@@ -35,6 +38,12 @@ export interface CoreFormValues {
   lat: string
   lng: string
   cuisineCodes: CuisineCode[]
+  facebookUrl: string
+  facebookVerified: boolean
+  instagramUrl: string
+  instagramVerified: boolean
+  tiktokUrl: string
+  websiteUrl: string
 }
 
 export const EMPTY_CORE_FORM_VALUES: CoreFormValues = {
@@ -49,11 +58,21 @@ export const EMPTY_CORE_FORM_VALUES: CoreFormValues = {
   lat: '',
   lng: '',
   cuisineCodes: [],
+  facebookUrl: '',
+  facebookVerified: false,
+  instagramUrl: '',
+  instagramVerified: false,
+  tiktokUrl: '',
+  websiteUrl: '',
 }
 
 export function coreFormValuesFromDetail(detail: AdminRestaurantDetailDto): CoreFormValues {
   const province = findVnProvinceByName(detail.address.province)
   const ward = detail.address.ward && province ? findVnWardByName(province, detail.address.ward) : undefined
+  const facebook = detail.socialLinks.find((l) => l.platform === 'facebook')
+  const instagram = detail.socialLinks.find((l) => l.platform === 'instagram')
+  const tiktok = detail.socialLinks.find((l) => l.platform === 'tiktok')
+  const website = detail.socialLinks.find((l) => l.platform === 'website')
   return {
     name: detail.name,
     description: detail.description ?? '',
@@ -69,6 +88,12 @@ export function coreFormValuesFromDetail(detail: AdminRestaurantDetailDto): Core
     lat: String(detail.location.lat),
     lng: String(detail.location.lng),
     cuisineCodes: detail.cuisineCodes,
+    facebookUrl: facebook?.url ?? '',
+    facebookVerified: facebook?.verified ?? false,
+    instagramUrl: instagram?.url ?? '',
+    instagramVerified: instagram?.verified ?? false,
+    tiktokUrl: tiktok?.url ?? '',
+    websiteUrl: website?.url ?? '',
   }
 }
 
@@ -106,6 +131,14 @@ function validate(values: CoreFormValues): FieldErrors {
     errors.phone = 'Số điện thoại không hợp lệ.'
   }
 
+  const urlFields: (keyof CoreFormValues)[] = ['facebookUrl', 'instagramUrl', 'tiktokUrl', 'websiteUrl']
+  for (const field of urlFields) {
+    const value = String(values[field]).trim()
+    if (value && !/^https?:\/\/.+/.test(value)) {
+      errors[field] = 'Link phải bắt đầu bằng http:// hoặc https://'
+    }
+  }
+
   return errors
 }
 
@@ -140,6 +173,12 @@ export function coreFormValuesToBody(values: CoreFormValues): CreateRestaurantBo
       lng: Number(values.lng),
     },
     cuisineCodes: values.cuisineCodes,
+    facebookUrl: values.facebookUrl.trim() || undefined,
+    facebookVerified: values.facebookVerified,
+    instagramUrl: values.instagramUrl.trim() || undefined,
+    instagramVerified: values.instagramVerified,
+    tiktokUrl: values.tiktokUrl.trim() || undefined,
+    websiteUrl: values.websiteUrl.trim() || undefined,
   }
 }
 
@@ -160,6 +199,23 @@ export function RestaurantCoreForm({
 }: RestaurantCoreFormProps) {
   const [values, setValues] = useState<CoreFormValues>(initialValues)
   const [errors, setErrors] = useState<FieldErrors>({})
+
+  // Live list (Quản lý Danh mục) instead of a hardcoded array — categories
+  // are a real admin-editable table now, not a fixed compile-time set.
+  const categoriesQuery = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: () => adminCategoriesApi.list(),
+  })
+  const categoryOptions = categoriesQuery.data ?? []
+
+  // Live list (Quản lý Ẩm thực) instead of a hardcoded array — cuisine was
+  // already a real table (unlike category/facility's enum history), but
+  // this checkbox group was still reading a hardcoded compile-time set.
+  const cuisinesQuery = useQuery({
+    queryKey: ['admin-cuisines'],
+    queryFn: () => adminCuisinesApi.list(),
+  })
+  const cuisineOptions = cuisinesQuery.data ?? []
 
   function set<K extends keyof CoreFormValues>(key: K, value: CoreFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
@@ -244,8 +300,8 @@ export function RestaurantCoreForm({
             onChange={(event) => set('categoryCode', event.target.value as RestaurantCategoryCode)}
           >
             <option value="">— Chọn —</option>
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+            {categoryOptions.map((option) => (
+              <option key={option.code} value={option.code}>
                 {option.label}
               </option>
             ))}
@@ -344,19 +400,85 @@ export function RestaurantCoreForm({
         <div className="form-field form-field-wide">
           <span>Ẩm thực</span>
           <div className="checkbox-group">
-            {CUISINE_OPTIONS.map((option) => (
-              <label key={option.value} className="checkbox-item">
+            {cuisineOptions.map((option) => (
+              <label key={option.code} className="checkbox-item">
                 <input
                   type="checkbox"
-                  checked={values.cuisineCodes.includes(option.value)}
+                  checked={values.cuisineCodes.includes(option.code)}
                   disabled={isSubmitting}
-                  onChange={() => toggleCuisine(option.value)}
+                  onChange={() => toggleCuisine(option.code)}
                 />
                 {option.label}
               </label>
             ))}
           </div>
         </div>
+
+        <label className="form-field">
+          <span>Facebook</span>
+          <input
+            type="text"
+            placeholder="https://facebook.com/..."
+            value={values.facebookUrl}
+            disabled={isSubmitting}
+            onChange={(event) => set('facebookUrl', event.target.value)}
+          />
+          {errors.facebookUrl && <span className="field-error">{errors.facebookUrl}</span>}
+        </label>
+        <label className="form-field checkbox-item" style={{ alignSelf: 'end' }}>
+          <input
+            type="checkbox"
+            checked={values.facebookVerified}
+            disabled={isSubmitting}
+            onChange={(event) => set('facebookVerified', event.target.checked)}
+          />
+          Đã xác nhận chủ quán (Facebook)
+        </label>
+
+        <label className="form-field">
+          <span>Instagram</span>
+          <input
+            type="text"
+            placeholder="https://instagram.com/..."
+            value={values.instagramUrl}
+            disabled={isSubmitting}
+            onChange={(event) => set('instagramUrl', event.target.value)}
+          />
+          {errors.instagramUrl && <span className="field-error">{errors.instagramUrl}</span>}
+        </label>
+        <label className="form-field checkbox-item" style={{ alignSelf: 'end' }}>
+          <input
+            type="checkbox"
+            checked={values.instagramVerified}
+            disabled={isSubmitting}
+            onChange={(event) => set('instagramVerified', event.target.checked)}
+          />
+          Đã xác nhận chủ quán (Instagram)
+        </label>
+
+        <label className="form-field">
+          <span>TikTok</span>
+          <input
+            type="text"
+            placeholder="https://tiktok.com/@..."
+            value={values.tiktokUrl}
+            disabled={isSubmitting}
+            onChange={(event) => set('tiktokUrl', event.target.value)}
+          />
+          {errors.tiktokUrl && <span className="field-error">{errors.tiktokUrl}</span>}
+        </label>
+
+        <label className="form-field">
+          <span>Website</span>
+          <input
+            type="text"
+            placeholder="https://..."
+            value={values.websiteUrl}
+            disabled={isSubmitting}
+            onChange={(event) => set('websiteUrl', event.target.value)}
+          />
+          {errors.websiteUrl && <span className="field-error">{errors.websiteUrl}</span>}
+        </label>
       </div>
 
       {serverError && (

@@ -11,7 +11,7 @@
 // below is a fictional composite (name + address are plausible but
 // invented), per this module's ethical/legal note: never impersonate a real
 // business with fabricated data in a public portfolio artifact.
-import { PrismaClient, type FacilityType, type PhotoOwnerType } from '@prisma/client';
+import { PrismaClient, type PhotoOwnerType } from '@prisma/client';
 import { slugify } from '../src/common/slug.util';
 
 const prisma = new PrismaClient();
@@ -254,7 +254,7 @@ const CATEGORY_SPECS: CategorySpec[] = [
   },
 ];
 
-const FACILITY_POOL: FacilityType[] = [
+const FACILITY_POOL: string[] = [
   'wifi', 'parking_car', 'parking_motorbike', 'air_conditioner', 'outdoor_seating',
   'kid_friendly', 'pet_friendly', 'card_payment', 'private_room',
 ];
@@ -307,7 +307,7 @@ interface RestaurantPlan {
   lng: number;
   phone: string;
   hours: [string, string];
-  facilities: FacilityType[];
+  facilities: string[];
   menuPool: MenuPoolItem[];
   sparse: boolean; // true => 0 photos, 0 menu items (empty-state test cases)
 }
@@ -501,7 +501,7 @@ async function main() {
 
     if (plan.facilities.length > 0) {
       await prisma.restaurantFacility.createMany({
-        data: plan.facilities.map((facilityType) => ({ restaurantId: restaurant.id, facilityType })),
+        data: plan.facilities.map((facilityCode) => ({ restaurantId: restaurant.id, facilityCode })),
       });
     }
 

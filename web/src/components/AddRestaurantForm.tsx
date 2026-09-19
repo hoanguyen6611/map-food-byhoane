@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
+import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { CATEGORY_OPTIONS, CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import { VN_PROVINCES, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
+import { CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { VN_PROVINCES, type CategoryDto, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
 
 type Phase =
   | { kind: 'form' }
@@ -14,7 +14,12 @@ type Phase =
   | { kind: 'done'; status: 'auto_approved' | 'in_review' }
   | { kind: 'error'; message: string };
 
-export function AddRestaurantForm() {
+interface Props {
+  /** Live categories (admin-editable) fetched server-side — not a hardcoded list, so a newly admin-created category is selectable here too. */
+  categories: CategoryDto[];
+}
+
+export function AddRestaurantForm({ categories }: Props) {
   const t = useTranslations('addRestaurant');
   const tLabels = useTranslations('labels');
   const tCommon = useTranslations('common');
@@ -30,6 +35,8 @@ export function AddRestaurantForm() {
   const [wardCode, setWardCode] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [mapLink, setMapLink] = useState('');
+  const [linkStatus, setLinkStatus] = useState<'idle' | 'resolving' | 'resolved' | 'error'>('idle');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [phase, setPhase] = useState<Phase>({ kind: 'form' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +46,24 @@ export function AddRestaurantForm() {
     navigator.geolocation.getCurrentPosition((position) => {
       setLat(String(position.coords.latitude));
       setLng(String(position.coords.longitude));
+      setMapLink('');
+      setLinkStatus('idle');
     });
+  }
+
+  async function resolveMapLink(link: string) {
+    if (!link.trim()) return;
+    setLinkStatus('resolving');
+    const result = await resolveGoogleMapsLinkAction(link.trim());
+    if (result.ok) {
+      setLat(String(result.location.lat));
+      setLng(String(result.location.lng));
+      setLinkStatus('resolved');
+    } else {
+      setLat('');
+      setLng('');
+      setLinkStatus('error');
+    }
   }
 
   function toggleCuisine(code: CuisineCode) {
@@ -166,9 +190,9 @@ export function AddRestaurantForm() {
         <span>{t('categoryLabel')}</span>
         <select value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} required>
           <option value="">{t('selectPlaceholder')}</option>
-          {CATEGORY_OPTIONS.map((code) => (
-            <option key={code} value={code}>
-              {tLabels(`category.${code}`)}
+          {categories.map((category) => (
+            <option key={category.code} value={category.code}>
+              {category.label}
             </option>
           ))}
         </select>
@@ -237,22 +261,43 @@ export function AddRestaurantForm() {
         <span>{t('locationLabel')}</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
-            type="number"
-            step="any"
-            placeholder={t('latPlaceholder')}
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            required
+            type="url"
+            placeholder={t('mapLinkPlaceholder')}
+            value={mapLink}
+            onChange={(e) => {
+              setMapLink(e.target.value);
+              setLinkStatus('idle');
+            }}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData('text');
+              if (pasted) {
+                setMapLink(pasted);
+                void resolveMapLink(pasted);
+              }
+            }}
+            onBlur={() => {
+              if (linkStatus === 'idle') void resolveMapLink(mapLink);
+            }}
           />
-          <input
-            type="number"
-            step="any"
-            placeholder={t('lngPlaceholder')}
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            required
-          />
+          <button
+            type="button"
+            className="notification-mark-read"
+            disabled={!mapLink.trim() || linkStatus === 'resolving'}
+            onClick={() => void resolveMapLink(mapLink)}
+          >
+            {linkStatus === 'resolving' ? t('mapLinkResolving') : t('mapLinkApply')}
+          </button>
         </div>
+        {linkStatus === 'resolved' ? (
+          <p className="write-review-error" style={{ color: 'var(--color-open-fg)' }} role="status">
+            {t('mapLinkResolved', { lat: Number(lat).toFixed(5), lng: Number(lng).toFixed(5) })}
+          </p>
+        ) : null}
+        {linkStatus === 'error' ? (
+          <p className="write-review-error" role="alert">
+            {t('mapLinkError')}
+          </p>
+        ) : null}
         <button type="button" className="notification-mark-read" style={{ alignSelf: 'flex-start' }} onClick={useMyLocation}>
           {t('useMyLocation')}
         </button>

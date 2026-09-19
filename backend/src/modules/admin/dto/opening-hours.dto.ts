@@ -35,6 +35,24 @@ export class OpeningHourEntryDto {
 
   @IsBoolean()
   isClosed!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isOpen24h?: boolean;
+
+  // Optional second range for the same day (e.g. a lunch/dinner split with
+  // a closed gap in between) — service-layer normalizes "one set, other
+  // missing" rather than validating it here, matching openTime/closeTime's
+  // own existing looseness above.
+  @IsOptional()
+  @IsString()
+  @Matches(TIME_PATTERN, { message: 'openTime2 must be HH:mm (24h)' })
+  openTime2?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(TIME_PATTERN, { message: 'closeTime2 must be HH:mm (24h)' })
+  closeTime2?: string;
 }
 
 // Full 7-day replacement in one call — matches admin-web's "7-day grid" UI

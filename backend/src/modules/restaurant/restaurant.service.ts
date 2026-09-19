@@ -4,13 +4,13 @@ import { Prisma } from '@prisma/client';
 import type {
   AISummaryResponseDto,
   CuisineCode,
-  FacilityType,
   OpeningHourDto,
   PriceRangeCode,
   RestaurantCategoryCode,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
   RestaurantSlugLookupDto,
+  RestaurantSocialLinkDto,
   RestaurantSummaryDto,
   ReviewCriteriaCode,
   ReviewDto,
@@ -36,6 +36,7 @@ interface RawRestaurantRow {
   slug: string;
   name: string;
   category_code: string;
+  category_label: string;
   composite_score: Prisma.Decimal | null;
   review_count: number;
   price_code: string | null;
@@ -125,7 +126,8 @@ export class RestaurantService {
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
     }
-    return this.buildDetailDto(restaurant);
+    await this.incrementViewCount(restaurant.id);
+    return this.buildDetailDto(restaurant, { viewCountDelta: 1 });
   }
 
   /**
@@ -148,7 +150,8 @@ export class RestaurantService {
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
     }
-    return this.buildDetailDto(restaurant);
+    await this.incrementViewCount(restaurant.id);
+    return this.buildDetailDto(restaurant, { viewCountDelta: 1 });
   }
 
   /** All published restaurant slugs — used by the public web app's sitemap.xml. */
@@ -195,10 +198,39 @@ export class RestaurantService {
     });
   }
 
+  private buildSocialLinks(restaurant: {
+    facebookUrl: string | null;
+    facebookVerified: boolean;
+    instagramUrl: string | null;
+    instagramVerified: boolean;
+    tiktokUrl: string | null;
+    websiteUrl: string | null;
+  }): RestaurantSocialLinkDto[] {
+    const links: RestaurantSocialLinkDto[] = [];
+    if (restaurant.facebookUrl) {
+      links.push({ platform: 'facebook', url: restaurant.facebookUrl, verified: restaurant.facebookVerified });
+    }
+    if (restaurant.instagramUrl) {
+      links.push({ platform: 'instagram', url: restaurant.instagramUrl, verified: restaurant.instagramVerified });
+    }
+    if (restaurant.tiktokUrl) {
+      links.push({ platform: 'tiktok', url: restaurant.tiktokUrl, verified: false });
+    }
+    if (restaurant.websiteUrl) {
+      links.push({ platform: 'website', url: restaurant.websiteUrl, verified: false });
+    }
+    return links;
+  }
+
   async buildDetailDto(
     restaurant: RestaurantWithDetailRelations,
+    // viewCountDelta: the caller's own increment hasn't been re-fetched into
+    // `restaurant.status` (already loaded before the increment ran), so this
+    // adds it on top of the pre-increment value instead of a second SELECT —
+    // 0 for admin/internal reads, which shouldn't move the public counter.
+    { viewCountDelta = 0 }: { viewCountDelta?: number } = {},
   ): Promise<RestaurantDetailDto> {
-    const [photos, reviewRows] = await Promise.all([
+    const [restaurantPhotos, reviewRows, publishedReviews] = await Promise.all([
       this.prisma.photo.findMany({
         where: {
           ownerType: 'restaurant',
@@ -221,7 +253,29 @@ export class RestaurantService {
         orderBy: { createdAt: 'desc' },
         take: REVIEW_PREVIEW_COUNT,
       }),
+      // Every published review's id (not just the preview page above) — the
+      // main photo gallery pools in photos users attached to their reviews
+      // of this restaurant, not just the ones the restaurant/contribution
+      // itself carries. Photo has no direct relation to Review (ownerId is
+      // a loose id, not an FK — see fetchReviewPhotos below), so this is a
+      // separate id lookup rather than a join.
+      this.prisma.review.findMany({
+        where: { restaurantId: restaurant.id, status: 'published', deletedAt: null },
+        select: { id: true },
+      }),
     ]);
+    const reviewPhotos = publishedReviews.length
+      ? await this.prisma.photo.findMany({
+          where: {
+            ownerType: 'review',
+            ownerId: { in: publishedReviews.map((r) => r.id) },
+            deletedAt: null,
+            status: 'approved',
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : [];
+    const photos = [...restaurantPhotos, ...reviewPhotos];
     const vnNow = toVnNow(new Date());
     const openingHourRows: OpeningHourRow[] = restaurant.openingHours;
 
@@ -231,6 +285,7 @@ export class RestaurantService {
       slug: restaurant.slug,
       description: restaurant.description,
       categoryCode: restaurant.category.code as RestaurantCategoryCode,
+      categoryLabel: restaurant.category.label,
       cuisineCodes: restaurant.cuisines.map(
         (rc) => rc.cuisine.code as CuisineCode,
       ),
@@ -255,7 +310,7 @@ export class RestaurantService {
         : null,
       openingHours: this.formatOpeningHours(restaurant.openingHours),
       isOpenNow: isOpenNow(openingHourRows, vnNow),
-      facilities: restaurant.facilities.map((f) => f.facilityType),
+      facilities: restaurant.facilities.map((f) => f.facilityCode),
       menus: restaurant.menus.map((menu) => ({
         id: menu.id,
         name: menu.name,
@@ -273,16 +328,37 @@ export class RestaurantService {
         width: p.width,
         height: p.height,
       })),
+      socialLinks: this.buildSocialLinks(restaurant),
       compositeScore: restaurant.status?.compositeScore
         ? Number(restaurant.status.compositeScore)
         : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
+      viewCount: (restaurant.status?.viewCount ?? 0) + viewCountDelta,
       reviews: await Promise.all(
         reviewRows.map(async (r) =>
           this.toReviewPreviewDto(r, await this.fetchReviewPhotos(r.id)),
         ),
       ),
     };
+  }
+
+  /**
+   * Atomic +1 on every public detail-page load (see the `viewCount` schema
+   * comment) — never read-then-write, so concurrent views can't clobber
+   * each other. Swallows errors: a view-count write failing must never break
+   * the detail response itself, since it's a secondary side effect, not the
+   * data the caller actually asked for.
+   */
+  private async incrementViewCount(restaurantId: string): Promise<void> {
+    try {
+      await this.prisma.restaurantStatus.update({
+        where: { restaurantId },
+        data: { viewCount: { increment: 1 } },
+      });
+    } catch {
+      // Status row missing (shouldn't happen — created alongside every
+      // restaurant) or a transient DB error; not worth failing the request.
+    }
   }
 
   private async fetchReviewPhotos(
@@ -364,18 +440,33 @@ export class RestaurantService {
       openTime: Date | null;
       closeTime: Date | null;
       isClosed: boolean;
+      isOpen24h: boolean;
+      openTime2: Date | null;
+      closeTime2: Date | null;
     }[],
   ): OpeningHourDto[] {
     const byDay = new Map(hours.map((h) => [h.dayOfWeek, h]));
     return Array.from({ length: 7 }, (_, dayOfWeek) => {
       const h = byDay.get(dayOfWeek);
       if (!h)
-        return { dayOfWeek, openTime: null, closeTime: null, isClosed: true };
+        return {
+          dayOfWeek,
+          openTime: null,
+          closeTime: null,
+          isClosed: true,
+          isOpen24h: false,
+          openTime2: null,
+          closeTime2: null,
+        };
+      const skipRanges = h.isClosed || h.isOpen24h;
       return {
         dayOfWeek,
-        openTime: h.isClosed ? null : this.formatTime(h.openTime),
-        closeTime: h.isClosed ? null : this.formatTime(h.closeTime),
+        openTime: skipRanges ? null : this.formatTime(h.openTime),
+        closeTime: skipRanges ? null : this.formatTime(h.closeTime),
         isClosed: h.isClosed,
+        isOpen24h: h.isOpen24h,
+        openTime2: skipRanges ? null : this.formatTime(h.openTime2),
+        closeTime2: skipRanges ? null : this.formatTime(h.closeTime2),
       };
     });
   }
@@ -411,6 +502,7 @@ export class RestaurantService {
         r.slug,
         r.name,
         rc.code AS category_code,
+        rc.label AS category_label,
         rs.composite_score,
         COALESCE(rs.review_count, 0) AS review_count,
         pr.code AS price_code,
@@ -465,6 +557,7 @@ export class RestaurantService {
         r.slug,
         r.name,
         rc.code AS category_code,
+        rc.label AS category_label,
         rs.composite_score,
         COALESCE(rs.review_count, 0) AS review_count,
         pr.code AS price_code,
@@ -548,6 +641,7 @@ export class RestaurantService {
       slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
+      categoryLabel: row.category_label,
       thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,

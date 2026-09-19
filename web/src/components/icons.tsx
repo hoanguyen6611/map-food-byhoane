@@ -234,6 +234,42 @@ export function AppleIcon(props: IconProps) {
   );
 }
 
+export function FacebookIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M15 8.5h-2a2 2 0 0 0-2 2V12H9v2.5h2V21h3v-6.5h2.2l.3-2.5H14v-1.2c0-.6.4-.8.8-.8H15z" />
+    </Base>
+  );
+}
+
+export function InstagramIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17" cy="7" r="0.6" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
+export function TiktokIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M13 3v11.2a3.3 3.3 0 1 1-3.3-3.3c.3 0 .6 0 .9.1" />
+      <path d="M13 3c.3 2.3 2 4 4.3 4.3" />
+    </Base>
+  );
+}
+
+export function GlobeIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.2 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.2-3.4-8.5s1.2-6.2 3.4-8.5Z" />
+    </Base>
+  );
+}
+
 export function ThumbsUpIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -247,6 +283,14 @@ export function FacilityIcon({ path, ...rest }: IconProps & { path: string }) {
   return (
     <Base {...rest}>
       <path d={path} />
+    </Base>
+  );
+}
+
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M15 6l-6 6 6 6" />
     </Base>
   );
 }

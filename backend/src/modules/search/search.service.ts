@@ -35,6 +35,7 @@ interface RawRow {
   slug: string;
   name: string;
   category_code: string;
+  category_label: string;
   composite_score: Prisma.Decimal | null;
   review_count: number;
   price_code: string | null;
@@ -168,6 +169,7 @@ export class SearchService {
         r.slug,
         r.name,
         rc.code AS category_code,
+        rc.label AS category_label,
         rs.composite_score,
         COALESCE(rs.review_count, 0) AS review_count,
         pr.code AS price_code,
@@ -276,6 +278,7 @@ export class SearchService {
       slug: row.slug,
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
+      categoryLabel: row.category_label,
       thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,

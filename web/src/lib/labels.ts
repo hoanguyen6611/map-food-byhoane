@@ -4,6 +4,12 @@
 // mobile/src/screens/main/FilterScreen.tsx's `_OPTIONS` convention.
 import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
 
+// A curated subset of the live /categories list — only used by SiteFooter's
+// hand-picked quick links (see its own comment). Everywhere else that shows
+// categories (Home's grid, /search's filter + chips, Add Restaurant's
+// select) now fetches the live, admin-editable list via getCategories()
+// instead, using CategoryDto's own `label`/`icon` fields — see
+// packages/shared-types/src/category-icons.ts for the icon side of that.
 export const CATEGORY_OPTIONS: RestaurantCategoryCode[] = [
   'quan_an',
   'quan_ca_phe',
@@ -12,18 +18,6 @@ export const CATEGORY_OPTIONS: RestaurantCategoryCode[] = [
   'quan_via_he',
   'quan_bar',
 ];
-
-// 24x24-viewBox outline icon path + tile color index (globals.css's
-// `.cat-tile-N`) per category, in `CATEGORY_OPTIONS` order — paths lifted
-// verbatim from the design's prototype `cats` array.
-export const CATEGORY_ICON_PATH: Record<RestaurantCategoryCode, string> = {
-  quan_an: 'M7 4v16M17 4v6a3 3 0 0 1-3 3h-1M12 4v6',
-  quan_ca_phe: 'M5 6h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM16 8h2a2 2 0 0 1 0 4h-2M4 21h13',
-  nha_hang: 'M4 10h16v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6zM8 6l1-2M12 6l1-2M16 6l1-2',
-  xe_day: 'M4 8h11v7H4zM15 11h3l2 4h-5zM7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
-  quan_via_he: 'M3 10h18l-2-4H5zM5 10v10M19 10v10M9 20v-5h6v5',
-  quan_bar: 'M5 5h14l-7 7v7M9 19h6',
-};
 
 export const CUISINE_OPTIONS: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
 

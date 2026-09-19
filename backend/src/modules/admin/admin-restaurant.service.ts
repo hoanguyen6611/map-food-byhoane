@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AdminRestaurantDetailDto,
   AdminRestaurantListItemDto,
@@ -10,6 +10,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service';
 import { RestaurantService } from '../restaurant/restaurant.service';
 import { slugify } from '../../common/slug.util';
+import { WebRevalidationService } from '../revalidation/web-revalidation.service';
 import { AuditLogService } from './audit-log.service';
 import { PhotoService } from './photo.service';
 import type { CreateRestaurantDto } from './dto/create-restaurant.dto';
@@ -30,7 +31,24 @@ export class AdminRestaurantService {
     private readonly restaurantService: RestaurantService,
     private readonly auditLog: AuditLogService,
     private readonly photoService: PhotoService,
+    private readonly webRevalidation: WebRevalidationService,
   ) {}
+
+  /**
+   * Fires web cache revalidation for one restaurant's public pages —
+   * `restaurant:<slug>` (getRestaurantBySlug) and `restaurant:<id>`
+   * (getReviewsForRestaurant) both key the detail page's data depending on
+   * which fetch call is involved, plus the broad `restaurants` tag for
+   * anywhere it appears in a list (search, home, similar). Resolves `slug`
+   * itself when the caller doesn't already have it in scope (hide/restore/
+   * remove/opening-hours/facilities/menu/photos never load the row otherwise).
+   */
+  private async revalidateRestaurant(id: string, slug?: string): Promise<void> {
+    const resolvedSlug = slug ?? (await this.prisma.restaurant.findUnique({ where: { id }, select: { slug: true } }))?.slug;
+    const tags = ['restaurants', `restaurant:${id}`];
+    if (resolvedSlug) tags.push(`restaurant:${resolvedSlug}`);
+    void this.webRevalidation.revalidate(tags);
+  }
 
   async list(
     query: AdminRestaurantQueryDto,
@@ -165,6 +183,12 @@ export class AdminRestaurantService {
         addressId: address.id,
         locationId: location.id,
         submittedBy: actorId,
+        facebookUrl: dto.facebookUrl,
+        facebookVerified: dto.facebookVerified ?? false,
+        instagramUrl: dto.instagramUrl,
+        instagramVerified: dto.instagramVerified ?? false,
+        tiktokUrl: dto.tiktokUrl,
+        websiteUrl: dto.websiteUrl,
       },
     });
 
@@ -186,6 +210,7 @@ export class AdminRestaurantService {
       targetId: restaurant.id,
       afterState: { name: dto.name, slug, categoryCode: dto.categoryCode },
     });
+    void this.revalidateRestaurant(restaurant.id, slug);
 
     return this.getDetail(restaurant.id);
   }
@@ -204,6 +229,12 @@ export class AdminRestaurantService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.facebookUrl !== undefined) data.facebookUrl = dto.facebookUrl;
+    if (dto.facebookVerified !== undefined) data.facebookVerified = dto.facebookVerified;
+    if (dto.instagramUrl !== undefined) data.instagramUrl = dto.instagramUrl;
+    if (dto.instagramVerified !== undefined) data.instagramVerified = dto.instagramVerified;
+    if (dto.tiktokUrl !== undefined) data.tiktokUrl = dto.tiktokUrl;
+    if (dto.websiteUrl !== undefined) data.websiteUrl = dto.websiteUrl;
     if (dto.categoryCode !== undefined) {
       const category = await this.prisma.restaurantCategory.findUniqueOrThrow({
         where: { code: dto.categoryCode },
@@ -270,6 +301,7 @@ export class AdminRestaurantService {
       },
       afterState: dto,
     });
+    void this.revalidateRestaurant(id, before.slug);
 
     return this.getDetail(id);
   }
@@ -286,6 +318,7 @@ export class AdminRestaurantService {
       targetType: 'restaurant',
       targetId: id,
     });
+    void this.revalidateRestaurant(id);
   }
 
   async restore(id: string, actorId: string): Promise<void> {
@@ -306,6 +339,7 @@ export class AdminRestaurantService {
       targetType: 'restaurant',
       targetId: id,
     });
+    void this.revalidateRestaurant(id);
   }
 
   // Admin-only per docs/01-prd-mvp.md §10.11 business rule — RolesGuard on
@@ -328,6 +362,7 @@ export class AdminRestaurantService {
       targetType: 'restaurant',
       targetId: id,
     });
+    void this.revalidateRestaurant(id);
   }
 
   async replaceOpeningHours(
@@ -338,17 +373,27 @@ export class AdminRestaurantService {
     await this.prisma.$transaction([
       this.prisma.openingHour.deleteMany({ where: { restaurantId: id } }),
       this.prisma.openingHour.createMany({
-        data: dto.days.map((day) => ({
-          restaurantId: id,
-          dayOfWeek: day.dayOfWeek,
-          openTime:
-            day.isClosed || !day.openTime ? null : this.parseTime(day.openTime),
-          closeTime:
-            day.isClosed || !day.closeTime
-              ? null
-              : this.parseTime(day.closeTime),
-          isClosed: day.isClosed,
-        })),
+        data: dto.days.map((day) => {
+          // Closed wins over 24h if a caller somehow sends both — a day
+          // can't be simultaneously "never open" and "always open".
+          const isOpen24h = !day.isClosed && Boolean(day.isOpen24h);
+          // Ranges are meaningless (and not stored) for a closed or 24h day.
+          const skipRanges = day.isClosed || isOpen24h;
+          // Second range only counts when both ends are actually provided —
+          // a lone openTime2 with no closeTime2 (or vice versa) is treated
+          // as "no second range" rather than a half-open one.
+          const hasSecondRange = Boolean(day.openTime2 && day.closeTime2);
+          return {
+            restaurantId: id,
+            dayOfWeek: day.dayOfWeek,
+            openTime: skipRanges || !day.openTime ? null : this.parseTime(day.openTime),
+            closeTime: skipRanges || !day.closeTime ? null : this.parseTime(day.closeTime),
+            isClosed: day.isClosed,
+            isOpen24h,
+            openTime2: skipRanges || !hasSecondRange ? null : this.parseTime(day.openTime2!),
+            closeTime2: skipRanges || !hasSecondRange ? null : this.parseTime(day.closeTime2!),
+          };
+        }),
       }),
     ]);
     await this.restaurantService.invalidateViewportCache();
@@ -359,6 +404,7 @@ export class AdminRestaurantService {
       targetId: id,
       afterState: dto,
     });
+    void this.revalidateRestaurant(id);
   }
 
   async replaceFacilities(
@@ -366,6 +412,22 @@ export class AdminRestaurantService {
     dto: ReplaceFacilitiesDto,
     actorId: string,
   ): Promise<void> {
+    // Facility codes aren't a compile-time enum anymore (see the facilities
+    // lookup table) — verify every submitted code actually exists before
+    // writing, so a typo/stale code fails with a clear 400 instead of
+    // tripping the FK constraint with an opaque Prisma error.
+    if (dto.facilities.length > 0) {
+      const existing = await this.prisma.facility.findMany({
+        where: { code: { in: dto.facilities } },
+        select: { code: true },
+      });
+      const existingCodes = new Set(existing.map((f) => f.code));
+      const unknown = dto.facilities.filter((code) => !existingCodes.has(code));
+      if (unknown.length > 0) {
+        throw new BadRequestException(`Tiện ích không hợp lệ: ${unknown.join(', ')}`);
+      }
+    }
+
     await this.prisma.$transaction([
       this.prisma.restaurantFacility.deleteMany({
         where: { restaurantId: id },
@@ -373,9 +435,9 @@ export class AdminRestaurantService {
       ...(dto.facilities.length > 0
         ? [
             this.prisma.restaurantFacility.createMany({
-              data: dto.facilities.map((facilityType) => ({
+              data: dto.facilities.map((facilityCode) => ({
                 restaurantId: id,
-                facilityType,
+                facilityCode,
               })),
             }),
           ]
@@ -389,6 +451,7 @@ export class AdminRestaurantService {
       targetId: id,
       afterState: dto,
     });
+    void this.revalidateRestaurant(id);
   }
 
   async addMenuItem(
@@ -428,6 +491,7 @@ export class AdminRestaurantService {
       targetId: restaurantId,
       afterState: dto,
     });
+    void this.revalidateRestaurant(restaurantId);
     return {
       id: item.id,
       name: item.name,
@@ -444,6 +508,7 @@ export class AdminRestaurantService {
   ): Promise<MenuItemDto> {
     const before = await this.prisma.menuItem.findUniqueOrThrow({
       where: { id: itemId },
+      include: { menu: { select: { restaurantId: true } } },
     });
     const item = await this.prisma.menuItem.update({
       where: { id: itemId },
@@ -457,6 +522,7 @@ export class AdminRestaurantService {
       beforeState: before,
       afterState: dto,
     });
+    void this.revalidateRestaurant(before.menu.restaurantId);
     return {
       id: item.id,
       name: item.name,
@@ -467,13 +533,17 @@ export class AdminRestaurantService {
   }
 
   async removeMenuItem(itemId: string, actorId: string): Promise<void> {
-    await this.prisma.menuItem.delete({ where: { id: itemId } });
+    const deleted = await this.prisma.menuItem.delete({
+      where: { id: itemId },
+      include: { menu: { select: { restaurantId: true } } },
+    });
     await this.auditLog.record({
       actorId,
       action: 'restaurant.menu_item.delete',
       targetType: 'menu_item',
       targetId: itemId,
     });
+    void this.revalidateRestaurant(deleted.menu.restaurantId);
   }
 
   async attachPhoto(
@@ -501,6 +571,7 @@ export class AdminRestaurantService {
     // from the restaurant's first photo, see RestaurantService.hydrateOpenNow)
     // could stay stale for up to VIEWPORT_CACHE_TTL_SECONDS after attach/remove.
     await this.restaurantService.invalidateViewportCache();
+    void this.revalidateRestaurant(restaurantId);
     return {
       id: photo.id,
       url: photo.storageKey,
@@ -510,6 +581,10 @@ export class AdminRestaurantService {
   }
 
   async removePhoto(photoId: string, actorId: string): Promise<void> {
+    const photo = await this.prisma.photo.findUnique({
+      where: { id: photoId },
+      select: { ownerType: true, ownerId: true },
+    });
     await this.photoService.remove(photoId);
     await this.auditLog.record({
       actorId,
@@ -518,6 +593,9 @@ export class AdminRestaurantService {
       targetId: photoId,
     });
     await this.restaurantService.invalidateViewportCache();
+    if (photo?.ownerType === 'restaurant' && photo.ownerId) {
+      void this.revalidateRestaurant(photo.ownerId);
+    }
   }
 
   private async setCuisines(

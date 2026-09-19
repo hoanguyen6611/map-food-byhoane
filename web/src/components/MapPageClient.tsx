@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { Link } from '@/i18n/navigation';
-import { placeTileClass } from '@/lib/format';
+import { placeTileClass, formatDistanceMeters } from '@/lib/format';
+import { getNearbyRestaurantsAction } from '@/app/[locale]/map/actions';
 import { MapCanvas } from './MapCanvas';
 import { OpenBadge } from './OpenBadge';
 import { SearchIcon, LocateIcon, StarIcon } from './icons';
@@ -23,15 +24,10 @@ interface Labels {
   noRating: string;
   viewDetail: string;
   locateError: string;
-}
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
+  locating: string;
+  nearMeTitle: string;
+  nearMeEmpty: string;
+  backToProvince: string;
 }
 
 interface Props {
@@ -45,17 +41,27 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
   const [layer, setLayer] = useState<Layer>('all');
   const [selectedId, setSelectedId] = useState<string | null>(restaurants[0]?.id ?? null);
   const [locateError, setLocateError] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  // Non-null once "use my location" succeeds — real GPS-radius results from
+  // the backend (`/restaurants/nearby`, nearest-first), replacing the
+  // province-wide list until the user switches back. Previously this button
+  // only ran a client-side Haversine scan over the already-loaded
+  // province list and highlighted the single nearest match — it never
+  // actually queried restaurants around the user's real location.
+  const [nearbyResults, setNearbyResults] = useState<RestaurantSummaryDto[] | null>(null);
+
+  const baseList = nearbyResults ?? restaurants;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return restaurants.filter((r) => {
+    return baseList.filter((r) => {
       if (q && !r.name.toLowerCase().includes(q)) return false;
       if (layer === 'open' && !r.isOpenNow) return false;
       if (layer === 'top' && (r.compositeScore ?? 0) < 4.5) return false;
       if (layer === 'cheap' && r.priceRange?.code !== 'under_50k') return false;
       return true;
     });
-  }, [restaurants, query, layer]);
+  }, [baseList, query, layer]);
 
   const selected = filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null;
 
@@ -71,29 +77,40 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
       setLocateError(true);
       return;
     }
+    setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocateError(false);
-        let nearest: RestaurantSummaryDto | null = null;
-        let nearestDist = Infinity;
-        for (const r of filtered) {
-          const d = haversineKm(pos.coords.latitude, pos.coords.longitude, r.lat, r.lng);
-          if (d < nearestDist) {
-            nearestDist = d;
-            nearest = r;
-          }
-        }
-        if (nearest) setSelectedId(nearest.id);
+        getNearbyRestaurantsAction(pos.coords.latitude, pos.coords.longitude)
+          .then((results) => {
+            setLocateError(false);
+            setNearbyResults(results);
+            setSelectedId(results[0]?.id ?? null);
+          })
+          .catch(() => setLocateError(true))
+          .finally(() => setIsLocating(false));
       },
-      () => setLocateError(true),
+      () => {
+        setLocateError(true);
+        setIsLocating(false);
+      },
     );
+  }
+
+  function handleBackToProvince() {
+    setNearbyResults(null);
+    setSelectedId(restaurants[0]?.id ?? null);
   }
 
   return (
     <div className="map-page">
       <div className="map-page-panel">
         <div className="map-page-panel-head">
-          <span className="map-page-panel-title">{labels.title}</span>
+          <span className="map-page-panel-title">{nearbyResults ? labels.nearMeTitle : labels.title}</span>
+          {nearbyResults ? (
+            <button type="button" className="section-link map-page-back-btn" onClick={handleBackToProvince}>
+              {labels.backToProvince}
+            </button>
+          ) : null}
           <div className="map-page-search">
             <SearchIcon size={17} />
             <input
@@ -119,6 +136,7 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
         </div>
 
         <div className="map-page-list">
+          {nearbyResults && nearbyResults.length === 0 ? <p className="empty-state">{labels.nearMeEmpty}</p> : null}
           {filtered.map((r) => {
             const priceLabel = r.priceRange ? priceLabels[r.priceRange.code] : undefined;
             return (
@@ -146,6 +164,11 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
                         · {priceLabel}đ
                       </span>
                     ) : null}
+                    {r.distanceMeters !== null ? (
+                      <span className="font-meta" style={{ fontSize: 13, color: 'var(--color-ink-subtle)' }}>
+                        · {formatDistanceMeters(r.distanceMeters)}
+                      </span>
+                    ) : null}
                   </span>
                   <OpenBadge isOpen={r.isOpenNow} label={r.isOpenNow ? labels.openNow : labels.closedNow} />
                 </span>
@@ -171,8 +194,14 @@ export function MapPageClient({ restaurants, labels, priceLabels }: Props) {
             custom control (real geolocation, not part of Leaflet's default
             UI) sits top-right so the two never collide. */}
         <div className="map-controls">
-          <button type="button" className="map-control-btn" onClick={handleLocate} title={locateError ? labels.locateError : undefined}>
-            <LocateIcon size={18} style={{ color: locateError ? 'var(--color-error)' : 'var(--color-primary)' }} />
+          <button
+            type="button"
+            className="map-control-btn"
+            onClick={handleLocate}
+            disabled={isLocating}
+            title={locateError ? labels.locateError : isLocating ? labels.locating : undefined}
+          >
+            <LocateIcon size={18} className={isLocating ? 'map-locate-spin' : undefined} style={{ color: locateError ? 'var(--color-error)' : 'var(--color-primary)' }} />
           </button>
         </div>
 

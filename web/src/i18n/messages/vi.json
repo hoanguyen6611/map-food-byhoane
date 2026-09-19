@@ -38,7 +38,7 @@
     "mapNavLink": "Bản đồ",
     "aboutNavLink": "Cách chấm điểm",
     "categoriesNavLink": "Danh mục",
-    "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở TP. Hồ Chí Minh qua đánh giá thật."
+    "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở khắp Việt Nam qua đánh giá thật."
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
@@ -121,6 +121,7 @@
     "facilitiesLabel": "Tiện ích",
     "hoursHeading": "Giờ mở cửa",
     "closedDay": "Đóng cửa",
+    "open24h": "Mở cửa 24h",
     "menuHeading": "Thực đơn",
     "noMenu": "Quán này chưa cập nhật thực đơn.",
     "menuCaption": "Thực đơn của {name}",
@@ -129,6 +130,18 @@
     "noReviews": "Chưa có đánh giá nào cho quán này.",
     "photoAlt": "Ảnh {index} của {name}",
     "noPhotos": "Chưa có ảnh cho quán này.",
+    "seeAllPhotos": "Xem tất cả {count} ảnh",
+    "morePhotosCount": "+{count}",
+    "socialHeading": "Mạng xã hội của quán",
+    "socialCaption": "Do chủ quán hoặc cộng đồng cung cấp",
+    "socialVerifiedNote": "Dấu tích xanh nghĩa là chủ quán đã xác nhận tài khoản.",
+    "socialReportHint": "Thấy link sai? Báo cho mình",
+    "socialPlatform": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "website": "Website"
+    },
     "ratingSummary": "★ {score} ({count} đánh giá)",
     "reviewsPaginationLabel": "Phân trang đánh giá",
     "infoTab": "Thông tin",
@@ -138,7 +151,8 @@
     "reportLabel": "Báo cáo",
     "helpfulLabel": "Hữu ích",
     "openUntil": "đến {time}",
-    "reviewCountShort": "{count} đánh giá"
+    "reviewCountShort": "{count} đánh giá",
+    "viewCount": "{count} lượt xem"
   },
   "notFound": {
     "title": "Không tìm thấy trang",
@@ -298,7 +312,11 @@
     "layerTop": "Điểm ≥ 4,5",
     "layerCheap": "Dưới 50k",
     "viewDetail": "Xem trang quán →",
-    "locateError": "Không lấy được vị trí của bạn"
+    "locateError": "Không lấy được vị trí của bạn",
+    "locating": "Đang định vị…",
+    "nearMeTitle": "Quán gần bạn",
+    "nearMeEmpty": "Không tìm thấy quán nào gần bạn trong bán kính 3km.",
+    "backToProvince": "← Quay lại {province}"
   },
   "about": {
     "pageTitle": "Cách chấm điểm",
@@ -365,8 +383,11 @@
     "wardLabel": "Phường/Xã",
     "provinceLabel": "Tỉnh/Thành phố",
     "locationLabel": "Toạ độ",
-    "latPlaceholder": "Vĩ độ",
-    "lngPlaceholder": "Kinh độ",
+    "mapLinkPlaceholder": "Dán link Google Maps của quán",
+    "mapLinkApply": "Áp dụng",
+    "mapLinkResolving": "Đang xử lý…",
+    "mapLinkResolved": "Đã xác định vị trí ✓ ({lat}, {lng})",
+    "mapLinkError": "Không đọc được toạ độ từ link này. Vui lòng kiểm tra lại link Google Maps.",
     "useMyLocation": "Dùng vị trí hiện tại của tôi",
     "photosLabel": "Ảnh (ít nhất 1)",
     "selectPlaceholder": "Chọn…",

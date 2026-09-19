@@ -2,7 +2,6 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
-  IsIn,
   IsLatitude,
   IsLongitude,
   IsNumber,
@@ -16,36 +15,6 @@ import type {
   FacilityType,
   RestaurantCategoryCode,
 } from '@foodmap/shared-types';
-
-const FACILITY_TYPES: FacilityType[] = [
-  'wifi',
-  'parking_car',
-  'parking_motorbike',
-  'air_conditioner',
-  'outdoor_seating',
-  'kid_friendly',
-  'pet_friendly',
-  'card_payment',
-  'private_room',
-];
-
-const CATEGORY_CODES: RestaurantCategoryCode[] = [
-  'quan_an',
-  'quan_ca_phe',
-  'nha_hang',
-  'xe_day',
-  'quan_via_he',
-  'quan_bar',
-];
-
-const CUISINE_CODES: CuisineCode[] = [
-  'mon_viet',
-  'mon_han',
-  'mon_nhat',
-  'mon_chay',
-  'mon_thai',
-  'mon_au',
-];
 
 // Shared by GET /search (q optional-but-usually-present) and GET /restaurants
 // (browse, q always absent) per docs/build-prompts/04-search-filter.md — one
@@ -107,7 +76,7 @@ export class SearchQueryDto {
     typeof value === 'string' ? value.split(',').filter(Boolean) : value,
   )
   @IsArray()
-  @IsIn(FACILITY_TYPES, { each: true })
+  @IsString({ each: true })
   facilities?: FacilityType[];
 
   @IsOptional()
@@ -115,7 +84,7 @@ export class SearchQueryDto {
     typeof value === 'string' ? value.split(',').filter(Boolean) : value,
   )
   @IsArray()
-  @IsIn(CUISINE_CODES, { each: true })
+  @IsString({ each: true })
   cuisine?: CuisineCode[];
 
   // Added for build-prompts/09-public-web.md's category/district browse
@@ -123,7 +92,7 @@ export class SearchQueryDto {
   // (only cuisine/facilities were filterable, not the restaurant's own
   // category or its address district), generically useful for mobile too.
   @IsOptional()
-  @IsIn(CATEGORY_CODES)
+  @IsString()
   category?: RestaurantCategoryCode;
 
   @IsOptional()

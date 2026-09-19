@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
-import type { RestaurantCategoryCode, RestaurantSummaryDto } from '@foodmap/shared-types';
+import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import { formatPriceRange, placeTileClass } from '@/lib/format';
 import { Link } from '@/i18n/navigation';
 import { FavoriteButton } from './FavoriteButton';
@@ -10,9 +10,14 @@ import { StarIcon } from './icons';
 // Structural subset — deliberately loose so both RestaurantSummaryDto (search
 // results) and FavoriteRestaurantSummaryDto (the favorites page) satisfy it
 // without an adapter, same pattern mobile's RestaurantCard already uses for
-// the same two DTOs. isOpenNow/categoryCode are absent on the favorites DTO,
+// the same two DTOs. isOpenNow/categoryLabel are absent on the favorites DTO,
 // so they're optional here and only render when actually known. Exported so
 // PlaceRow (list-row variant, same source data) can reuse the same shape.
+// categoryLabel (not categoryCode) — category is an admin-editable table,
+// so the server-resolved label is used directly instead of re-translating
+// a code through a static i18n dictionary (see PlaceRow's old bug: an
+// admin-created category code with no matching `labels.category.*` key
+// rendered as the raw i18n key string).
 export interface RestaurantCardData {
   id: string;
   slug: string;
@@ -22,7 +27,7 @@ export interface RestaurantCardData {
   reviewCount: number;
   priceRange: RestaurantSummaryDto['priceRange'];
   isOpenNow?: boolean;
-  categoryCode?: RestaurantCategoryCode;
+  categoryLabel?: string;
 }
 
 interface Props {
