@@ -2787,6 +2787,66 @@ table.menu-table td.price {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.secondary-btn {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--font-inter-tight), sans-serif;
+}
+.secondary-btn:hover {
+  background: var(--color-canvas);
+}
+
+/* Add Restaurant's "Toạ độ" field — Google Maps link input + inline Apply
+   button, plus the "use my current location" action underneath. */
+.map-link-row {
+  display: flex;
+  gap: 8px;
+}
+.map-link-row input {
+  flex: 1;
+  min-width: 0;
+}
+.map-link-apply-btn {
+  flex: none;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-inter-tight), sans-serif;
+  cursor: pointer;
+}
+.map-link-apply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.use-location-btn {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-inter-tight), sans-serif;
+  cursor: pointer;
+}
+.use-location-btn:hover {
+  background: var(--color-canvas);
+}
 .write-review-done {
   padding: 18px;
   border: 1px solid var(--color-border-hairline);

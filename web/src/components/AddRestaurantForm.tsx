@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { LocateIcon } from '@/components/icons';
 import { CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { VN_PROVINCES, type CategoryDto, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
 
@@ -154,7 +155,7 @@ export function AddRestaurantForm({ categories }: Props) {
           >
             {t('submitAnyway')}
           </button>
-          <button type="button" className="notification-mark-read" onClick={() => setPhase({ kind: 'form' })}>
+          <button type="button" className="secondary-btn" onClick={() => setPhase({ kind: 'form' })}>
             {t('backToEdit')}
           </button>
         </div>
@@ -259,7 +260,7 @@ export function AddRestaurantForm({ categories }: Props) {
 
       <div className="login-field">
         <span>{t('locationLabel')}</span>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="map-link-row">
           <input
             type="url"
             placeholder={t('mapLinkPlaceholder')}
@@ -281,7 +282,7 @@ export function AddRestaurantForm({ categories }: Props) {
           />
           <button
             type="button"
-            className="notification-mark-read"
+            className="map-link-apply-btn"
             disabled={!mapLink.trim() || linkStatus === 'resolving'}
             onClick={() => void resolveMapLink(mapLink)}
           >
@@ -298,7 +299,8 @@ export function AddRestaurantForm({ categories }: Props) {
             {t('mapLinkError')}
           </p>
         ) : null}
-        <button type="button" className="notification-mark-read" style={{ alignSelf: 'flex-start' }} onClick={useMyLocation}>
+        <button type="button" className="use-location-btn" onClick={useMyLocation}>
+          <LocateIcon size={16} />
           {t('useMyLocation')}
         </button>
       </div>

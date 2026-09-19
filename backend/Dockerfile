@@ -37,6 +37,17 @@ COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY . .
 RUN npx prisma generate --schema=backend/prisma/schema.prisma
 RUN npm run build --workspace=backend
+# packages/shared-types ships raw .ts source as its `main` (so every other
+# workspace's dev server picks up an edit instantly, no rebuild step) — fine
+# for ts-node/bundler-based consumers, but the runtime stage below just runs
+# plain `node dist/main.js`, and recent Node versions' native ESM/type-strip
+# handling of a raw .ts entry point fails to resolve this package's own
+# extensionless relative exports (`export * from './common'` etc.) with
+# ERR_MODULE_NOT_FOUND — real incident, not hypothetical. Compiling it here
+# and pointing the RUNTIME-ONLY copy of its package.json at the compiled JS
+# (see the runtime stage) sidesteps that entirely; the repo's own
+# packages/shared-types/package.json is never touched, so local dev is unaffected.
+RUN npm run build --workspace=packages/shared-types
 
 # Slim runtime image — only what `node dist/main` actually needs at runtime.
 FROM node:20-alpine AS runtime
@@ -50,7 +61,12 @@ COPY --from=build /app/node_modules ./node_modules
 # hoisted to the root node_modules must be copied from its actual workspace
 # location too, or it's missing at runtime even though the build succeeded.
 COPY --from=build /app/backend/node_modules ./backend/node_modules
-COPY --from=build /app/packages/shared-types ./packages/shared-types
+# Only the compiled output, not the raw `src` — see the build stage's
+# comment above for why. This package.json is a minimal runtime-only stand-in
+# (never committed, never affects local dev), pointing `main`/`types` at the
+# compiled JS instead of the repo's own package.json's raw-source `main`.
+COPY --from=build /app/packages/shared-types/dist ./packages/shared-types/dist
+RUN printf '{"name":"@foodmap/shared-types","version":"0.1.0","main":"dist/index.js","types":"dist/index.d.ts"}' > ./packages/shared-types/package.json
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/backend/tsconfig.json ./backend/tsconfig.json
 COPY --from=build /app/backend/dist ./backend/dist
