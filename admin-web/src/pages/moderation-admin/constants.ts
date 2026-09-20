@@ -50,3 +50,24 @@ export function formatDateTime(value: string): string {
 export function riskScoreLabel(score: number): string {
   return score.toFixed(2)
 }
+
+const CONTRIBUTION_TYPE_LABELS: Record<string, string> = {
+  new_restaurant: 'Quán mới',
+  edit_suggestion: 'Đề xuất chỉnh sửa',
+  status_update: 'Cập nhật trạng thái',
+  closure_report: 'Báo cáo đóng cửa',
+}
+
+export function contributionTypeLabel(type: string): string {
+  return CONTRIBUTION_TYPE_LABELS[type] ?? type
+}
+
+export const DAY_LABELS: Record<number, string> = {
+  0: 'Chủ nhật',
+  1: 'Thứ hai',
+  2: 'Thứ ba',
+  3: 'Thứ tư',
+  4: 'Thứ năm',
+  5: 'Thứ sáu',
+  6: 'Thứ bảy',
+}

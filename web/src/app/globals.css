@@ -22,6 +22,7 @@
   --color-primary: #003cff;
   --color-primary-hover: #0638cd;
   --gradient-ink: linear-gradient(180deg, #2c2c2c 0%, #141414 100%);
+  --gradient-ink-hover: linear-gradient(180deg, #3d3d3d 0%, #202020 100%);
   --gradient-magenta: linear-gradient(180deg, #ff00ff 0%, #dd00d8 100%);
 
   --color-star: #f0cd86;
@@ -118,6 +119,10 @@ textarea:focus-visible {
 }
 .skip-link:focus {
   left: 0;
+}
+.skip-link:hover {
+  background: var(--gradient-ink-hover);
+  color: #fff;
 }
 
 .container {
@@ -395,28 +400,93 @@ textarea:focus-visible {
   font-size: 15px;
   font-weight: 500;
 }
+.topbar-login-cta:hover {
+  background: var(--gradient-ink-hover);
+  color: #fff;
+}
 
 .lang-switcher {
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  border-radius: var(--radius-pill);
-  background: #f3f3f3;
+  position: relative;
 }
-.lang-switcher button {
-  border: none;
-  background: transparent;
-  padding: 5px 10px;
+.lang-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-hairline);
   border-radius: var(--radius-pill);
+  background: none;
+  font-family: var(--font-inter-tight), sans-serif;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ink-subtle);
+  font-weight: 600;
+  color: var(--color-ink);
   cursor: pointer;
 }
-.lang-switcher button.lang-active {
+.lang-trigger-code {
+  letter-spacing: 0.02em;
+}
+.lang-flag {
+  font-size: 16px;
+  line-height: 1;
+}
+.lang-flag-lg {
+  font-size: 22px;
+}
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 240px;
+  padding: 8px;
   background: #fff;
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-lg);
+}
+.lang-menu-heading {
+  padding: 6px 10px;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-subtle);
+}
+.lang-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.lang-menu-item:hover {
+  background: var(--color-canvas);
+}
+.lang-menu-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.lang-menu-name {
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-ink);
-  box-shadow: var(--shadow-segment);
+}
+.lang-menu-region {
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
+.lang-menu-check {
+  flex: none;
+  color: var(--color-primary);
 }
 
 .site-footer {
@@ -713,6 +783,10 @@ textarea:focus-visible {
   font-weight: 500;
   border: none;
   cursor: pointer;
+}
+.btn-dark:hover {
+  background: var(--gradient-ink-hover);
+  color: #fff;
 }
 .btn-dark-lg {
   height: 42px;
@@ -3097,6 +3171,26 @@ table.menu-table td.price {
   font-size: 13px;
   color: var(--color-error);
 }
+.opening-hours-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+}
+.opening-hours-time-row {
+  display: flex;
+  gap: 16px;
+}
+.opening-hours-time-row .login-field {
+  flex: 1;
+}
+.opening-hours-days-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
 .pw-strength-row {
   display: flex;
   align-items: center;
@@ -3964,6 +4058,27 @@ table.menu-table td.price {
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
+}
+.photo-upload-thumb-cover {
+  border: 2px solid var(--color-primary);
+}
+.photo-upload-cover-btn {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.photo-upload-cover-btn[aria-pressed='true'] {
+  background: var(--color-primary);
 }
 .photo-upload-add {
   display: flex;

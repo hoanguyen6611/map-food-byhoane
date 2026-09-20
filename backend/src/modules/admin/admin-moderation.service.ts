@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma, ModerationResult } from '@prisma/client';
 import type {
+  AdminModerationDetailDto,
   AdminModerationQueueItemDto,
   ModerationDecision,
   NotificationDeepLink,
@@ -17,6 +18,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { ReportService } from '../moderation/report.service';
 import { ContributionFinalizeService } from '../contribution/contribution-finalize.service';
+import { S3Service } from '../media/s3.service';
 import { assertDecisionAllowed } from '../moderation/moderation-decision.util';
 import { AuditLogService } from './audit-log.service';
 import type { AdminModerationQueryDto } from './dto/admin-moderation-query.dto';
@@ -44,6 +46,7 @@ export class AdminModerationService {
     private readonly notificationService: NotificationService,
     private readonly reportService: ReportService,
     private readonly contributionFinalizeService: ContributionFinalizeService,
+    private readonly s3: S3Service,
   ) {}
 
   async list(
@@ -72,6 +75,104 @@ export class AdminModerationService {
       rows.map((row) => this.buildQueueItem(row)),
     );
     return { items, total, page, pageSize };
+  }
+
+  /**
+   * "Xem chi tiết" — the full submission behind a queue row's one-line
+   * `contentSummary`, fetched only when an admin actually opens it (not
+   * bundled into `list()`, which stays cheap for a page of 20 rows).
+   */
+  async getDetail(moderationResultId: string): Promise<AdminModerationDetailDto> {
+    const moderationResult = await this.prisma.moderationResult.findUnique({
+      where: { id: moderationResultId },
+    });
+    if (!moderationResult) {
+      throw new NotFoundException('Không tìm thấy mục kiểm duyệt');
+    }
+
+    switch (moderationResult.targetType) {
+      case 'contribution': {
+        const contribution = await this.prisma.contribution.findUnique({
+          where: { id: moderationResult.targetId },
+          include: { targetRestaurant: true, editSuggestion: true },
+        });
+        if (!contribution) {
+          throw new NotFoundException('Không tìm thấy nội dung đóng góp');
+        }
+        const payload = (contribution.payload ?? {}) as Record<string, unknown>;
+        const photoIds = Array.isArray(payload.photoIds) ? (payload.photoIds as string[]) : [];
+        const photoUrls = Array.isArray(payload.photoUrls) ? (payload.photoUrls as string[]) : [];
+        const attachedPhotos = photoIds.length
+          ? await this.prisma.photo.findMany({ where: { id: { in: photoIds } } })
+          : [];
+        return {
+          kind: 'contribution',
+          contributionType: contribution.type,
+          targetRestaurantId: contribution.targetRestaurantId,
+          targetRestaurantName: contribution.targetRestaurant?.name ?? null,
+          payload,
+          oldValue: contribution.editSuggestion?.oldValue ?? undefined,
+          photos: [
+            ...attachedPhotos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey) })),
+            ...photoUrls.map((url, i) => ({ id: `external-${i}`, url })),
+          ],
+        };
+      }
+      case 'photo': {
+        const photo = await this.prisma.photo.findUnique({
+          where: { id: moderationResult.targetId },
+          include: { uploader: { include: { profile: true } } },
+        });
+        if (!photo) {
+          throw new NotFoundException('Không tìm thấy ảnh');
+        }
+        return {
+          kind: 'photo',
+          url: this.s3.publicUrl(photo.storageKey),
+          uploaderDisplayName: photo.uploader?.profile?.displayName ?? 'Người dùng ẩn danh',
+        };
+      }
+      case 'review': {
+        const review = await this.prisma.review.findUnique({
+          where: { id: moderationResult.targetId },
+          include: {
+            restaurant: { select: { name: true } },
+            ratings: { include: { criteria: true } },
+          },
+        });
+        if (!review) {
+          throw new NotFoundException('Không tìm thấy đánh giá');
+        }
+        const reviewPhotos = await this.prisma.photo.findMany({
+          where: { ownerType: 'review', ownerId: review.id, deletedAt: null },
+        });
+        return {
+          kind: 'review',
+          restaurantName: review.restaurant.name,
+          overallRating: review.overallRating,
+          comment: review.comment,
+          ratings: review.ratings.map((r) => ({ criteriaCode: r.criteria.code, score: r.score })),
+          photos: reviewPhotos.map((p) => ({ id: p.id, url: this.s3.publicUrl(p.storageKey) })),
+        };
+      }
+      case 'restaurant': {
+        const restaurant = await this.prisma.restaurant.findUnique({
+          where: { id: moderationResult.targetId },
+          include: { address: true, category: true },
+        });
+        if (!restaurant) {
+          throw new NotFoundException('Không tìm thấy quán ăn');
+        }
+        return {
+          kind: 'restaurant',
+          name: restaurant.name,
+          fullAddressText: restaurant.address.fullAddressText,
+          categoryCode: restaurant.category.code,
+        };
+      }
+      default:
+        throw new BadRequestException(`Không hỗ trợ xem chi tiết cho loại "${moderationResult.targetType}"`);
+    }
   }
 
   /**

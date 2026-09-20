@@ -10,12 +10,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fragment, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { ModerationDecision, ModerationTargetType, ReportDto } from '@foodmap/shared-types'
+import type {
+  AdminModerationDetailDto,
+  ModerationDecision,
+  ModerationTargetType,
+  ReportDto,
+} from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminModerationApi } from '../api/admin-moderation'
 import {
+  DAY_LABELS,
   DECISION_OPTIONS,
   TARGET_TYPE_TABS,
+  contributionTypeLabel,
   decisionLabel,
   formatDateTime,
   reportReasonLabel,
@@ -224,6 +231,7 @@ export function AdminModerationQueuePage() {
                   {expandedId === item.id && (
                     <tr>
                       <td colSpan={7}>
+                        <DetailPanel moderationResultId={item.id} />
                         <DecisionPanel
                           aiReason={item.aiReason}
                           recommendedAction={item.recommendedAction}
@@ -317,6 +325,281 @@ function ReportsList({ reports, isPending, onResolve }: ReportsListProps) {
       ))}
     </div>
   )
+}
+
+/**
+ * "Xem chi tiết" — fetched lazily (only while its row is expanded) since
+ * the list endpoint deliberately stays thin (see AdminModerationService
+ * .getDetail's doc comment). Renders per `kind`/`contributionType` rather
+ * than dumping raw JSON, since a moderator deciding on a `new_restaurant`
+ * submission needs to actually read the address/hours/menu/photos, not
+ * guess at a JSON blob.
+ */
+function DetailPanel({ moderationResultId }: { moderationResultId: string }) {
+  const detailQuery = useQuery({
+    queryKey: ['admin-moderation-detail', moderationResultId],
+    queryFn: () => adminModerationApi.getDetail(moderationResultId),
+  })
+
+  if (detailQuery.isLoading) return <p>Đang tải chi tiết…</p>
+  if (detailQuery.isError || !detailQuery.data) {
+    return (
+      <p className="form-error" role="alert">
+        {detailQuery.error instanceof ApiError ? detailQuery.error.message : 'Không thể tải chi tiết.'}
+      </p>
+    )
+  }
+
+  const detail = detailQuery.data
+  return (
+    <div className="detail-section">
+      <h2>Chi tiết nội dung</h2>
+      {detail.kind === 'contribution' && <ContributionDetail detail={detail} />}
+      {detail.kind === 'photo' && (
+        <div className="photo-grid">
+          <div className="photo-tile">
+            <img src={detail.url} alt="" />
+            <span>{detail.uploaderDisplayName}</span>
+          </div>
+        </div>
+      )}
+      {detail.kind === 'review' && <ReviewDetail detail={detail} />}
+      {detail.kind === 'restaurant' && (
+        <div className="form-grid">
+          <div className="form-field">
+            <span>Tên quán</span>
+            <span>{detail.name}</span>
+          </div>
+          <div className="form-field">
+            <span>Danh mục</span>
+            <span>{detail.categoryCode}</span>
+          </div>
+          <div className="form-field form-field-wide">
+            <span>Địa chỉ</span>
+            <span>{detail.fullAddressText}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ContributionDetail({ detail }: { detail: Extract<AdminModerationDetailDto, { kind: 'contribution' }> }) {
+  const payload = detail.payload as Record<string, unknown>
+
+  return (
+    <div>
+      <p>
+        <strong>{contributionTypeLabel(detail.contributionType)}</strong>
+        {detail.targetRestaurantName ? ` — ${detail.targetRestaurantName}` : ''}
+      </p>
+
+      {detail.contributionType === 'new_restaurant' && <NewRestaurantPayload payload={payload} />}
+
+      {detail.contributionType === 'edit_suggestion' && (
+        <div className="form-grid">
+          <div className="form-field">
+            <span>Trường</span>
+            <span>{String(payload.fieldName ?? '')}</span>
+          </div>
+          <div className="form-field">
+            <span>Giá trị cũ</span>
+            <span>{formatRawValue(detail.oldValue)}</span>
+          </div>
+          <div className="form-field">
+            <span>Giá trị mới</span>
+            <span>{formatRawValue(payload.newValue)}</span>
+          </div>
+        </div>
+      )}
+
+      {(detail.contributionType === 'status_update' || detail.contributionType === 'closure_report') && (
+        <KeyValueList payload={payload} />
+      )}
+
+      {detail.photos.length > 0 && (
+        <div className="photo-grid" style={{ marginTop: 12 }}>
+          {detail.photos.map((photo) => (
+            <div key={photo.id} className="photo-tile">
+              <img src={photo.url} alt="" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> }) {
+  const address = payload.address as { line?: string; ward?: string; province?: string } | undefined
+  const location = payload.location as { lat?: number; lng?: number } | undefined
+  const openingHours = Array.isArray(payload.openingHours)
+    ? (payload.openingHours as { dayOfWeek: number; openTime?: string; closeTime?: string; isClosed: boolean }[])
+    : []
+  const menuItems = Array.isArray(payload.menuItems)
+    ? (payload.menuItems as { name: string; priceVnd: number; category?: string; isPopular?: boolean }[])
+    : []
+  const cuisineCodes = Array.isArray(payload.cuisineCodes) ? (payload.cuisineCodes as string[]) : []
+  const facilities = Array.isArray(payload.facilities) ? (payload.facilities as string[]) : []
+
+  return (
+    <div>
+      <div className="form-grid">
+        <div className="form-field">
+          <span>Tên quán</span>
+          <span>{String(payload.name ?? '')}</span>
+        </div>
+        <div className="form-field">
+          <span>Danh mục</span>
+          <span>{String(payload.categoryCode ?? '')}</span>
+        </div>
+        <div className="form-field">
+          <span>Khoảng giá</span>
+          <span>{String(payload.priceRangeCode ?? '—')}</span>
+        </div>
+        <div className="form-field">
+          <span>Điện thoại</span>
+          <span>{String(payload.phone ?? '—')}</span>
+        </div>
+        <div className="form-field form-field-wide">
+          <span>Mô tả</span>
+          <span>{String(payload.description ?? '—')}</span>
+        </div>
+        <div className="form-field form-field-wide">
+          <span>Địa chỉ</span>
+          <span>
+            {[address?.line, address?.ward, address?.province].filter(Boolean).join(', ') || '—'}
+          </span>
+        </div>
+        {location?.lat !== undefined && location?.lng !== undefined && (
+          <div className="form-field">
+            <span>Toạ độ</span>
+            <a
+              href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+            </a>
+          </div>
+        )}
+        {cuisineCodes.length > 0 && (
+          <div className="form-field form-field-wide">
+            <span>Ẩm thực</span>
+            <span>{cuisineCodes.join(', ')}</span>
+          </div>
+        )}
+        {facilities.length > 0 && (
+          <div className="form-field form-field-wide">
+            <span>Tiện ích</span>
+            <span>{facilities.join(', ')}</span>
+          </div>
+        )}
+      </div>
+
+      {openingHours.length > 0 && (
+        <table className="hours-table">
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Giờ mở cửa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {openingHours.map((day) => (
+              <tr key={day.dayOfWeek}>
+                <td>{DAY_LABELS[day.dayOfWeek] ?? day.dayOfWeek}</td>
+                <td>{day.isClosed ? 'Đóng cửa' : `${day.openTime ?? '?'} - ${day.closeTime ?? '?'}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {menuItems.length > 0 && (
+        <div className="menu-block">
+          <h3>Thực đơn</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Tên món</th>
+                <th>Giá</th>
+                <th>Danh mục</th>
+              </tr>
+            </thead>
+            <tbody>
+              {menuItems.map((item, i) => (
+                <tr key={i}>
+                  <td>
+                    {item.name}
+                    {item.isPopular ? ' ⭐' : ''}
+                  </td>
+                  <td>{item.priceVnd.toLocaleString('vi-VN')}đ</td>
+                  <td>{item.category ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReviewDetail({ detail }: { detail: Extract<AdminModerationDetailDto, { kind: 'review' }> }) {
+  return (
+    <div>
+      <div className="form-grid">
+        <div className="form-field">
+          <span>Quán</span>
+          <span>{detail.restaurantName}</span>
+        </div>
+        <div className="form-field">
+          <span>Điểm tổng thể</span>
+          <span>{detail.overallRating} / 5</span>
+        </div>
+        <div className="form-field form-field-wide">
+          <span>Bình luận</span>
+          <span>{detail.comment ?? '—'}</span>
+        </div>
+        {detail.ratings.length > 0 && (
+          <div className="form-field form-field-wide">
+            <span>Tiêu chí</span>
+            <span>{detail.ratings.map((r) => `${r.criteriaCode}: ${r.score}`).join(', ')}</span>
+          </div>
+        )}
+      </div>
+      {detail.photos.length > 0 && (
+        <div className="photo-grid" style={{ marginTop: 12 }}>
+          {detail.photos.map((photo) => (
+            <div key={photo.id} className="photo-tile">
+              <img src={photo.url} alt="" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KeyValueList({ payload }: { payload: Record<string, unknown> }) {
+  const entries = Object.entries(payload).filter(([key]) => key !== 'kind')
+  return (
+    <div className="form-grid">
+      {entries.map(([key, value]) => (
+        <div key={key} className="form-field">
+          <span>{key}</span>
+          <span>{formatRawValue(value)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatRawValue(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
 }
 
 interface DecisionPanelProps {

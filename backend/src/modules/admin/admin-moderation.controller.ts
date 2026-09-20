@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
+  AdminModerationDetailDto,
   AdminModerationQueueItemDto,
   Paginated,
   ReportDto,
@@ -46,6 +47,11 @@ export class AdminModerationController {
     @Query() query: AdminModerationQueryDto,
   ): Promise<Paginated<AdminModerationQueueItemDto>> {
     return this.adminModerationService.list(query);
+  }
+
+  @Get('moderation-queue/:id/detail')
+  getDetail(@Param('id') id: string): Promise<AdminModerationDetailDto> {
+    return this.adminModerationService.getDetail(id);
   }
 
   @Post('moderation-queue/:id/decision')

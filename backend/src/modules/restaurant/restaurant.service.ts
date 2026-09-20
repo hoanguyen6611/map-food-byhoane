@@ -45,6 +45,7 @@ interface RawRestaurantRow {
   lat: Prisma.Decimal;
   lng: Prisma.Decimal;
   distance_meters?: number;
+  cover_photo_id: string | null;
 }
 
 // Shared shape for the aggregated detail query — a module-level constant
@@ -275,7 +276,15 @@ export class RestaurantService {
           orderBy: { createdAt: 'desc' },
         })
       : [];
-    const photos = [...restaurantPhotos, ...reviewPhotos];
+    // The chosen cover photo (if any, still approved) leads the gallery —
+    // same "ảnh đại diện wins" rule as thumbnailUrl elsewhere, applied here
+    // so the detail page's hero matches what search/map cards already show.
+    const orderedRestaurantPhotos = restaurant.coverPhotoId
+      ? [...restaurantPhotos].sort((a, b) =>
+          a.id === restaurant.coverPhotoId ? -1 : b.id === restaurant.coverPhotoId ? 1 : 0,
+        )
+      : restaurantPhotos;
+    const photos = [...orderedRestaurantPhotos, ...reviewPhotos];
     const vnNow = toVnNow(new Date());
     const openingHourRows: OpeningHourRow[] = restaurant.openingHours;
 
@@ -328,6 +337,7 @@ export class RestaurantService {
         width: p.width,
         height: p.height,
       })),
+      coverPhotoId: restaurant.coverPhotoId,
       socialLinks: this.buildSocialLinks(restaurant),
       compositeScore: restaurant.status?.compositeScore
         ? Number(restaurant.status.compositeScore)
@@ -501,6 +511,7 @@ export class RestaurantService {
         r.id,
         r.slug,
         r.name,
+        r.cover_photo_id,
         rc.code AS category_code,
         rc.label AS category_label,
         rs.composite_score,
@@ -556,6 +567,7 @@ export class RestaurantService {
         r.id,
         r.slug,
         r.name,
+        r.cover_photo_id,
         rc.code AS category_code,
         rc.label AS category_label,
         rs.composite_score,
@@ -604,7 +616,10 @@ export class RestaurantService {
     if (rows.length === 0) return [];
 
     const restaurantIds = rows.map((r) => r.id);
-    const [openingHours, photos] = await Promise.all([
+    const coverPhotoIds = rows
+      .map((r) => r.cover_photo_id)
+      .filter((id): id is string => id !== null);
+    const [openingHours, photos, coverPhotos] = await Promise.all([
       this.prisma.openingHour.findMany({
         where: { restaurantId: { in: restaurantIds } },
       }),
@@ -616,6 +631,14 @@ export class RestaurantService {
           status: 'approved',
         },
         orderBy: { createdAt: 'asc' },
+      }),
+      // A restaurant's chosen cover photo, when still approved/not deleted —
+      // see coverPhotoId's schema comment. A separate lookup (rather than
+      // reusing `photos` above) since the cover photo's own `createdAt` may
+      // not be the oldest, so it wouldn't necessarily appear there first.
+      // `in: []` is a valid, cheap Prisma no-op query — no need to branch.
+      this.prisma.photo.findMany({
+        where: { id: { in: coverPhotoIds }, deletedAt: null, status: 'approved' },
       }),
     ]);
     const hoursByRestaurant = new Map<string, typeof openingHours>();
@@ -633,6 +656,7 @@ export class RestaurantService {
         firstPhotoByRestaurant.set(photo.ownerId, photo.storageKey);
       }
     }
+    const coverPhotoById = new Map(coverPhotos.map((p) => [p.id, p.storageKey]));
 
     const vnNow = toVnNow(new Date());
 
@@ -642,7 +666,10 @@ export class RestaurantService {
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
       categoryLabel: row.category_label,
-      thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
+      thumbnailUrl:
+        (row.cover_photo_id && coverPhotoById.get(row.cover_photo_id)) ||
+        firstPhotoByRestaurant.get(row.id) ||
+        null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,
       priceRange: row.price_code

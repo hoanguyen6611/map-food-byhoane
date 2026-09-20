@@ -188,4 +188,8 @@ export const adminRestaurantsApi = {
 
   deletePhoto: (photoId: string) =>
     apiClient.delete<void>(`/admin/restaurants/photos/${photoId}`),
+
+  /** `photoId: null` clears the explicit choice, falling back to the oldest-photo default. */
+  setCoverPhoto: (id: string, photoId: string | null) =>
+    apiClient.put<void>(`/admin/restaurants/${id}/cover-photo`, { photoId }),
 }

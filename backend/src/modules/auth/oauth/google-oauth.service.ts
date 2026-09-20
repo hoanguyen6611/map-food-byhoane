@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 
@@ -16,6 +16,7 @@ export interface VerifiedOAuthIdentity {
 // audience here doesn't create a second identity per user.
 @Injectable()
 export class GoogleOAuthService {
+  private readonly logger = new Logger(GoogleOAuthService.name);
   private readonly client: OAuth2Client;
   private readonly audiences: string[];
 
@@ -42,7 +43,15 @@ export class GoogleOAuthService {
         throw new UnauthorizedException('Google ID token không hợp lệ');
       }
       return { subjectId: payload.sub, email: payload.email.toLowerCase() };
-    } catch {
+    } catch (error) {
+      // The client-facing message stays generic (never leak *why* a token
+      // was rejected), but the real cause — almost always a misconfigured
+      // audience, e.g. GOOGLE_OAUTH_WEB_CLIENT_ID unset/wrong, or the
+      // backend not restarted after adding it to .env — must be visible
+      // somewhere, or every failure here is undebuggable from the outside.
+      this.logger.warn(
+        `Google ID token rejected (configured audiences: [${this.audiences.map((a) => a.slice(0, 12) + '…').join(', ') || 'none'}]): ${error instanceof Error ? error.message : error}`,
+      );
       throw new UnauthorizedException(
         'Google ID token không hợp lệ hoặc đã hết hạn',
       );

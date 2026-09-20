@@ -33,6 +33,7 @@ import { ReplaceOpeningHoursDto } from './dto/opening-hours.dto';
 import { ReplaceFacilitiesDto } from './dto/facilities.dto';
 import { CreateMenuItemDto, UpdateMenuItemDto } from './dto/menu-item.dto';
 import { AttachPhotoDto } from './dto/attach-photo.dto';
+import { SetCoverPhotoDto } from './dto/set-cover-photo.dto';
 
 // `admin` and `moderator` share every action here EXCEPT hard delete
 // (see the DELETE :id handler below) — that split is the explicit
@@ -171,5 +172,15 @@ export class AdminRestaurantController {
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
     return this.adminRestaurantService.removePhoto(photoId, user.id);
+  }
+
+  @Put(':id/cover-photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  setCoverPhoto(
+    @Param('id') id: string,
+    @Body() dto: SetCoverPhotoDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    return this.adminRestaurantService.setCoverPhoto(id, dto.photoId, user.id);
   }
 }

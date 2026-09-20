@@ -20,11 +20,13 @@ import { adminMediaApi } from '../../api/admin-media'
 interface PhotosSectionProps {
   restaurantId: string
   photos: PhotoDto[]
+  /** Which photo (if any) is the explicitly-chosen "ảnh đại diện" — null falls back to the oldest-photo default. */
+  coverPhotoId: string | null
 }
 
 const MAX_PHOTOS = 10
 
-export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
+export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSectionProps) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -44,6 +46,12 @@ export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
     mutationFn: (photoId: string) => adminRestaurantsApi.deletePhoto(photoId),
     onSuccess: invalidate,
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa ảnh.'),
+  })
+
+  const coverMutation = useMutation({
+    mutationFn: (photoId: string) => adminRestaurantsApi.setCoverPhoto(restaurantId, photoId),
+    onSuccess: invalidate,
+    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể đặt ảnh đại diện.'),
   })
 
   async function handleFiles(fileList: FileList | null) {
@@ -86,19 +94,31 @@ export function PhotosSection({ restaurantId, photos }: PhotosSectionProps) {
       <h2>Ảnh</h2>
 
       <div className="photo-grid">
-        {photos.map((photo) => (
-          <div key={photo.id} className="photo-tile">
-            <img src={photo.url} alt="" loading="lazy" />
-            <button
-              type="button"
-              className="button button-small button-danger"
-              disabled={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate(photo.id)}
-            >
-              Xóa
-            </button>
-          </div>
-        ))}
+        {photos.map((photo) => {
+          const isCover = photo.id === coverPhotoId
+          return (
+            <div key={photo.id} className="photo-tile">
+              <img src={photo.url} alt="" loading="lazy" />
+              <button
+                type="button"
+                className={`button button-small ${isCover ? 'button-primary' : ''}`}
+                disabled={coverMutation.isPending || isCover}
+                title={isCover ? 'Đang là ảnh đại diện' : 'Đặt làm ảnh đại diện'}
+                onClick={() => coverMutation.mutate(photo.id)}
+              >
+                {isCover ? '★ Ảnh đại diện' : '☆ Đặt đại diện'}
+              </button>
+              <button
+                type="button"
+                className="button button-small button-danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(photo.id)}
+              >
+                Xóa
+              </button>
+            </div>
+          )
+        })}
         {photos.length < MAX_PHOTOS && (
           <label className="photo-tile photo-tile-add">
             <span>{isUploading ? 'Đang tải lên…' : '+ Thêm ảnh'}</span>

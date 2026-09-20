@@ -314,6 +314,14 @@ model Restaurant {
   submitter         User?              @relation("SubmittedRestaurants", fields: [submittedBy], references: [id])
   ownerId           String?            @map("owner_id")
   owner             User?              @relation("OwnedRestaurants", fields: [ownerId], references: [id])
+  // User/admin-chosen "ảnh đại diện" — when set (and the photo is still
+  // approved/not deleted), this is `thumbnailUrl` instead of the oldest
+  // approved photo (the previous, purely-emergent default). Nullable: a
+  // restaurant with no explicit choice, or whose chosen photo got removed,
+  // just falls back to that same old behavior — see
+  // RestaurantService/SearchService's thumbnail-resolution comment.
+  coverPhotoId      String?            @unique @map("cover_photo_id")
+  coverPhoto        Photo?             @relation("RestaurantCoverPhoto", fields: [coverPhotoId], references: [id], onDelete: SetNull)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   deletedAt         DateTime?          @map("deleted_at")
@@ -501,6 +509,10 @@ model Photo {
   moderationResult   ModerationResult? @relation(fields: [moderationResultId], references: [id])
   createdAt          DateTime          @default(now()) @map("created_at")
   deletedAt          DateTime?         @map("deleted_at")
+  // Reverse side of Restaurant.coverPhoto — a bare pointer-back, never
+  // queried from this side (no fields/references here, the FK lives on
+  // Restaurant).
+  coverOfRestaurant  Restaurant?       @relation("RestaurantCoverPhoto")
 
   @@index([ownerType, ownerId])
   @@map("photos")

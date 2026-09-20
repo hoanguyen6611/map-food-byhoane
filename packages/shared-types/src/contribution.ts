@@ -2,7 +2,7 @@
 // ContributionModule — the community submission flow (add restaurant, edit
 // suggestions, status reports). Moderation is the rule-based stand-in
 // (ContributionModerationService), not a real AIGateway call this pass.
-import type { LocationDto, OpeningHourDto } from './restaurant-detail';
+import type { LocationDto } from './restaurant-detail';
 import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from './restaurant';
 
 export type ContributionType = 'new_restaurant' | 'edit_suggestion' | 'status_update' | 'closure_report';
@@ -44,6 +44,18 @@ export interface CreateRestaurantAddressInput {
   province: string;
 }
 
+// Deliberately narrower than the admin/detail `OpeningHourDto` (no
+// isOpen24h/openTime2/closeTime2) — matches exactly what
+// ContributionOpeningHourDto validates server-side. A community submission
+// only ever needs "open X–Y" or "closed" per day; the richer per-day admin
+// shape is a power-tool for AdminRestaurantService, not this form.
+export interface ContributionOpeningHourInput {
+  dayOfWeek: number;
+  openTime?: string;
+  closeTime?: string;
+  isClosed: boolean;
+}
+
 export interface CreateRestaurantContributionRequest {
   name: string;
   description?: string;
@@ -53,7 +65,10 @@ export interface CreateRestaurantContributionRequest {
   address: CreateRestaurantAddressInput;
   location: LocationDto;
   cuisineCodes?: CuisineCode[];
-  openingHours?: OpeningHourDto[];
+  // When provided, must contain exactly 7 entries (one per dayOfWeek) —
+  // enforced server-side (@ArrayMinSize(7) @ArrayMaxSize(7)), not just by
+  // this type.
+  openingHours?: ContributionOpeningHourInput[];
   facilities?: FacilityType[];
   menuItems?: MenuItemInputDto[];
   // At least one photo required across photoIds+photoUrls combined —
@@ -64,6 +79,11 @@ export interface CreateRestaurantContributionRequest {
   // by URL, deliberately bypassing that pipeline — see MediaService.attachExternalUrls.
   photoIds?: string[];
   photoUrls?: string[];
+  // Must be one of `photoUrls` (or a `photoIds`-resolved photo, once mobile
+  // wires this up) — which upload becomes the restaurant's public
+  // thumbnail/gallery-hero, instead of whichever happened to be created
+  // first. Optional: omitting it keeps the old "first photo" behavior.
+  coverPhotoUrl?: string;
   // Must be true to proceed past a 409 duplicate-candidates response.
   duplicateConfirmed?: boolean;
 }

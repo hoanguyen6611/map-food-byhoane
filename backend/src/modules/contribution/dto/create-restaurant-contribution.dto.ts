@@ -187,6 +187,14 @@ export class CreateRestaurantContributionDto {
   @IsUrl({}, { each: true })
   photoUrls?: string[];
 
+  // Which of `photoUrls` becomes the restaurant's public thumbnail/gallery
+  // hero — validated against the actual submitted URLs in
+  // ContributionService (an arbitrary URL here would be meaningless), not
+  // just format-checked here.
+  @IsOptional()
+  @IsUrl()
+  coverPhotoUrl?: string;
+
   @IsOptional()
   @IsBoolean()
   duplicateConfirmed?: boolean;

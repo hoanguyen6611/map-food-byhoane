@@ -116,7 +116,7 @@ export function AdminFacilityManagementPage() {
               />
             </label>
             <label className="form-field">
-              <span>Icon (không bắt buộc)</span>
+              <span>Icon (tùy chọn)</span>
               <input
                 type="text"
                 value={newIcon}

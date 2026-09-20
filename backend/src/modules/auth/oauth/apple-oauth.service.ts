@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { VerifiedOAuthIdentity } from './google-oauth.service';
@@ -19,6 +19,7 @@ const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
 // needed (out of scope here — this service only authenticates identity).
 @Injectable()
 export class AppleOAuthService {
+  private readonly logger = new Logger(AppleOAuthService.name);
   private readonly jwks = createRemoteJWKSet(new URL(APPLE_JWKS_URL));
   private readonly audiences: string[];
 
@@ -48,7 +49,13 @@ export class AppleOAuthService {
         throw new UnauthorizedException('Apple ID token không hợp lệ');
       }
       return { subjectId, email };
-    } catch {
+    } catch (error) {
+      // Same reasoning as GoogleOAuthService's catch block — keep the
+      // client-facing message generic, but log the real cause (wrong/missing
+      // APPLE_OAUTH_WEB_CLIENT_ID, unverified domain, expired token, ...).
+      this.logger.warn(
+        `Apple ID token rejected (configured audiences: [${this.audiences.map((a) => a.slice(0, 12) + '…').join(', ') || 'none'}]): ${error instanceof Error ? error.message : error}`,
+      );
       throw new UnauthorizedException(
         'Apple ID token không hợp lệ hoặc đã hết hạn',
       );

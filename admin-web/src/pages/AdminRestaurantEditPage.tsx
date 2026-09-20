@@ -208,7 +208,11 @@ export function AdminRestaurantEditPage() {
           <OpeningHoursSection restaurantId={id} openingHours={detailQuery.data.openingHours} />
           <FacilitiesSection restaurantId={id} facilities={detailQuery.data.facilities} />
           <MenuSection restaurantId={id} menus={detailQuery.data.menus} />
-          <PhotosSection restaurantId={id} photos={detailQuery.data.photos} />
+          <PhotosSection
+            restaurantId={id}
+            photos={detailQuery.data.photos}
+            coverPhotoId={detailQuery.data.coverPhotoId}
+          />
         </>
       )}
     </div>

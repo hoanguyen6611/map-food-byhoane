@@ -45,6 +45,7 @@ interface RawRow {
   lng: Prisma.Decimal;
   distance_meters: number | null;
   text_rank: number;
+  cover_photo_id: string | null;
 }
 
 export interface SearchContext {
@@ -168,6 +169,7 @@ export class SearchService {
         r.id,
         r.slug,
         r.name,
+        r.cover_photo_id,
         rc.code AS category_code,
         rc.label AS category_label,
         rs.composite_score,
@@ -240,7 +242,10 @@ export class SearchService {
     if (rows.length === 0) return [];
 
     const restaurantIds = rows.map((r) => r.id);
-    const [openingHours, photos] = await Promise.all([
+    const coverPhotoIds = rows
+      .map((r) => r.cover_photo_id)
+      .filter((id): id is string => id !== null);
+    const [openingHours, photos, coverPhotos] = await Promise.all([
       this.prisma.openingHour.findMany({
         where: { restaurantId: { in: restaurantIds } },
       }),
@@ -251,6 +256,12 @@ export class SearchService {
           deletedAt: null,
         },
         orderBy: { createdAt: 'asc' },
+      }),
+      // A restaurant's chosen cover photo, when still not deleted — see
+      // Restaurant.coverPhotoId's schema comment. `in: []` is a valid, cheap
+      // Prisma no-op query when nothing in this page has one set.
+      this.prisma.photo.findMany({
+        where: { id: { in: coverPhotoIds }, deletedAt: null },
       }),
     ]);
     const hoursByRestaurant = new Map<string, typeof openingHours>();
@@ -271,6 +282,9 @@ export class SearchService {
         );
       }
     }
+    const coverPhotoById = new Map(
+      coverPhotos.map((p) => [p.id, this.s3.publicUrl(p.storageKey)]),
+    );
     const vnNow = toVnNow(new Date());
 
     return rows.map((row) => ({
@@ -279,7 +293,10 @@ export class SearchService {
       name: row.name,
       categoryCode: row.category_code as RestaurantCategoryCode,
       categoryLabel: row.category_label,
-      thumbnailUrl: firstPhotoByRestaurant.get(row.id) ?? null,
+      thumbnailUrl:
+        (row.cover_photo_id && coverPhotoById.get(row.cover_photo_id)) ||
+        firstPhotoByRestaurant.get(row.id) ||
+        null,
       compositeScore: row.composite_score ? Number(row.composite_score) : null,
       reviewCount: row.review_count,
       priceRange: row.price_code

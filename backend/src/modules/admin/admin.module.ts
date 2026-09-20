@@ -6,6 +6,7 @@ import { ContributionModule } from '../contribution/contribution.module';
 import { NotificationModule } from '../notification/notification.module';
 import { ReviewModule } from '../review/review.module';
 import { RevalidationModule } from '../revalidation/revalidation.module';
+import { MediaModule } from '../media/media.module';
 import { AdminRestaurantController } from './admin-restaurant.controller';
 import { AdminRestaurantService } from './admin-restaurant.service';
 import { AdminUserController } from './admin-user.controller';
@@ -44,6 +45,7 @@ import { PhotoService } from './photo.service';
     NotificationModule,
     ReviewModule,
     RevalidationModule,
+    MediaModule,
   ],
   controllers: [
     AdminRestaurantController,

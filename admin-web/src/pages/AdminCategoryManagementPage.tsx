@@ -116,7 +116,7 @@ export function AdminCategoryManagementPage() {
               />
             </label>
             <label className="form-field">
-              <span>Icon (không bắt buộc)</span>
+              <span>Icon (tùy chọn)</span>
               <CategoryIconSelect value={newIcon} disabled={createMutation.isPending} onChange={setNewIcon} />
             </label>
           </div>

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { upload } from '@imagekit/next';
 import type { MediaOwnerType } from '@foodmap/shared-types';
+import { StarIcon } from './icons';
 
 export interface UploadedPhoto {
   /** ImageKit's fileId — needed to delete the file via api/imagekit-delete. */
@@ -24,6 +25,16 @@ interface Props {
   maxPhotos?: number;
   /** Used only to namespace the ImageKit upload folder (e.g. `/foodmap/restaurant`) — organizational, not a security boundary. */
   ownerType: MediaOwnerType;
+  /**
+   * "Ảnh đại diện" (cover photo) — the `url` of whichever uploaded photo is
+   * currently chosen, or `null` before the first upload. Lifted to the
+   * parent (AddRestaurantForm) rather than kept as local state here, since
+   * the form needs it at submit time to send `coverPhotoUrl`. Omitted
+   * entirely by callers with no cover concept (WriteReviewForm's review
+   * photos) — the star-picker UI just doesn't render for those.
+   */
+  coverUrl?: string | null;
+  onCoverChange?: (url: string | null) => void;
 }
 
 /**
@@ -35,7 +46,14 @@ interface Props {
  * magic-byte sniff + AI moderation); see MediaService.attachExternalUrls's
  * doc comment for that tradeoff.
  */
-export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }: Props) {
+export function PhotoUploadField({
+  photos,
+  onChange,
+  maxPhotos = 10,
+  ownerType,
+  coverUrl = null,
+  onCoverChange,
+}: Props) {
   const t = useTranslations('addRestaurant');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +96,11 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
       }
       if (hadError) setError(t('photoUploadError'));
       onChange([...photos, ...uploaded]);
+      // Defaults to the first photo ever uploaded so most contributors (who
+      // don't care which one leads) never have to think about this —
+      // matches the pre-existing "oldest photo wins" convention, just made
+      // explicit/durable instead of an accident of upload order.
+      if (!coverUrl && uploaded.length > 0) onCoverChange?.(uploaded[0].url);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -85,7 +108,13 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
   }
 
   async function removePhoto(fileId: string) {
-    onChange(photos.filter((p) => p.fileId !== fileId));
+    const removed = photos.find((p) => p.fileId === fileId);
+    const remaining = photos.filter((p) => p.fileId !== fileId);
+    onChange(remaining);
+    // Removing the current cover falls back to whatever's left (or nothing,
+    // once the array is empty) — never leaves coverUrl pointing at a photo
+    // that's no longer in the list.
+    if (removed?.url === coverUrl) onCoverChange?.(remaining[0]?.url ?? null);
     // Best-effort — see api/imagekit-delete's doc comment.
     fetch(`/api/imagekit-delete/${fileId}`, { method: 'DELETE' }).catch(() => undefined);
   }
@@ -93,17 +122,31 @@ export function PhotoUploadField({ photos, onChange, maxPhotos = 10, ownerType }
   return (
     <div className="photo-upload-field">
       <div className="photo-upload-grid">
-        {photos.map((photo) => (
-          // eslint-disable-next-line @next/next/no-img-element -- previews of
-          // freshly-uploaded ImageKit files, not worth next/image's remote-pattern
-          // config churn for a handful of thumbnails in a one-off form.
-          <div className="photo-upload-thumb" key={photo.fileId}>
-            <img src={photo.url} alt="" />
-            <button type="button" onClick={() => removePhoto(photo.fileId)} aria-label={t('removePhoto')}>
-              ×
-            </button>
-          </div>
-        ))}
+        {photos.map((photo) => {
+          const isCover = onCoverChange && photo.url === coverUrl;
+          return (
+            // eslint-disable-next-line @next/next/no-img-element -- previews of
+            // freshly-uploaded ImageKit files, not worth next/image's remote-pattern
+            // config churn for a handful of thumbnails in a one-off form.
+            <div className={`photo-upload-thumb ${isCover ? 'photo-upload-thumb-cover' : ''}`} key={photo.fileId}>
+              <img src={photo.url} alt="" />
+              <button type="button" onClick={() => removePhoto(photo.fileId)} aria-label={t('removePhoto')}>
+                ×
+              </button>
+              {onCoverChange ? (
+                <button
+                  type="button"
+                  className="photo-upload-cover-btn"
+                  aria-pressed={isCover}
+                  title={isCover ? t('coverPhotoSelected') : t('setCoverPhoto')}
+                  onClick={() => onCoverChange(photo.url)}
+                >
+                  <StarIcon filled={isCover} size={13} />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
         {photos.length < maxPhotos ? (
           <label className="photo-upload-add">
             {uploading ? t('uploading') : `+ ${t('addPhoto')}`}

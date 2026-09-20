@@ -580,6 +580,42 @@ export class AdminRestaurantService {
     };
   }
 
+  /**
+   * "Ảnh đại diện" — `photoId: null` (or omitted) clears the explicit
+   * choice, falling back to the oldest-approved-photo default everywhere
+   * thumbnailUrl is derived (RestaurantService/SearchService).
+   */
+  async setCoverPhoto(
+    restaurantId: string,
+    photoId: string | null | undefined,
+    actorId: string,
+  ): Promise<void> {
+    if (photoId) {
+      // Must actually belong to this restaurant — an admin picking a photo
+      // id copy-pasted from elsewhere would otherwise silently point the
+      // cover at an unrelated restaurant's image.
+      const photo = await this.prisma.photo.findFirst({
+        where: { id: photoId, ownerType: 'restaurant', ownerId: restaurantId },
+      });
+      if (!photo) {
+        throw new BadRequestException('Ảnh này không thuộc về quán ăn này');
+      }
+    }
+    await this.prisma.restaurant.update({
+      where: { id: restaurantId },
+      data: { coverPhotoId: photoId ?? null },
+    });
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.cover_photo.set',
+      targetType: 'restaurant',
+      targetId: restaurantId,
+      afterState: { coverPhotoId: photoId ?? null },
+    });
+    await this.restaurantService.invalidateViewportCache();
+    void this.revalidateRestaurant(restaurantId);
+  }
+
   async removePhoto(photoId: string, actorId: string): Promise<void> {
     const photo = await this.prisma.photo.findUnique({
       where: { id: photoId },

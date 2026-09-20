@@ -8,6 +8,7 @@
  * needs to be hand-redeclared here.
  */
 import type {
+  AdminModerationDetailDto,
   AdminModerationQueueItemDto,
   ModerationDecisionRequest,
   ModerationDecision,
@@ -40,6 +41,10 @@ export const adminModerationApi = {
     apiClient.get<Paginated<AdminModerationQueueItemDto>>(
       `/admin/moderation-queue${buildListQueryString(query)}`,
     ),
+
+  /** Fetched on demand ("Xem chi tiết") — the full submission behind a row's one-line summary. */
+  getDetail: (moderationResultId: string) =>
+    apiClient.get<AdminModerationDetailDto>(`/admin/moderation-queue/${moderationResultId}/detail`),
 
   /** `reason` is required unless `decision === 'approved'` — enforced server-side too. */
   decide: (moderationResultId: string, body: ModerationDecisionRequest) =>

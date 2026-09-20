@@ -94,6 +94,12 @@ export interface RestaurantDetailDto {
   facilities: FacilityType[];
   menus: MenuDto[];
   photos: PhotoDto[];
+  // Which of `photos` (if any) is the explicitly-chosen "ảnh đại diện" —
+  // null means no explicit choice, so the public thumbnail/gallery-hero
+  // falls back to the oldest approved photo (see RestaurantService's
+  // coverPhotoId schema comment). Admin-web's photo picker uses this to
+  // highlight the current choice.
+  coverPhotoId: string | null;
   // Only platforms that actually have a URL set — same "don't fabricate
   // sections you have no real data for" convention as `facilities`/
   // `cuisineCodes` above. Empty array is normal/common, not an error.

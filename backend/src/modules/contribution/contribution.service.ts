@@ -285,6 +285,29 @@ export class ContributionService {
           );
         }
 
+        // "Ảnh đại diện" — only trusted when it's actually one of the URLs
+        // just attached above (an arbitrary URL here would be meaningless,
+        // and `attachExternalUrls` stores each url verbatim as `storageKey`,
+        // so this is a plain lookup, not a fuzzy match). Silently ignored
+        // otherwise rather than a hard error — the restaurant still gets
+        // created fine, just without an explicit cover (same "first photo"
+        // fallback as before this feature existed).
+        if (dto.coverPhotoUrl && dto.photoUrls?.includes(dto.coverPhotoUrl)) {
+          const coverPhoto = await tx.photo.findFirst({
+            where: {
+              ownerType: 'restaurant',
+              ownerId: restaurant.id,
+              storageKey: dto.coverPhotoUrl,
+            },
+          });
+          if (coverPhoto) {
+            await tx.restaurant.update({
+              where: { id: restaurant.id },
+              data: { coverPhotoId: coverPhoto.id },
+            });
+          }
+        }
+
         const contribution = await tx.contribution.create({
           data: {
             id: randomUUID(),

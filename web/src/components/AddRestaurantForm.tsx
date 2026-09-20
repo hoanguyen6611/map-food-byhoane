@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { LocateIcon } from '@/components/icons';
-import { CUISINE_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import { VN_PROVINCES, type CategoryDto, type CuisineCode, type DuplicateCandidateDto } from '@foodmap/shared-types';
+import { FacilityIcon, LocateIcon } from '@/components/icons';
+import { CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { VN_PROVINCES, type CategoryDto, type CuisineCode, type DuplicateCandidateDto, type FacilityType } from '@foodmap/shared-types';
 
 type Phase =
   | { kind: 'form' }
@@ -31,6 +31,7 @@ export function AddRestaurantForm({ categories }: Props) {
   const [priceRangeCode, setPriceRangeCode] = useState('');
   const [phone, setPhone] = useState('');
   const [cuisineCodes, setCuisineCodes] = useState<CuisineCode[]>([]);
+  const [facilityCodes, setFacilityCodes] = useState<FacilityType[]>([]);
   const [line, setLine] = useState('');
   const [provinceCode, setProvinceCode] = useState('');
   const [wardCode, setWardCode] = useState('');
@@ -38,18 +39,40 @@ export function AddRestaurantForm({ categories }: Props) {
   const [lng, setLng] = useState('');
   const [mapLink, setMapLink] = useState('');
   const [linkStatus, setLinkStatus] = useState<'idle' | 'resolving' | 'resolved' | 'error'>('idle');
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'resolved' | 'unsupported' | 'denied' | 'error'>('idle');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  // Deliberately simple: one open/close time applied to every day, plus
+  // which days (if any) are closed — not the admin panel's full per-day
+  // grid (per-day times + 24h + split lunch/dinner range). A community
+  // contributor filling this in on the public site just needs "we're open
+  // roughly X–Y, closed on Z" to be one glance, not a 7-row form.
+  const [hasOpeningHours, setHasOpeningHours] = useState(false);
+  const [openTime, setOpenTime] = useState('');
+  const [closeTime, setCloseTime] = useState('');
+  const [closedDays, setClosedDays] = useState<number[]>([]);
   const [phase, setPhase] = useState<Phase>({ kind: 'form' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function useMyLocation() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((position) => {
-      setLat(String(position.coords.latitude));
-      setLng(String(position.coords.longitude));
-      setMapLink('');
-      setLinkStatus('idle');
-    });
+    if (!navigator.geolocation) {
+      setGeoStatus('unsupported');
+      return;
+    }
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLat(String(position.coords.latitude));
+        setLng(String(position.coords.longitude));
+        setMapLink('');
+        setLinkStatus('idle');
+        setGeoStatus('resolved');
+      },
+      (error) => {
+        setGeoStatus(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
   async function resolveMapLink(link: string) {
@@ -71,6 +94,14 @@ export function AddRestaurantForm({ categories }: Props) {
     setCuisineCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   }
 
+  function toggleFacility(code: FacilityType) {
+    setFacilityCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+  }
+
+  function toggleClosedDay(dayOfWeek: number) {
+    setClosedDays((prev) => (prev.includes(dayOfWeek) ? prev.filter((d) => d !== dayOfWeek) : [...prev, dayOfWeek]));
+  }
+
   const selectedProvince = useMemo(() => VN_PROVINCES.find((p) => p.code === provinceCode), [provinceCode]);
   const provinceOptions = useMemo(() => VN_PROVINCES.map((p) => ({ value: p.code, label: p.shortName })), []);
   const wardOptions = useMemo(
@@ -83,6 +114,14 @@ export function AddRestaurantForm({ categories }: Props) {
     setWardCode('');
   }
 
+  // A restaurant can't sensibly be "closed every single day" while the
+  // opening-hours toggle is on — that combo silently discards the open/close
+  // time the contributor typed (nothing is left to attach it to) and looks
+  // to them like the form ate their input. Block submission instead of
+  // saving it, so it surfaces immediately rather than as a support report
+  // days later. See: restaurant 79356ddc-6196-42ec-92d4-7c28177aab79.
+  const allDaysMarkedClosed = closedDays.length === 7;
+
   const canSubmit =
     name.trim().length >= 2 &&
     categoryCode !== '' &&
@@ -91,7 +130,8 @@ export function AddRestaurantForm({ categories }: Props) {
     wardCode !== '' &&
     lat !== '' &&
     lng !== '' &&
-    photos.length > 0;
+    photos.length > 0 &&
+    !(hasOpeningHours && allDaysMarkedClosed);
 
   async function submit(duplicateConfirmed: boolean) {
     if (!canSubmit || !selectedProvince) return;
@@ -107,7 +147,16 @@ export function AddRestaurantForm({ categories }: Props) {
       address: { line: line.trim(), ward: ward.name, province: selectedProvince.name },
       location: { lat: Number(lat), lng: Number(lng) },
       cuisineCodes: cuisineCodes.length > 0 ? cuisineCodes : undefined,
+      facilities: facilityCodes.length > 0 ? facilityCodes : undefined,
+      openingHours:
+        hasOpeningHours && openTime && closeTime
+          ? Array.from({ length: 7 }, (_, dayOfWeek) => {
+              const isClosed = closedDays.includes(dayOfWeek);
+              return { dayOfWeek, isClosed, openTime: isClosed ? undefined : openTime, closeTime: isClosed ? undefined : closeTime };
+            })
+          : undefined,
       photoUrls: photos.map((p) => p.url),
+      coverPhotoUrl: coverUrl ?? undefined,
       duplicateConfirmed,
     });
     setIsSubmitting(false);
@@ -227,6 +276,23 @@ export function AddRestaurantForm({ categories }: Props) {
         </div>
       </div>
 
+      <div className="login-field">
+        <span>{t('facilitiesLabel')}</span>
+        <div className="chip-row">
+          {FACILITY_OPTIONS.map((code) => (
+            <button
+              key={code}
+              type="button"
+              className={`chip chip-toggle ${facilityCodes.includes(code) ? 'chip-selected' : ''}`}
+              onClick={() => toggleFacility(code)}
+            >
+              <FacilityIcon path={FACILITY_ICON_PATH[code]} size={13} />
+              {tLabels(`facilityLabel.${code}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <label className="login-field">
         <span>{t('phoneLabel')}</span>
         <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -299,16 +365,86 @@ export function AddRestaurantForm({ categories }: Props) {
             {t('mapLinkError')}
           </p>
         ) : null}
-        <button type="button" className="use-location-btn" onClick={useMyLocation}>
+        <button type="button" className="use-location-btn" disabled={geoStatus === 'locating'} onClick={useMyLocation}>
           <LocateIcon size={16} />
-          {t('useMyLocation')}
+          {geoStatus === 'locating' ? t('useMyLocationLocating') : t('useMyLocation')}
         </button>
+        {geoStatus === 'denied' ? (
+          <p className="write-review-error" role="alert">
+            {t('useMyLocationDenied')}
+          </p>
+        ) : null}
+        {geoStatus === 'unsupported' ? (
+          <p className="write-review-error" role="alert">
+            {t('useMyLocationUnsupported')}
+          </p>
+        ) : null}
+        {geoStatus === 'error' ? (
+          <p className="write-review-error" role="alert">
+            {t('useMyLocationError')}
+          </p>
+        ) : null}
       </div>
 
       <div className="login-field">
         <span>{t('photosLabel')}</span>
-        <PhotoUploadField photos={photos} onChange={setPhotos} ownerType="restaurant" />
+        <PhotoUploadField
+          photos={photos}
+          onChange={setPhotos}
+          ownerType="restaurant"
+          coverUrl={coverUrl}
+          onCoverChange={setCoverUrl}
+        />
       </div>
+
+      <div className="filter-toggle-row">
+        <div className="filter-toggle-text">
+          <span className="filter-toggle-title">{t('openingHoursLabel')}</span>
+          <span className="filter-toggle-sub">{t('openingHoursSubLabel')}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={hasOpeningHours}
+          aria-label={t('openingHoursLabel')}
+          className={`toggle-switch ${hasOpeningHours ? 'toggle-switch-on' : 'toggle-switch-off'}`}
+          onClick={() => setHasOpeningHours((v) => !v)}
+        >
+          <span className="toggle-knob" />
+        </button>
+      </div>
+      {hasOpeningHours && (
+        <div className="opening-hours-fields">
+          <div className="opening-hours-time-row">
+            <label className="login-field">
+              <span>{t('openingHoursOpenLabel')}</span>
+              <input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
+            </label>
+            <label className="login-field">
+              <span>{t('openingHoursCloseLabel')}</span>
+              <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
+            </label>
+          </div>
+          <span className="opening-hours-days-label">{t('openingHoursClosedDaysLabel')}</span>
+          <div className="chip-row">
+            {Array.from({ length: 7 }, (_, dayOfWeek) => (
+              <button
+                key={dayOfWeek}
+                type="button"
+                className={`chip chip-toggle ${closedDays.includes(dayOfWeek) ? 'chip-selected' : ''}`}
+                onClick={() => toggleClosedDay(dayOfWeek)}
+              >
+                {tLabels(`day.${dayOfWeek}`)}
+              </button>
+            ))}
+          </div>
+          {allDaysMarkedClosed ? (
+            <p className="write-review-error" role="alert">
+              {t('openingHoursAllClosedError')}
+            </p>
+          ) : null}
+        </div>
+      )}
 
       <button type="submit" className="write-review-submit" disabled={isSubmitting || !canSubmit}>
         {isSubmitting ? t('submitting') : t('submit')}
