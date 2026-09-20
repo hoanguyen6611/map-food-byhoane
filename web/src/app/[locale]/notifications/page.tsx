@@ -141,9 +141,6 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
           })}
         </div>
       )}
-      <p style={{ marginTop: 20 }}>
-        <Link href="/">{tCommon('home')}</Link>
-      </p>
     </div>
   );
 }
