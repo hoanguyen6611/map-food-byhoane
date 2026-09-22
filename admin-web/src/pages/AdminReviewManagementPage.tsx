@@ -74,6 +74,7 @@ export function AdminReviewManagementPage() {
 
   const hideMutation = useMutation({
     mutationFn: (id: string) => adminReviewsApi.hide(id),
+    meta: { successMessage: 'Đã ẩn đánh giá.' },
     onSuccess: () => {
       invalidate()
       setActionError(null)
@@ -82,6 +83,7 @@ export function AdminReviewManagementPage() {
   })
   const restoreMutation = useMutation({
     mutationFn: (id: string) => adminReviewsApi.restore(id),
+    meta: { successMessage: 'Đã khôi phục đánh giá.' },
     onSuccess: () => {
       invalidate()
       setActionError(null)
@@ -90,6 +92,7 @@ export function AdminReviewManagementPage() {
   })
   const removeMutation = useMutation({
     mutationFn: (id: string) => adminReviewsApi.remove(id),
+    meta: { successMessage: 'Đã xoá đánh giá.' },
     onSuccess: () => {
       invalidate()
       setActionError(null)

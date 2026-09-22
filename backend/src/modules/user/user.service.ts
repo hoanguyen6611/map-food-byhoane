@@ -1,20 +1,29 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import type { MeResponse } from '@foodmap/shared-types';
+import { Prisma } from '@prisma/client';
+import type { CuisineCode, MeResponse } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
+import { GamificationService } from './gamification.service';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { RequestUser } from '../auth/auth.types';
+
+const isUniqueConstraintViolation = (
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mediaService: MediaService,
+    private readonly gamificationService: GamificationService,
   ) {}
 
   async getMe(currentUser: RequestUser): Promise<MeResponse> {
@@ -26,12 +35,15 @@ export class UserService {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
+    const gamification = await this.gamificationService.computeForUser(user.id);
+
     return {
       user: {
         id: user.id,
         email: user.email,
         role: user.role.code,
         status: user.status,
+        createdAt: user.createdAt.toISOString(),
       },
       profile: {
         displayName: user.profile.displayName,
@@ -39,7 +51,13 @@ export class UserService {
         avatarUrl: await this.resolveAvatarUrl(user.profile.avatarPhotoId),
         bio: user.profile.bio,
         homeCity: user.profile.homeCity,
+        username: user.profile.username,
+        isPublic: user.profile.isPublic,
+        facebookUrl: user.profile.facebookUrl,
+        instagramUrl: user.profile.instagramUrl,
+        favoriteCuisines: user.profile.favoriteCuisines as CuisineCode[],
       },
+      gamification,
     };
   }
 
@@ -79,24 +97,97 @@ export class UserService {
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      if (dto.phone !== undefined) {
-        await tx.user.update({
-          where: { id: currentUser.id },
-          data: { phone: dto.phone },
-        });
+    // Unknown cuisine codes are silently dropped, same convention as
+    // contribution.service.ts's cuisineCodes handling — a stale/typo'd code
+    // from an older client build shouldn't hard-fail the whole save.
+    let favoriteCuisines: string[] | undefined;
+    if (dto.favoriteCuisines !== undefined) {
+      const known = await this.prisma.cuisine.findMany({
+        where: { code: { in: dto.favoriteCuisines } },
+        select: { code: true },
+      });
+      const knownCodes = new Set(known.map((c) => c.code));
+      favoriteCuisines = dto.favoriteCuisines.filter((c) => knownCodes.has(c));
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (dto.phone !== undefined) {
+          await tx.user.update({
+            where: { id: currentUser.id },
+            data: { phone: dto.phone },
+          });
+        }
+        const profileData: Record<string, unknown> = {};
+        if (dto.displayName !== undefined)
+          profileData.displayName = dto.displayName;
+        if (dto.avatarPhotoId !== undefined)
+          profileData.avatarPhotoId = dto.avatarPhotoId;
+        if (dto.bio !== undefined) profileData.bio = dto.bio;
+        if (dto.homeCity !== undefined) profileData.homeCity = dto.homeCity;
+        if (dto.username !== undefined) profileData.username = dto.username;
+        if (dto.isPublic !== undefined) profileData.isPublic = dto.isPublic;
+        if (dto.facebookUrl !== undefined)
+          profileData.facebookUrl = dto.facebookUrl;
+        if (dto.instagramUrl !== undefined)
+          profileData.instagramUrl = dto.instagramUrl;
+        if (favoriteCuisines !== undefined)
+          profileData.favoriteCuisines = favoriteCuisines;
+        if (Object.keys(profileData).length > 0) {
+          await tx.userProfile.update({
+            where: { userId: currentUser.id },
+            data: profileData,
+          });
+        }
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictException('Tên người dùng này đã được sử dụng.');
       }
-      const profileData: Record<string, unknown> = {};
-      if (dto.displayName !== undefined)
-        profileData.displayName = dto.displayName;
-      if (dto.avatarPhotoId !== undefined)
-        profileData.avatarPhotoId = dto.avatarPhotoId;
-      if (dto.bio !== undefined) profileData.bio = dto.bio;
-      if (dto.homeCity !== undefined) profileData.homeCity = dto.homeCity;
-      if (Object.keys(profileData).length > 0) {
+      throw error;
+    }
+
+    return this.getMe(currentUser);
+  }
+
+  /**
+   * Separate from `updateProfile()` because web's avatar picker uploads via
+   * ImageKit (a URL), unlike `avatarPhotoId` which expects an already-owned
+   * Photo id from the S3/MediaModule flow mobile's AvatarPicker uses. Reuses
+   * `MediaService.attachExternalUrls` (already ImageKit-origin-validated,
+   * already auto-approves — see its doc comment) rather than reinventing
+   * upload plumbing. The per-owner photo cap for `user_profile` is 1, so any
+   * previous avatar is deleted first — otherwise a second upload would always
+   * fail the cap check.
+   */
+  async updateAvatar(
+    currentUser: RequestUser,
+    photoUrl: string | null,
+  ): Promise<MeResponse> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.photo.deleteMany({
+        where: { ownerType: 'user_profile', ownerId: currentUser.id },
+      });
+      if (photoUrl) {
+        await this.mediaService.attachExternalUrls(
+          currentUser.id,
+          'user_profile',
+          currentUser.id,
+          [photoUrl],
+          tx,
+        );
+        const photo = await tx.photo.findFirst({
+          where: { ownerType: 'user_profile', ownerId: currentUser.id },
+          orderBy: { createdAt: 'desc' },
+        });
         await tx.userProfile.update({
           where: { userId: currentUser.id },
-          data: profileData,
+          data: { avatarPhotoId: photo?.id ?? null },
+        });
+      } else {
+        await tx.userProfile.update({
+          where: { userId: currentUser.id },
+          data: { avatarPhotoId: null },
         });
       }
     });
@@ -130,6 +221,10 @@ export class UserService {
           avatarPhotoId: null,
           bio: null,
           homeCity: null,
+          username: null,
+          facebookUrl: null,
+          instagramUrl: null,
+          favoriteCuisines: [],
         },
       }),
       this.prisma.refreshToken.updateMany({

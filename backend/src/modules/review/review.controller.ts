@@ -16,6 +16,9 @@ import type {
   MyReviewListResponse,
   ReviewDto,
   ReviewListResponse,
+  ReviewReplyDto,
+  ReviewReplyListResponse,
+  ToggleHelpfulResponse,
 } from '@foodmap/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../auth/guards/rate-limit.guard';
@@ -27,6 +30,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewListQueryDto } from './dto/review-list-query.dto';
 import { MyReviewListQueryDto } from './dto/my-review-list-query.dto';
+import { CreateReviewReplyDto } from './dto/create-review-reply.dto';
 
 @ApiTags('Reviews')
 @ApiBearerAuth('access-token')
@@ -65,6 +69,41 @@ export class ReviewController {
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
     await this.reviewService.remove(id, user.id);
+  }
+
+  @Post(':id/helpful')
+  @UseGuards(JwtAuthGuard)
+  toggleHelpful(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ToggleHelpfulResponse> {
+    return this.reviewService.toggleHelpful(id, user.id);
+  }
+
+  @Get(':id/replies')
+  listReplies(@Param('id') id: string): Promise<ReviewReplyListResponse> {
+    return this.reviewService.listReplies(id);
+  }
+
+  @Post(':id/replies')
+  @UseGuards(JwtAuthGuard)
+  createReply(
+    @Param('id') id: string,
+    @Body() dto: CreateReviewReplyDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ReviewReplyDto> {
+    return this.reviewService.createReply(id, user.id, dto.body);
+  }
+
+  @Delete(':id/replies/:replyId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeReply(
+    @Param('id') id: string,
+    @Param('replyId') replyId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    await this.reviewService.removeReply(id, replyId, user.id);
   }
 }
 

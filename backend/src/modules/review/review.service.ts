@@ -15,6 +15,9 @@ import type {
   ReviewCriteriaCode,
   ReviewDto,
   ReviewListResponse,
+  ReviewReplyDto,
+  ReviewReplyListResponse,
+  ToggleHelpfulResponse,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
@@ -204,7 +207,7 @@ export class ReviewService {
     const [rows, total] = await Promise.all([
       this.prisma.review.findMany({
         where,
-        include: { ...REVIEW_INCLUDE, restaurant: true },
+        include: { ...REVIEW_INCLUDE, restaurant: { include: { address: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -213,17 +216,30 @@ export class ReviewService {
     ]);
 
     const restaurantIds = rows.map((r) => r.restaurantId);
-    const thumbnailByRestaurantId =
-      await this.batchFetchRestaurantThumbnails(restaurantIds);
-    const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
+    const reviewIds = rows.map((r) => r.id);
+    const [thumbnailByRestaurantId, photosByReviewId, avatarUrlByReviewId, countsByReviewId] =
+      await Promise.all([
+        this.batchFetchRestaurantThumbnails(restaurantIds),
+        this.batchFetchPhotos(reviewIds),
+        this.batchFetchAvatarUrls(rows.map((r) => r.user.profile?.avatarPhotoId ?? null)),
+        this.batchFetchHelpfulReplyCounts(reviewIds),
+      ]);
 
     return {
       items: rows.map((r) => ({
-        ...this.toDto(r, photosByReviewId.get(r.id) ?? []),
+        ...this.toDto(
+          r,
+          photosByReviewId.get(r.id) ?? [],
+          avatarUrlByReviewId.get(r.user.profile?.avatarPhotoId ?? '') ?? null,
+          countsByReviewId.get(r.id) ?? { helpfulCount: 0, replyCount: 0, viewerHasMarkedHelpful: false },
+          'owner',
+        ),
         restaurant: {
           id: r.restaurant.id,
           name: r.restaurant.name,
+          slug: r.restaurant.slug,
           thumbnailUrl: thumbnailByRestaurantId.get(r.restaurantId) ?? null,
+          ward: r.restaurant.address?.ward ?? null,
         },
       })),
       total,
@@ -266,11 +282,10 @@ export class ReviewService {
       ...(query.filter ? { overallRating: query.filter } : {}),
     };
 
-    // 'most_helpful' still degrades to 'newest' — there's no helpfulness-vote
-    // model anywhere in scope. 'has_photos' now genuinely reorders (gap-fix:
-    // Module 7's photo pipeline exists now, unlike when this comment was
-    // originally written) — see fetchHasPhotosOrder for why it needs its own
-    // path rather than a plain `orderBy`.
+    // 'has_photos' needs its own path (see listForRestaurantSortedByPhotos'
+    // doc comment for why). 'most_helpful' now genuinely reorders — real
+    // ReviewHelpfulVote rows exist as of this session, so it no longer needs
+    // to silently degrade to 'newest'.
     const [rows, total] =
       query.sort === 'has_photos'
         ? await this.listForRestaurantSortedByPhotos(where, page, pageSize)
@@ -278,7 +293,10 @@ export class ReviewService {
             this.prisma.review.findMany({
               where,
               include: REVIEW_INCLUDE,
-              orderBy: { createdAt: 'desc' },
+              orderBy:
+                query.sort === 'most_helpful'
+                  ? { helpfulVotes: { _count: 'desc' } }
+                  : { createdAt: 'desc' },
               skip: (page - 1) * pageSize,
               take: pageSize,
             }),
@@ -286,10 +304,22 @@ export class ReviewService {
           ]);
 
     const criteria = await this.prisma.reviewCriteria.findMany();
-    const photosByReviewId = await this.batchFetchPhotos(rows.map((r) => r.id));
+    const reviewIds = rows.map((r) => r.id);
+    const [photosByReviewId, avatarUrlByReviewId, countsByReviewId] = await Promise.all([
+      this.batchFetchPhotos(reviewIds),
+      this.batchFetchAvatarUrls(rows.map((r) => r.user.profile?.avatarPhotoId ?? null)),
+      this.batchFetchHelpfulReplyCounts(reviewIds),
+    ]);
 
     return {
-      items: rows.map((r) => this.toDto(r, photosByReviewId.get(r.id) ?? [])),
+      items: rows.map((r) =>
+        this.toDto(
+          r,
+          photosByReviewId.get(r.id) ?? [],
+          avatarUrlByReviewId.get(r.user.profile?.avatarPhotoId ?? '') ?? null,
+          countsByReviewId.get(r.id) ?? { helpfulCount: 0, replyCount: 0, viewerHasMarkedHelpful: false },
+        ),
+      ),
       total,
       page,
       pageSize,
@@ -504,14 +534,20 @@ export class ReviewService {
     });
   }
 
+  // Only ever called right after the author's own create()/applyUpdate() —
+  // 'owner' viewContext, same reasoning as listMine.
   private async getByIdOrThrow(id: string): Promise<ReviewDto> {
     const review = await this.prisma.review.findUniqueOrThrow({
       where: { id },
       include: REVIEW_INCLUDE,
     });
-    const photos = await this.prisma.photo.findMany({
-      where: { ownerType: 'review', ownerId: id, deletedAt: null },
-    });
+    const [photos, avatarUrlByReviewId, countsByReviewId] = await Promise.all([
+      this.prisma.photo.findMany({
+        where: { ownerType: 'review', ownerId: id, deletedAt: null },
+      }),
+      this.batchFetchAvatarUrls([review.user.profile?.avatarPhotoId ?? null]),
+      this.batchFetchHelpfulReplyCounts([id]),
+    ]);
     return this.toDto(
       review,
       photos.map((p) => ({
@@ -520,6 +556,9 @@ export class ReviewService {
         width: p.width,
         height: p.height,
       })),
+      avatarUrlByReviewId.get(review.user.profile?.avatarPhotoId ?? '') ?? null,
+      countsByReviewId.get(id) ?? { helpfulCount: 0, replyCount: 0, viewerHasMarkedHelpful: false },
+      'owner',
     );
   }
 
@@ -551,6 +590,138 @@ export class ReviewService {
     return map;
   }
 
+  /** Keyed by Photo.id (avatarPhotoId), not user id — mirrors batchFetchRestaurantThumbnails. */
+  private async batchFetchAvatarUrls(
+    avatarPhotoIds: (string | null)[],
+  ): Promise<Map<string, string>> {
+    const ids = Array.from(new Set(avatarPhotoIds.filter((id): id is string => id !== null)));
+    if (ids.length === 0) return new Map();
+    const photos = await this.prisma.photo.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+    });
+    return new Map(photos.map((p) => [p.id, this.mediaService.resolveUrl(p.storageKey)]));
+  }
+
+  private async batchFetchHelpfulReplyCounts(
+    reviewIds: string[],
+  ): Promise<Map<string, { helpfulCount: number; replyCount: number; viewerHasMarkedHelpful: boolean }>> {
+    const map = new Map<
+      string,
+      { helpfulCount: number; replyCount: number; viewerHasMarkedHelpful: boolean }
+    >();
+    if (reviewIds.length === 0) return map;
+    const [helpfulGroups, replyGroups] = await Promise.all([
+      this.prisma.reviewHelpfulVote.groupBy({
+        by: ['reviewId'],
+        where: { reviewId: { in: reviewIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.reviewReply.groupBy({
+        by: ['reviewId'],
+        where: { reviewId: { in: reviewIds }, deletedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
+    for (const id of reviewIds) {
+      map.set(id, { helpfulCount: 0, replyCount: 0, viewerHasMarkedHelpful: false });
+    }
+    for (const g of helpfulGroups) {
+      map.get(g.reviewId)!.helpfulCount = g._count._all;
+    }
+    for (const g of replyGroups) {
+      map.get(g.reviewId)!.replyCount = g._count._all;
+    }
+    return map;
+  }
+
+  /** Toggles the current user's helpful vote on a published review. */
+  async toggleHelpful(reviewId: string, userId: string): Promise<ToggleHelpfulResponse> {
+    const review = await this.prisma.review.findFirst({
+      where: { id: reviewId, deletedAt: null },
+    });
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+    const existing = await this.prisma.reviewHelpfulVote.findUnique({
+      where: { reviewId_userId: { reviewId, userId } },
+    });
+    if (existing) {
+      await this.prisma.reviewHelpfulVote.delete({ where: { id: existing.id } });
+    } else {
+      await this.prisma.reviewHelpfulVote.create({ data: { reviewId, userId } });
+    }
+    const helpfulCount = await this.prisma.reviewHelpfulVote.count({ where: { reviewId } });
+    return { helpfulCount, viewerHasMarkedHelpful: !existing };
+  }
+
+  async listReplies(reviewId: string): Promise<ReviewReplyListResponse> {
+    const replies = await this.prisma.reviewReply.findMany({
+      where: { reviewId, deletedAt: null },
+      include: { user: { include: { profile: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const avatarUrlByPhotoId = await this.batchFetchAvatarUrls(
+      replies.map((r) => r.user.profile?.avatarPhotoId ?? null),
+    );
+    return {
+      items: replies.map((r) => this.toReplyDto(r, avatarUrlByPhotoId)),
+    };
+  }
+
+  async createReply(reviewId: string, userId: string, body: string): Promise<ReviewReplyDto> {
+    const review = await this.prisma.review.findFirst({
+      where: { id: reviewId, deletedAt: null },
+    });
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+    const created = await this.prisma.reviewReply.create({
+      data: { reviewId, userId, body },
+      include: { user: { include: { profile: true } } },
+    });
+    const avatarUrlByPhotoId = await this.batchFetchAvatarUrls([
+      created.user.profile?.avatarPhotoId ?? null,
+    ]);
+    return this.toReplyDto(created, avatarUrlByPhotoId);
+  }
+
+  async removeReply(reviewId: string, replyId: string, userId: string): Promise<void> {
+    const reply = await this.prisma.reviewReply.findFirst({
+      where: { id: replyId, reviewId, deletedAt: null },
+    });
+    if (!reply) {
+      throw new NotFoundException('Không tìm thấy phản hồi');
+    }
+    if (reply.userId !== userId) {
+      throw new ForbiddenException('Bạn không có quyền xoá phản hồi này');
+    }
+    await this.prisma.reviewReply.update({
+      where: { id: replyId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  private toReplyDto(
+    reply: {
+      id: string;
+      body: string;
+      createdAt: Date;
+      user: { id: string; profile: { displayName: string; avatarPhotoId: string | null } | null };
+    },
+    avatarUrlByPhotoId: Map<string, string>,
+  ): ReviewReplyDto {
+    return {
+      id: reply.id,
+      author: {
+        id: reply.user.id,
+        displayName: reply.user.profile?.displayName ?? 'Người dùng ẩn danh',
+        avatarUrl: avatarUrlByPhotoId.get(reply.user.profile?.avatarPhotoId ?? '') ?? null,
+      },
+      body: reply.body,
+      createdAt: reply.createdAt.toISOString(),
+    };
+  }
+
   private async buildRatingBreakdown(
     restaurantId: string,
     criteria: { id: string; code: string; label: string }[],
@@ -573,13 +744,30 @@ export class ReviewService {
     });
   }
 
-  private toDto(review: ReviewWithRelations, photos: PhotoDto[]): ReviewDto {
+  // `avatarUrl` is resolved by the caller (needs an async Photo lookup,
+  // batched across a whole page of reviews — see batchFetchAvatarUrls).
+  // `viewContext: 'public'` anonymizes an author whose profile has
+  // `isPublic: false` to "Người dùng ẩn danh" + no avatar — used by every
+  // read path except MyReviewController's `listMine` ('owner'), since a
+  // user always sees their own real name/avatar on their own reviews
+  // regardless of that toggle (it only controls how OTHERS see them).
+  private toDto(
+    review: ReviewWithRelations,
+    photos: PhotoDto[],
+    avatarUrl: string | null,
+    counts: { helpfulCount: number; replyCount: number; viewerHasMarkedHelpful: boolean },
+    viewContext: 'owner' | 'public' = 'public',
+  ): ReviewDto {
+    const anonymize = viewContext === 'public' && review.user.profile?.isPublic === false;
     return {
       id: review.id,
       restaurantId: review.restaurantId,
       author: {
         id: review.user.id,
-        displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh',
+        displayName: anonymize
+          ? 'Người dùng ẩn danh'
+          : (review.user.profile?.displayName ?? 'Người dùng ẩn danh'),
+        avatarUrl: anonymize ? null : avatarUrl,
       },
       overallRating: review.overallRating,
       ratings: review.ratings.map((r) => ({
@@ -597,6 +785,9 @@ export class ReviewService {
       editedAt: review.editedAt?.toISOString() ?? null,
       createdAt: review.createdAt.toISOString(),
       photos,
+      helpfulCount: counts.helpfulCount,
+      replyCount: counts.replyCount,
+      viewerHasMarkedHelpful: counts.viewerHasMarkedHelpful,
     };
   }
 

@@ -37,6 +37,7 @@ function MenuItemRow({ restaurantId, item }: MenuItemRowProps) {
   const updateMutation = useMutation({
     mutationFn: (body: Parameters<typeof adminRestaurantsApi.updateMenuItem>[1]) =>
       adminRestaurantsApi.updateMenuItem(item.id, body),
+    meta: { successMessage: 'Đã lưu món.' },
     onSuccess: () => {
       setIsEditing(false)
       setError(null)
@@ -47,6 +48,7 @@ function MenuItemRow({ restaurantId, item }: MenuItemRowProps) {
 
   const deleteMutation = useMutation({
     mutationFn: () => adminRestaurantsApi.deleteMenuItem(item.id),
+    meta: { successMessage: 'Đã xoá món.' },
     onSuccess: invalidate,
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa món.'),
   })
@@ -157,6 +159,7 @@ function AddMenuItemForm({ restaurantId }: AddMenuItemFormProps) {
 
   const mutation = useMutation({
     mutationFn: (body: CreateMenuItemBody) => adminRestaurantsApi.createMenuItem(restaurantId, body),
+    meta: { successMessage: 'Đã thêm món.' },
     onSuccess: () => {
       setName('')
       setPriceVnd('')

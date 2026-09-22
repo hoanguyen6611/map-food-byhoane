@@ -235,7 +235,7 @@ export const vi = {
     noAiSummary: 'Chưa có tóm tắt AI cho quán này — sẽ xuất hiện khi có đủ đánh giá.',
     unfavorite: 'Bỏ yêu thích quán này',
     favorite: 'Yêu thích quán này',
-    favorited: 'Đã lưu',
+    favorited: 'Cập nhập thành công',
     favoriteAction: 'Yêu thích',
     directions: 'Chỉ đường',
     report: 'Báo cáo',

@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
+import { GamificationService } from './gamification.service';
 
 // Favorites (build-prompts/08-favorites-notifications-polish.md) join this
 // module later — profile/account concerns are implemented now per
@@ -13,6 +14,6 @@ import { UserService } from './user.service';
 @Module({
   imports: [AuthModule, MediaModule],
   controllers: [UserController],
-  providers: [UserService],
+  providers: [UserService, GamificationService],
 })
 export class UserModule {}

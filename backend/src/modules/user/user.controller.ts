@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { UserService } from './user.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto';
 
 @ApiTags('User (me)')
 @ApiBearerAuth('access-token')
@@ -34,6 +35,14 @@ export class UserController {
     @Body() dto: UpdateProfileDto,
   ): Promise<MeResponse> {
     return this.userService.updateProfile(user, dto);
+  }
+
+  @Patch('avatar')
+  updateAvatar(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateAvatarDto,
+  ): Promise<MeResponse> {
+    return this.userService.updateAvatar(user, dto.photoUrl ?? null);
   }
 
   @Delete()

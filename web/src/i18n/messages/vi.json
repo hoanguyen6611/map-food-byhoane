@@ -2,6 +2,7 @@
   "common": {
     "siteDescription": "Bản đồ ẩm thực Việt Nam — tìm quán ăn, quán cà phê, nhà hàng phù hợp nhất với bạn, không chỉ gần bạn nhất.",
     "noResultsFound": "Không tìm thấy kết quả",
+    "actionError": "Có lỗi xảy ra. Vui lòng thử lại.",
     "skipToContent": "Bỏ qua để đến nội dung chính",
     "homeAriaLabel": "The Food Map of Vietnam — về trang chủ",
     "mainNav": "Điều hướng chính",
@@ -151,6 +152,9 @@
     "similarHeading": "Quán tương tự",
     "reportLabel": "Báo cáo",
     "helpfulLabel": "Hữu ích",
+    "replyCountLabel": "{count} phản hồi",
+    "replyPlaceholder": "Viết phản hồi…",
+    "replySubmit": "Gửi",
     "openUntil": "đến {time}",
     "reviewCountShort": "{count} đánh giá",
     "viewCount": "{count} lượt xem"
@@ -163,7 +167,10 @@
   "errorPage": {
     "title": "Đã có lỗi xảy ra",
     "body": "Không thể tải trang này ngay bây giờ. Vui lòng thử lại sau ít phút.",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "sessionExpiredTitle": "Phiên đăng nhập đã hết hạn",
+    "sessionExpiredBody": "Vui lòng đăng nhập lại để tiếp tục sử dụng trang này.",
+    "signInAgain": "Đăng nhập lại"
   },
   "auth": {
     "title": "Đăng nhập",
@@ -246,6 +253,20 @@
       "4": "Thứ Năm",
       "5": "Thứ Sáu",
       "6": "Thứ Bảy"
+    },
+    "criteria": {
+      "food_quality": "Chất lượng món ăn",
+      "space": "Không gian",
+      "price": "Giá cả",
+      "service": "Phục vụ",
+      "hygiene": "Vệ sinh",
+      "wifi": "Wifi",
+      "parking": "Chỗ để xe"
+    },
+    "badge": {
+      "contributor_10": "Đóng góp 10 quán mới",
+      "coffee_hunter": "Thợ săn cà phê",
+      "helpful_100": "100 lượt hữu ích"
     }
   },
   "writeReview": {
@@ -269,21 +290,57 @@
   "profile": {
     "title": "Hồ sơ của tôi",
     "editHeading": "Chỉnh sửa hồ sơ",
-    "reviewCountLabel": "Đánh giá đã viết",
+    "editSubheading": "Thông tin này hiển thị công khai cùng đánh giá của bạn",
+    "reviewCountLabel": "Đánh giá",
+    "photoCountLabel": "Ảnh đã đăng",
+    "savedCountLabel": "Quán đã lưu",
+    "helpfulCountLabel": "Lượt hữu ích",
     "displayNameLabel": "Tên hiển thị",
-    "homeCityLabel": "Tỉnh/Thành phố",
+    "usernameLabel": "Tên người dùng",
+    "usernamePlaceholder": "vd: hoanglong",
+    "homeCityLabel": "Khu vực",
     "homeCityPlaceholder": "Chọn tỉnh/thành",
     "bioLabel": "Giới thiệu",
+    "favoriteCuisinesLabel": "Món ưa thích",
+    "socialLinksLabel": "Liên kết mạng xã hội",
+    "avatarLabel": "Ảnh đại diện",
+    "avatarUpload": "Tải ảnh lên",
+    "avatarUseInitials": "Dùng chữ viết tắt",
+    "avatarUploading": "Đang tải…",
+    "avatarUploadError": "Không tải được ảnh. Vui lòng thử lại.",
+    "avatarHint": "JPG hoặc PNG, tối đa 8 MB",
+    "publicToggleLabel": "Hiện hồ sơ công khai",
+    "publicToggleSub": "Tắt thì đánh giá của bạn hiển thị dưới tên ẩn danh",
+    "cancel": "Huỷ",
     "save": "Lưu thay đổi",
     "saving": "Đang lưu…",
-    "saved": "Đã lưu!",
+    "saved": "Cập nhập thành công",
     "saveError": "Có lỗi khi lưu hồ sơ. Vui lòng thử lại.",
     "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
-    "myReviewsHeading": "Đánh giá của tôi",
+    "levelBadge": "Người đóng góp cấp {level}",
+    "joinedOn": "Tham gia {date}",
+    "levelProgressHeading": "Tiến độ lên cấp",
+    "levelRulesLink": "Quy định tính điểm →",
+    "pointsToNextLevel": "Còn {points} điểm nữa để lên cấp {level}",
+    "maxLevelReached": "Đã đạt cấp cao nhất",
+    "reviewsTab": "Đánh giá",
+    "savedTab": "Đã lưu",
+    "photosTab": "Ảnh",
+    "settingsTab": "Cài đặt",
     "noReviews": "Bạn chưa viết đánh giá nào.",
-    "contributionCountLabel": "Quán đã thêm",
-    "myContributionsHeading": "Quán tôi đã thêm",
-    "noContributions": "Bạn chưa thêm quán nào.",
+    "noSaved": "Bạn chưa lưu quán nào.",
+    "noPhotos": "Bạn chưa đăng ảnh nào.",
+    "edit": "Sửa",
+    "delete": "Xoá",
+    "confirmDelete": "Xác nhận xoá",
+    "reviewDeleted": "Đã xoá đánh giá",
+    "deleteReviewError": "Không xoá được đánh giá. Vui lòng thử lại.",
+    "reviewUpdated": "Đã cập nhật đánh giá",
+    "editReviewHeading": "Chỉnh sửa đánh giá",
+    "deleteAccountHeading": "Xoá tài khoản",
+    "deleteAccountBody": "Tài khoản của bạn sẽ bị vô hiệu hoá và ẩn danh hoá. Đánh giá và đóng góp trước đó vẫn được giữ lại nhưng không còn gắn với hồ sơ của bạn.",
+    "deleteAccountCta": "Xoá tài khoản của tôi",
+    "deleteAccountError": "Không xoá được tài khoản. Vui lòng thử lại.",
     "status": {
       "pending": "Đang chờ duyệt",
       "rejected": "Đã từ chối",
@@ -327,7 +384,8 @@
       "cach-cham-diem": "Cách chấm điểm",
       "tieu-chi": "7 tiêu chí",
       "kiem-duyet": "Kiểm duyệt đánh giá",
-      "du-lieu": "Nguồn dữ liệu"
+      "du-lieu": "Nguồn dữ liệu",
+      "cap-do-thanh-vien": "Cấp độ thành viên"
     },
     "score": {
       "title": "Điểm của một quán được tính thế nào",
@@ -369,6 +427,32 @@
       "source2Name": "Đóng góp quán mới",
       "source2Body": "ai cũng có thể thêm một quán chưa có trên bản đồ — hệ thống kiểm duyệt nhanh trước khi hiển thị công khai.",
       "disclaimer": "Dữ liệu quán hiển thị có thể chưa đầy đủ với mọi quán tại TP. Hồ Chí Minh — hệ thống phát triển dần theo đóng góp của cộng đồng."
+    },
+    "levels": {
+      "title": "Cấp độ thành viên được tính thế nào",
+      "body": "Mỗi hoạt động thật trên tài khoản của bạn được cộng điểm — điểm càng cao, cấp độ càng tăng. Không có cách nào mua hay làm giả điểm: mọi con số đều tính trực tiếp từ đánh giá, đóng góp và lượt hữu ích thật của bạn, tính lại mỗi khi bạn mở trang hồ sơ.",
+      "factReview": "điểm / đánh giá được duyệt",
+      "factContribution": "điểm / quán đóng góp được duyệt",
+      "factHelpful": "điểm / lượt hữu ích nhận được",
+      "thresholdsTitle": "Mốc lên cấp",
+      "levelLabel": "Cấp {level}",
+      "levelThreshold": "Từ {points} điểm",
+      "badgesTitle": "Huy hiệu thành tích",
+      "badges": {
+        "contributor_10": {
+          "title": "Đóng góp 10 quán mới",
+          "body": "Đạt được khi có từ 10 quán bạn đóng góp đã được duyệt và hiển thị công khai."
+        },
+        "coffee_hunter": {
+          "title": "Thợ săn cà phê",
+          "body": "Đạt được khi bạn đã viết từ 10 đánh giá được duyệt cho các quán thuộc danh mục Quán cà phê."
+        },
+        "helpful_100": {
+          "title": "100 lượt hữu ích",
+          "body": "Đạt được khi tổng số lượt \"Hữu ích\" người khác dành cho đánh giá của bạn đạt từ 100 trở lên."
+        }
+      },
+      "disclaimer": "Huy hiệu và cấp độ chỉ mang tính ghi nhận đóng góp — không ảnh hưởng đến điểm số hay thứ hạng của quán ăn."
     }
   },
   "addRestaurant": {

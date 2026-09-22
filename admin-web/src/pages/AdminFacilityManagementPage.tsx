@@ -40,6 +40,7 @@ export function AdminFacilityManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: () => adminFacilitiesApi.create({ code: newCode.trim(), label: newLabel.trim(), icon: newIcon.trim() || undefined }),
+    meta: { successMessage: 'Đã thêm tiện ích.' },
     onSuccess: () => {
       setNewCode('')
       setNewLabel('')
@@ -52,6 +53,7 @@ export function AdminFacilityManagementPage() {
 
   const updateMutation = useMutation({
     mutationFn: (id: string) => adminFacilitiesApi.update(id, { label: editLabel.trim(), icon: editIcon.trim() || undefined }),
+    meta: { successMessage: 'Đã lưu tiện ích.' },
     onSuccess: () => {
       setEditingId(null)
       setActionError(null)
@@ -62,6 +64,7 @@ export function AdminFacilityManagementPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFacilitiesApi.remove(id),
+    meta: { successMessage: 'Đã xoá tiện ích.' },
     onSuccess: () => {
       setActionError(null)
       invalidate()

@@ -46,6 +46,7 @@ export function AdminRestaurantEditPage() {
 
   const createMutation = useMutation({
     mutationFn: (body: CreateRestaurantBody) => adminRestaurantsApi.create(body),
+    meta: { successMessage: 'Đã tạo nhà hàng.' },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] })
       navigate(`/restaurants/${created.id}`, { replace: true })
@@ -56,6 +57,7 @@ export function AdminRestaurantEditPage() {
 
   const updateMutation = useMutation({
     mutationFn: (body: CreateRestaurantBody) => adminRestaurantsApi.update(id!, body),
+    meta: { successMessage: 'Đã lưu thông tin nhà hàng.' },
     onSuccess: () => {
       setSavedCore(true)
       setUpdateError(null)
@@ -70,6 +72,7 @@ export function AdminRestaurantEditPage() {
 
   const hideMutation = useMutation({
     mutationFn: () => adminRestaurantsApi.hide(id!),
+    meta: { successMessage: 'Đã ẩn nhà hàng.' },
     onSuccess: () => {
       setStatusError(null)
       queryClient.invalidateQueries({ queryKey: ['admin-restaurant', id] })
@@ -81,6 +84,7 @@ export function AdminRestaurantEditPage() {
 
   const restoreMutation = useMutation({
     mutationFn: () => adminRestaurantsApi.restore(id!),
+    meta: { successMessage: 'Đã khôi phục nhà hàng.' },
     onSuccess: () => {
       setStatusError(null)
       queryClient.invalidateQueries({ queryKey: ['admin-restaurant', id] })
@@ -92,6 +96,7 @@ export function AdminRestaurantEditPage() {
 
   const deleteMutation = useMutation({
     mutationFn: () => adminRestaurantsApi.remove(id!),
+    meta: { successMessage: 'Đã xoá nhà hàng.' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] })
       navigate('/restaurants', { replace: true })

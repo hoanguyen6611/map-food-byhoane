@@ -122,18 +122,21 @@ export function AdminRestaurantManagementPage() {
 
   const hideMutation = useMutation({
     mutationFn: (id: string) => adminRestaurantsApi.hide(id),
+    meta: { successMessage: 'Đã ẩn quán.' },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] }),
     onError: reportError,
   })
 
   const restoreMutation = useMutation({
     mutationFn: (id: string) => adminRestaurantsApi.restore(id),
+    meta: { successMessage: 'Đã khôi phục quán.' },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] }),
     onError: reportError,
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminRestaurantsApi.remove(id),
+    meta: { successMessage: 'Đã xoá quán.' },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] }),
     onError: reportError,
   })

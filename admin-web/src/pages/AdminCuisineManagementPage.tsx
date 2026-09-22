@@ -40,6 +40,7 @@ export function AdminCuisineManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: () => adminCuisinesApi.create({ code: newCode.trim(), label: newLabel.trim() }),
+    meta: { successMessage: 'Đã thêm ẩm thực.' },
     onSuccess: () => {
       setNewCode('')
       setNewLabel('')
@@ -51,6 +52,7 @@ export function AdminCuisineManagementPage() {
 
   const updateMutation = useMutation({
     mutationFn: (id: string) => adminCuisinesApi.update(id, { label: editLabel.trim() }),
+    meta: { successMessage: 'Đã lưu ẩm thực.' },
     onSuccess: () => {
       setEditingId(null)
       setActionError(null)
@@ -61,6 +63,7 @@ export function AdminCuisineManagementPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminCuisinesApi.remove(id),
+    meta: { successMessage: 'Đã xoá ẩm thực.' },
     onSuccess: () => {
       setActionError(null)
       invalidate()

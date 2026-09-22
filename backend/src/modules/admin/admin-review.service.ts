@@ -164,6 +164,9 @@ export class AdminReviewService {
       author: {
         id: review.user.id,
         displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh',
+        // Admin moderation queue doesn't render avatars — not worth the
+        // extra Photo lookup for a list that's purely text-based today.
+        avatarUrl: null,
       },
       overallRating: review.overallRating,
       comment: review.comment,

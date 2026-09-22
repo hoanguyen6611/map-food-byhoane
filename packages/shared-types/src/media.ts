@@ -31,3 +31,22 @@ export interface ConfirmUploadRequest {
   // — the photo is created "unattached" and reparented later.
   ownerId?: string;
 }
+
+// Backs the profile page's "Ảnh" tab — every photo this user has ever
+// uploaded (any ownerType), regardless of which restaurant/review it ended
+// up attached to.
+export interface MyPhotoDto {
+  id: string;
+  url: string;
+  width: number | null;
+  height: number | null;
+  ownerType: MediaOwnerType;
+  createdAt: string;
+}
+
+export interface MyPhotoListResponse {
+  items: MyPhotoDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

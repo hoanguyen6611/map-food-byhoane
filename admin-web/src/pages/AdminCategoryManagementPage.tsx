@@ -40,6 +40,7 @@ export function AdminCategoryManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: () => adminCategoriesApi.create({ code: newCode.trim(), label: newLabel.trim(), icon: newIcon.trim() || undefined }),
+    meta: { successMessage: 'Đã thêm danh mục.' },
     onSuccess: () => {
       setNewCode('')
       setNewLabel('')
@@ -52,6 +53,7 @@ export function AdminCategoryManagementPage() {
 
   const updateMutation = useMutation({
     mutationFn: (id: string) => adminCategoriesApi.update(id, { label: editLabel.trim(), icon: editIcon.trim() || undefined }),
+    meta: { successMessage: 'Đã lưu danh mục.' },
     onSuccess: () => {
       setEditingId(null)
       setActionError(null)
@@ -62,6 +64,7 @@ export function AdminCategoryManagementPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminCategoriesApi.remove(id),
+    meta: { successMessage: 'Đã xoá danh mục.' },
     onSuccess: () => {
       setActionError(null)
       invalidate()

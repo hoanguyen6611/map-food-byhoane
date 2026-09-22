@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
+import { ToastProvider } from '@/components/ToastProvider';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SITE_NAME } from '@/lib/constants';
@@ -65,18 +66,20 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
     <html lang={locale} className={`${archivo.variable} ${interTight.variable} ${figtree.variable}`}>
       <body>
         <NextIntlClientProvider>
-          <FavoritesProvider>
-            <a href="#main-content" className="skip-link">
-              {t('skipToContent')}
-            </a>
-            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
-              <SiteTopBar />
-              <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {children}
-              </main>
-              <SiteFooter />
-            </div>
-          </FavoritesProvider>
+          <ToastProvider>
+            <FavoritesProvider>
+              <a href="#main-content" className="skip-link">
+                {t('skipToContent')}
+              </a>
+              <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+                <SiteTopBar />
+                <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  {children}
+                </main>
+                <SiteFooter />
+              </div>
+            </FavoritesProvider>
+          </ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

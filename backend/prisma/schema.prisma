@@ -114,6 +114,8 @@ model User {
   notifications           Notification[]
   pushTokens              PushToken[]
   contributions           Contribution[]
+  reviewHelpfulVotes      ReviewHelpfulVote[]
+  reviewReplies           ReviewReply[]
   reportsFiled            Report[]             @relation("ReportedBy")
   reportsResolved         Report[]             @relation("ReportResolvedBy")
   crowdedStatusReports    CrowdedStatus[]      @relation("CrowdedStatusReportedBy")
@@ -172,6 +174,16 @@ model UserProfile {
   avatarPhotoId String?  @map("avatar_photo_id")
   bio           String?
   homeCity      String?  @map("home_city")
+  // @handle, distinct from the DB row id — chosen/settable once by the user.
+  username         String?  @unique
+  // Controls whether this user's real displayName/avatar appear on THEIR
+  // reviews as seen by other people (ReviewService anonymizes to "Người dùng
+  // ẩn danh" otherwise) — not a general profile-visibility/blocking feature,
+  // there is still no "view someone else's profile" route.
+  isPublic         Boolean  @default(true) @map("is_public")
+  facebookUrl      String?  @map("facebook_url")
+  instagramUrl     String?  @map("instagram_url")
+  favoriteCuisines String[] @default([]) @map("favorite_cuisines")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -561,6 +573,8 @@ model Review {
   deletedAt       DateTime?    @map("deleted_at")
 
   ratings ReviewRating[]
+  helpfulVotes ReviewHelpfulVote[]
+  replies      ReviewReply[]
 
   // "One active review per user per restaurant" (docs/06-database-erd.md §5)
   // needs a PARTIAL unique index (`WHERE deleted_at IS NULL`), which Prisma's
@@ -570,6 +584,38 @@ model Review {
   // new review after a prior one was soft-deleted.
   @@index([restaurantId, status])
   @@map("reviews")
+}
+
+// A real, per-user toggle backing the profile page's "Lượt hữu ích" stat and
+// each review's helpful count — replaces the old presentational-only
+// "Hữu ích" button that had no backend behind it (see ReviewCard.tsx's prior
+// doc comment).
+model ReviewHelpfulVote {
+  id        String   @id @default(uuid())
+  reviewId  String   @map("review_id")
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([reviewId, userId])
+  @@map("review_helpful_votes")
+}
+
+// Flat (non-nested) replies on a review — any authenticated user may reply,
+// same moderation-free trust level as a review's own comment text.
+model ReviewReply {
+  id        String    @id @default(uuid())
+  reviewId  String    @map("review_id")
+  review    Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([reviewId])
+  @@map("review_replies")
 }
 
 model ReviewRating {

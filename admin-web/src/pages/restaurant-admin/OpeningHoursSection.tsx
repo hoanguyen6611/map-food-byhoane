@@ -58,6 +58,7 @@ export function OpeningHoursSection({ restaurantId, openingHours }: OpeningHours
           closeTime2: row.isClosed || row.isOpen24h ? undefined : row.closeTime2 || undefined,
         })),
       }),
+    meta: { successMessage: 'Đã lưu giờ mở cửa.' },
     onSuccess: () => {
       setSaved(true)
       setServerError(null)

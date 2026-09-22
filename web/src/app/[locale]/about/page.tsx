@@ -14,7 +14,18 @@ const AXIS_CODES = ['food_quality', 'space', 'price', 'service', 'hygiene', 'wif
 // works, not invented for the page.
 const MIN_VOTES_THRESHOLD = 5;
 
-const SECTIONS = ['cach-cham-diem', 'tieu-chi', 'kiem-duyet', 'du-lieu'] as const;
+// Kept in sync by hand with backend/src/modules/user/gamification.service.ts's
+// POINTS_PER_*/LEVEL_THRESHOLDS/badge thresholds — same "cite the real
+// constant, don't invent copy" convention as MIN_VOTES_THRESHOLD/AXIS_CODES
+// above. Levels/points are computed live from real activity, never stored —
+// see that service's own doc comment.
+const POINTS_PER_REVIEW = 10;
+const POINTS_PER_CONTRIBUTION = 15;
+const POINTS_PER_HELPFUL_VOTE = 2;
+const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000];
+const BADGE_CODES = ['contributor_10', 'coffee_hunter', 'helpful_100'] as const;
+
+const SECTIONS = ['cach-cham-diem', 'tieu-chi', 'kiem-duyet', 'du-lieu', 'cap-do-thanh-vien'] as const;
 type Section = (typeof SECTIONS)[number];
 
 interface PageProps {
@@ -125,6 +136,51 @@ export default async function AboutPage({ searchParams }: PageProps) {
               </div>
             </div>
             <div className="disclaimer-card">{t('data.disclaimer')}</div>
+          </>
+        ) : null}
+
+        {section === 'cap-do-thanh-vien' ? (
+          <>
+            <h1 className="about-section-title">{t('levels.title')}</h1>
+            <p className="about-section-body">{t('levels.body')}</p>
+            <div className="about-fact-grid">
+              <div className="about-fact-card">
+                <span className="about-fact-value font-num">+{POINTS_PER_REVIEW}</span>
+                <span className="about-fact-label">{t('levels.factReview')}</span>
+              </div>
+              <div className="about-fact-card">
+                <span className="about-fact-value font-num">+{POINTS_PER_CONTRIBUTION}</span>
+                <span className="about-fact-label">{t('levels.factContribution')}</span>
+              </div>
+              <div className="about-fact-card">
+                <span className="about-fact-value font-num">+{POINTS_PER_HELPFUL_VOTE}</span>
+                <span className="about-fact-label">{t('levels.factHelpful')}</span>
+              </div>
+            </div>
+
+            <h2 className="about-section-subtitle">{t('levels.thresholdsTitle')}</h2>
+            <div className="axis-doc-table">
+              {LEVEL_THRESHOLDS.map((threshold, index) => (
+                <div className="axis-doc-row" key={threshold}>
+                  <span className="axis-doc-label">{t('levels.levelLabel', { level: index + 1 })}</span>
+                  <span className="axis-doc-note">{t('levels.levelThreshold', { points: threshold })}</span>
+                </div>
+              ))}
+            </div>
+
+            <h2 className="about-section-subtitle">{t('levels.badgesTitle')}</h2>
+            <div className="mod-step-list">
+              {BADGE_CODES.map((code, index) => (
+                <div className="mod-step-card" key={code}>
+                  <span className="mod-step-number">{index + 1}</span>
+                  <div className="mod-step-body">
+                    <span className="mod-step-title">{t(`levels.badges.${code}.title`)}</span>
+                    <span className="mod-step-text">{t(`levels.badges.${code}.body`)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="disclaimer-card">{t('levels.disclaimer')}</div>
           </>
         ) : null}
       </div>

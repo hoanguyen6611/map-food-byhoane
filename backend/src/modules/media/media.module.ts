@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AiModule } from '../ai/ai.module';
-import { MediaController } from './media.controller';
+import { MediaController, MyPhotoController } from './media.controller';
 import { MediaService } from './media.service';
 import { PhotoModerationService } from './photo-moderation.service';
 import { S3Service } from './s3.service';
@@ -17,7 +17,7 @@ import {
 // AiModule is imported for ClaudeGatewayService (PhotoModerationService).
 @Module({
   imports: [BullModule.registerQueue({ name: PHOTO_CLEANUP_QUEUE }), AiModule],
-  controllers: [MediaController],
+  controllers: [MediaController, MyPhotoController],
   providers: [
     MediaService,
     S3Service,

@@ -278,6 +278,22 @@ export function ThumbsUpIcon(props: IconProps) {
   );
 }
 
+export function CoffeeIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8zM17 9h1.5a2.5 2.5 0 0 1 0 5H17M8 3c-.5.8-.5 1.2 0 2M12 3c-.5.8-.5 1.2 0 2" />
+    </Base>
+  );
+}
+
+export function MessageCircleIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </Base>
+  );
+}
+
 /** Renders one facility's icon from `FACILITY_ICON_PATH` (lib/labels.ts). */
 export function FacilityIcon({ path, ...rest }: IconProps & { path: string }) {
   return (

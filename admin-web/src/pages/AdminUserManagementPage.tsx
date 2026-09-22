@@ -62,6 +62,7 @@ export function AdminUserManagementPage() {
 
   const suspendMutation = useMutation({
     mutationFn: (id: string) => adminUsersApi.suspend(id),
+    meta: { successMessage: 'Đã tạm khoá tài khoản.' },
     onSuccess: (_data, id) => {
       invalidate(id)
       setActionError(null)
@@ -70,6 +71,7 @@ export function AdminUserManagementPage() {
   })
   const reactivateMutation = useMutation({
     mutationFn: (id: string) => adminUsersApi.reactivate(id),
+    meta: { successMessage: 'Đã mở lại tài khoản.' },
     onSuccess: (_data, id) => {
       invalidate(id)
       setActionError(null)
@@ -285,6 +287,7 @@ function UserDetailPanel({ userId, isAdmin, isSelf, onError, onRoleChanged }: Us
 
   const changeRoleMutation = useMutation({
     mutationFn: (roleCode: RoleCode) => adminUsersApi.changeRole(userId, { roleCode }),
+    meta: { successMessage: 'Đã đổi vai trò.' },
     onSuccess: () => {
       onRoleChanged()
       setNextRole('')

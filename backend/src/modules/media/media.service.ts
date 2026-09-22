@@ -366,4 +366,47 @@ export class MediaService {
   resolveUrl(storageKey: string): string {
     return this.s3.publicUrl(storageKey);
   }
+
+  /** Backs the profile page's "Ảnh" tab — every photo this user has ever uploaded, any ownerType. */
+  async listMyPhotos(
+    userId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{
+    items: {
+      id: string;
+      url: string;
+      width: number | null;
+      height: number | null;
+      ownerType: MediaOwnerType;
+      createdAt: string;
+    }[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const where = { uploadedBy: userId, deletedAt: null } as const;
+    const [rows, total] = await Promise.all([
+      this.prisma.photo.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.photo.count({ where }),
+    ]);
+    return {
+      items: rows.map((p) => ({
+        id: p.id,
+        url: this.resolveUrl(p.storageKey),
+        width: p.width,
+        height: p.height,
+        ownerType: p.ownerType as MediaOwnerType,
+        createdAt: p.createdAt.toISOString(),
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
 }

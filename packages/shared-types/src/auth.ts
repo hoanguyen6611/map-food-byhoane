@@ -2,6 +2,7 @@
 // AuthModule/UserModule DTOs by hand — this package has no build step, so
 // backend/mobile/admin-web all import these definitions directly from source.
 import type { RoleCode } from './identity';
+import type { CuisineCode } from './restaurant';
 
 export interface RegisterRequest {
   email: string;
@@ -41,6 +42,7 @@ export interface AuthUserDto {
   email: string;
   role: RoleCode;
   status: 'active' | 'suspended' | 'deleted';
+  createdAt: string;
 }
 
 export interface AuthResponse extends AuthTokenPair {
@@ -54,11 +56,36 @@ export interface UserProfileDto {
   avatarUrl: string | null;
   bio: string | null;
   homeCity: string | null;
+  username: string | null;
+  // Controls whether this user's real name/avatar show on THEIR reviews as
+  // seen by other people — not a general profile-visibility feature, there
+  // is still no "view someone else's profile" route.
+  isPublic: boolean;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  favoriteCuisines: CuisineCode[];
+}
+
+// Real-activity-derived level/points/badges — computed live on every `/me`
+// fetch from real counts (reviews, contributions, helpful votes received),
+// never stored, so it can't drift out of sync. See GamificationService.
+export type BadgeCode = 'contributor_10' | 'coffee_hunter' | 'helpful_100';
+
+export interface GamificationDto {
+  points: number;
+  level: number;
+  /** Points still needed to reach `level + 1`; null at the max level. */
+  pointsToNextLevel: number | null;
+  /** The point threshold `level + 1` starts at; null at the max level. */
+  nextLevelThreshold: number | null;
+  helpfulVotesReceived: number;
+  badges: BadgeCode[];
 }
 
 export interface MeResponse {
   user: AuthUserDto;
   profile: UserProfileDto;
+  gamification: GamificationDto;
 }
 
 export interface UpdateProfileRequest {
@@ -67,4 +94,9 @@ export interface UpdateProfileRequest {
   phone?: string;
   bio?: string;
   homeCity?: string;
+  username?: string;
+  isPublic?: boolean;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  favoriteCuisines?: CuisineCode[];
 }

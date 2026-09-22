@@ -58,6 +58,7 @@ export interface UpdateReviewRequest {
 export interface ReviewAuthorDto {
   id: string;
   displayName: string;
+  avatarUrl: string | null;
 }
 
 export interface ReviewDto {
@@ -79,6 +80,33 @@ export interface ReviewDto {
   editedAt: string | null;
   createdAt: string;
   photos: PhotoDto[];
+  // Real counts backed by ReviewHelpfulVote/ReviewReply — replaces the old
+  // presentational-only "Hữu ích" button.
+  helpfulCount: number;
+  replyCount: number;
+  // Only meaningful for an authenticated viewer; `false` wherever the current
+  // viewer isn't resolvable (e.g. a fully anonymous public read).
+  viewerHasMarkedHelpful: boolean;
+}
+
+export interface ToggleHelpfulResponse {
+  helpfulCount: number;
+  viewerHasMarkedHelpful: boolean;
+}
+
+export interface ReviewReplyDto {
+  id: string;
+  author: ReviewAuthorDto;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateReviewReplyRequest {
+  body: string;
+}
+
+export interface ReviewReplyListResponse {
+  items: ReviewReplyDto[];
 }
 
 export interface ReviewCriteriaBreakdownDto {
@@ -104,7 +132,12 @@ export interface ReviewListResponse {
 export interface MyReviewRestaurantSummaryDto {
   id: string;
   name: string;
+  slug: string;
   thumbnailUrl: string | null;
+  // Modern replacement for the deprecated `district` concept (see
+  // ContributionAddressDto's comment) — null for legacy addresses that
+  // predate ward data.
+  ward: string | null;
 }
 
 export interface MyReviewDto extends ReviewDto {

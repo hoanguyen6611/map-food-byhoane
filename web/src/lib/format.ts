@@ -73,6 +73,15 @@ export function placeTileClass(seed: string): string {
   return PLACE_TILE_CLASSES[Math.abs(hash) % PLACE_TILE_CLASSES.length];
 }
 
+/** e.g. "2026-03-01T00:00:00Z" -> "Tháng 3, 2026" (vi) / "Mar 2026" (en) — profile "Tham gia..." line. */
+export function formatJoinDate(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (locale === 'en') {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(date);
+  }
+  return `Tháng ${date.getMonth() + 1}, ${date.getFullYear()}`;
+}
+
 /** e.g. "Thảo Vy" -> "TV". Used for monogram avatars. */
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { queryClient } from './api/queryClient.ts'
 import { AuthProvider } from './auth/AuthContext.tsx'
+import { ToastContainer } from './components/ToastContainer.tsx'
 import './index.css'
 import App from './App.tsx'
 
@@ -20,6 +21,7 @@ createRoot(rootElement).render(
           <App />
         </AuthProvider>
       </BrowserRouter>
+      <ToastContainer />
     </QueryClientProvider>
   </StrictMode>,
 )

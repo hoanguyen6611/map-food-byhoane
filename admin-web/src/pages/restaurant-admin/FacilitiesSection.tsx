@@ -30,6 +30,7 @@ export function FacilitiesSection({ restaurantId, facilities }: FacilitiesSectio
 
   const mutation = useMutation({
     mutationFn: () => adminRestaurantsApi.replaceFacilities(restaurantId, { facilities: selected }),
+    meta: { successMessage: 'Đã lưu tiện ích.' },
     onSuccess: () => {
       setSaved(true)
       setServerError(null)

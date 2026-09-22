@@ -57,7 +57,7 @@ export class AuthService {
       },
     });
 
-    return this.issueSession(user.id, user.email, role.code, role.id);
+    return this.issueSession(user.id, user.email, role.code, role.id, user.createdAt);
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
@@ -86,7 +86,7 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
-    return this.issueSession(user.id, user.email, user.role.code, user.roleId);
+    return this.issueSession(user.id, user.email, user.role.code, user.roleId, user.createdAt);
   }
 
   async oauthLogin(
@@ -145,7 +145,7 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
-    return this.issueSession(user.id, user.email, user.role.code, user.roleId);
+    return this.issueSession(user.id, user.email, user.role.code, user.roleId, user.createdAt);
   }
 
   async refresh(refreshTokenPlain: string): Promise<AuthResponse> {
@@ -169,6 +169,7 @@ export class AuthService {
       stored.user.email,
       stored.user.role.code,
       stored.user.roleId,
+      stored.user.createdAt,
     );
 
     // Rotate: the old token is now dead. Rotation happens *after* issuing the
@@ -255,6 +256,7 @@ export class AuthService {
     email: string,
     role: RoleCode,
     roleId: string,
+    createdAt: Date,
   ): Promise<AuthResponse> {
     const accessToken = await this.jwt.signAsync(
       { sub: userId, role, roleId },
@@ -281,7 +283,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: refreshTokenPlain,
-      user: { id: userId, email, role, status: 'active' },
+      user: { id: userId, email, role, status: 'active', createdAt: createdAt.toISOString() },
     };
   }
 }

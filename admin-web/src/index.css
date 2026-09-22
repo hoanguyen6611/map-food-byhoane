@@ -953,3 +953,65 @@ body {
   color: var(--color-text-muted);
   flex-shrink: 0;
 }
+
+/* ---------- Toast notifications (mutation success/error feedback) ---------- */
+.toast-stack {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Same green/red convention as .form-success/.form-error and the
+   .status-badge-published/.status-badge-rejected pair — reused rather than
+   inventing new tokens. */
+.toast-success {
+  color: #106b31;
+}
+.toast-error {
+  color: var(--color-accent);
+}
+.toast-message {
+  flex: 1;
+  color: var(--color-text);
+}
+.toast-close {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}

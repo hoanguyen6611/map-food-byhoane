@@ -2,6 +2,7 @@
   "common": {
     "siteDescription": "The Food Map of Vietnam — find the restaurant, cafe, or eatery that's actually right for you, not just the closest one.",
     "noResultsFound": "No results found",
+    "actionError": "Something went wrong. Please try again.",
     "skipToContent": "Skip to main content",
     "homeAriaLabel": "The Food Map of Vietnam — go to homepage",
     "mainNav": "Main navigation",
@@ -151,6 +152,9 @@
     "similarHeading": "Similar restaurants",
     "reportLabel": "Report",
     "helpfulLabel": "Helpful",
+    "replyCountLabel": "{count} replies",
+    "replyPlaceholder": "Write a reply…",
+    "replySubmit": "Send",
     "openUntil": "until {time}",
     "reviewCountShort": "{count, plural, one {# review} other {# reviews}}",
     "viewCount": "{count, plural, one {# view} other {# views}}"
@@ -163,7 +167,10 @@
   "errorPage": {
     "title": "Something went wrong",
     "body": "This page couldn't be loaded right now. Please try again in a few minutes.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "sessionExpiredTitle": "Your session has expired",
+    "sessionExpiredBody": "Please sign in again to keep using this page.",
+    "signInAgain": "Sign in again"
   },
   "auth": {
     "title": "Sign in",
@@ -246,6 +253,20 @@
       "4": "Thursday",
       "5": "Friday",
       "6": "Saturday"
+    },
+    "criteria": {
+      "food_quality": "Food quality",
+      "space": "Space",
+      "price": "Price",
+      "service": "Service",
+      "hygiene": "Hygiene",
+      "wifi": "Wifi",
+      "parking": "Parking"
+    },
+    "badge": {
+      "contributor_10": "Added 10 new restaurants",
+      "coffee_hunter": "Coffee hunter",
+      "helpful_100": "100 helpful votes"
     }
   },
   "writeReview": {
@@ -269,21 +290,57 @@
   "profile": {
     "title": "My profile",
     "editHeading": "Edit profile",
-    "reviewCountLabel": "Reviews written",
+    "editSubheading": "This information appears publicly alongside your reviews",
+    "reviewCountLabel": "Reviews",
+    "photoCountLabel": "Photos posted",
+    "savedCountLabel": "Saved places",
+    "helpfulCountLabel": "Helpful votes",
     "displayNameLabel": "Display name",
-    "homeCityLabel": "Province/City",
+    "usernameLabel": "Username",
+    "usernamePlaceholder": "e.g. hoanglong",
+    "homeCityLabel": "Area",
     "homeCityPlaceholder": "Select a province",
     "bioLabel": "Bio",
+    "favoriteCuisinesLabel": "Favorite cuisines",
+    "socialLinksLabel": "Social links",
+    "avatarLabel": "Profile photo",
+    "avatarUpload": "Upload photo",
+    "avatarUseInitials": "Use initials",
+    "avatarUploading": "Uploading…",
+    "avatarUploadError": "Couldn't upload the photo. Please try again.",
+    "avatarHint": "JPG or PNG, up to 8 MB",
+    "publicToggleLabel": "Show public profile",
+    "publicToggleSub": "When off, your reviews show under an anonymous name",
+    "cancel": "Cancel",
     "save": "Save changes",
     "saving": "Saving…",
-    "saved": "Saved!",
+    "saved": "Updated successfully",
     "saveError": "Something went wrong saving your profile. Please try again.",
     "unauthorizedError": "Your session has expired — please sign in again.",
-    "myReviewsHeading": "My reviews",
+    "levelBadge": "Level {level} contributor",
+    "joinedOn": "Joined {date}",
+    "levelProgressHeading": "Level progress",
+    "levelRulesLink": "Scoring rules →",
+    "pointsToNextLevel": "{points} more points to reach level {level}",
+    "maxLevelReached": "Max level reached",
+    "reviewsTab": "Reviews",
+    "savedTab": "Saved",
+    "photosTab": "Photos",
+    "settingsTab": "Settings",
     "noReviews": "You haven't written any reviews yet.",
-    "contributionCountLabel": "Restaurants added",
-    "myContributionsHeading": "Restaurants I've added",
-    "noContributions": "You haven't added any restaurants yet.",
+    "noSaved": "You haven't saved any restaurants yet.",
+    "noPhotos": "You haven't posted any photos yet.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Confirm delete",
+    "reviewDeleted": "Review deleted",
+    "deleteReviewError": "Couldn't delete the review. Please try again.",
+    "reviewUpdated": "Review updated",
+    "editReviewHeading": "Edit review",
+    "deleteAccountHeading": "Delete account",
+    "deleteAccountBody": "Your account will be deactivated and anonymized. Your past reviews and contributions are kept but no longer linked to your profile.",
+    "deleteAccountCta": "Delete my account",
+    "deleteAccountError": "Couldn't delete your account. Please try again.",
     "status": {
       "pending": "Pending review",
       "rejected": "Rejected",
@@ -327,7 +384,8 @@
       "cach-cham-diem": "How scoring works",
       "tieu-chi": "The 7 criteria",
       "kiem-duyet": "Review moderation",
-      "du-lieu": "Data sources"
+      "du-lieu": "Data sources",
+      "cap-do-thanh-vien": "Member levels"
     },
     "score": {
       "title": "How a restaurant's score is calculated",
@@ -369,6 +427,32 @@
       "source2Name": "New restaurant submissions",
       "source2Body": "anyone can add a restaurant that's not on the map yet — a quick moderation check runs before it goes live.",
       "disclaimer": "Restaurant data shown here may not yet cover every restaurant in Ho Chi Minh City — the system grows as the community contributes."
+    },
+    "levels": {
+      "title": "How member levels are calculated",
+      "body": "Every real activity on your account earns points — the more points, the higher your level. There's no way to buy or fake points: every number comes directly from your real reviews, contributions and helpful votes, recomputed each time you open your profile.",
+      "factReview": "points / approved review",
+      "factContribution": "points / approved restaurant contribution",
+      "factHelpful": "points / helpful vote received",
+      "thresholdsTitle": "Level thresholds",
+      "levelLabel": "Level {level}",
+      "levelThreshold": "From {points} points",
+      "badgesTitle": "Achievement badges",
+      "badges": {
+        "contributor_10": {
+          "title": "Added 10 new restaurants",
+          "body": "Earned once 10 restaurants you contributed have been approved and published."
+        },
+        "coffee_hunter": {
+          "title": "Coffee hunter",
+          "body": "Earned once you've written 10 approved reviews for restaurants in the Coffee shop category."
+        },
+        "helpful_100": {
+          "title": "100 helpful votes",
+          "body": "Earned once the total \"Helpful\" votes others gave your reviews reaches 100 or more."
+        }
+      },
+      "disclaimer": "Badges and levels only recognize contributions — they don't affect a restaurant's score or ranking."
     }
   },
   "addRestaurant": {

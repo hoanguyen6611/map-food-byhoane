@@ -362,7 +362,17 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   </div>
 
                   {reviewsResponse.items.map((review) => (
-                    <ReviewCard key={review.id} review={review} locale={locale} reportLabel={t('reportLabel')} helpfulLabel={t('helpfulLabel')} />
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      locale={locale}
+                      isLoggedIn={!!session}
+                      reportLabel={t('reportLabel')}
+                      helpfulLabel={t('helpfulLabel')}
+                      replyCountLabel={t('replyCountLabel')}
+                      replyPlaceholder={t('replyPlaceholder')}
+                      replySubmitLabel={t('replySubmit')}
+                    />
                   ))}
 
                   {reviewTotalPages > 1 ? (

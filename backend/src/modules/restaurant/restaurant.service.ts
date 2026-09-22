@@ -344,11 +344,20 @@ export class RestaurantService {
         : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
       viewCount: (restaurant.status?.viewCount ?? 0) + viewCountDelta,
-      reviews: await Promise.all(
-        reviewRows.map(async (r) =>
-          this.toReviewPreviewDto(r, await this.fetchReviewPhotos(r.id)),
-        ),
-      ),
+      reviews: await (async () => {
+        const { avatarUrlByPhotoId, countsByReviewId } =
+          await this.batchFetchReviewSocialMeta(reviewRows);
+        return Promise.all(
+          reviewRows.map(async (r) =>
+            this.toReviewPreviewDto(
+              r,
+              await this.fetchReviewPhotos(r.id),
+              avatarUrlByPhotoId,
+              countsByReviewId.get(r.id) ?? { helpfulCount: 0, replyCount: 0 },
+            ),
+          ),
+        );
+      })(),
     };
   }
 
@@ -393,11 +402,56 @@ export class RestaurantService {
     }));
   }
 
+  private async batchFetchReviewSocialMeta(
+    reviews: { id: string; user: { profile: { avatarPhotoId: string | null } | null } }[],
+  ): Promise<{
+    avatarUrlByPhotoId: Map<string, string>;
+    countsByReviewId: Map<string, { helpfulCount: number; replyCount: number }>;
+  }> {
+    const reviewIds = reviews.map((r) => r.id);
+    const photoIds = Array.from(
+      new Set(
+        reviews
+          .map((r) => r.user.profile?.avatarPhotoId ?? null)
+          .filter((id): id is string => id !== null),
+      ),
+    );
+    // Always query (even with an empty `in: []`, a cheap no-op) rather than a
+    // ternary against `Promise.resolve([])` — that ternary collapses the
+    // array element type to `any[]`, breaking inference downstream (same
+    // fix as RestaurantService's cover-photo Map construction elsewhere).
+    const [photos, helpfulGroups, replyGroups] = await Promise.all([
+      this.prisma.photo.findMany({ where: { id: { in: photoIds }, deletedAt: null } }),
+      this.prisma.reviewHelpfulVote.groupBy({
+        by: ['reviewId'],
+        where: { reviewId: { in: reviewIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.reviewReply.groupBy({
+        by: ['reviewId'],
+        where: { reviewId: { in: reviewIds }, deletedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
+    const countsByReviewId = new Map(
+      reviewIds.map((id) => [id, { helpfulCount: 0, replyCount: 0 }]),
+    );
+    for (const g of helpfulGroups) countsByReviewId.get(g.reviewId)!.helpfulCount = g._count._all;
+    for (const g of replyGroups) countsByReviewId.get(g.reviewId)!.replyCount = g._count._all;
+    return {
+      avatarUrlByPhotoId: new Map(photos.map((p) => [p.id, this.s3.publicUrl(p.storageKey)])),
+      countsByReviewId,
+    };
+  }
+
   private toReviewPreviewDto(
     review: {
       id: string;
       restaurantId: string;
-      user: { id: string; profile: { displayName: string } | null };
+      user: {
+        id: string;
+        profile: { displayName: string; avatarPhotoId: string | null; isPublic: boolean } | null;
+      };
       ratings: { score: number; criteria: { code: string } }[];
       overallRating: number;
       comment: string | null;
@@ -417,13 +471,23 @@ export class RestaurantService {
       width: number | null;
       height: number | null;
     }[],
+    avatarUrlByPhotoId: Map<string, string>,
+    counts: { helpfulCount: number; replyCount: number },
   ): ReviewDto {
+    // Public-facing preview — always anonymize an isPublic:false author,
+    // same rule as ReviewService.toDto's 'public' viewContext.
+    const anonymize = review.user.profile?.isPublic === false;
     return {
       id: review.id,
       restaurantId: review.restaurantId,
       author: {
         id: review.user.id,
-        displayName: review.user.profile?.displayName ?? 'Người dùng ẩn danh',
+        displayName: anonymize
+          ? 'Người dùng ẩn danh'
+          : (review.user.profile?.displayName ?? 'Người dùng ẩn danh'),
+        avatarUrl: anonymize
+          ? null
+          : (avatarUrlByPhotoId.get(review.user.profile?.avatarPhotoId ?? '') ?? null),
       },
       overallRating: review.overallRating,
       ratings: review.ratings.map((r) => ({
@@ -441,6 +505,10 @@ export class RestaurantService {
       editedAt: review.editedAt?.toISOString() ?? null,
       createdAt: review.createdAt.toISOString(),
       photos,
+      helpfulCount: counts.helpfulCount,
+      replyCount: counts.replyCount,
+      // Fully public, unauthenticated route — no viewer identity to check.
+      viewerHasMarkedHelpful: false,
     };
   }
 

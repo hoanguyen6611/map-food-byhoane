@@ -18,6 +18,7 @@ import type {
 } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminModerationApi } from '../api/admin-moderation'
+import { pushToast } from '../lib/toastStore'
 import {
   DAY_LABELS,
   DECISION_OPTIONS,
@@ -77,7 +78,13 @@ export function AdminModerationQueuePage() {
       id: string
       body: { decision: 'approved' | 'rejected' | 'edit_requested'; reason?: string }
     }) => adminModerationApi.decide(id, body),
-    onSuccess: () => {
+    // Message depends on which decision was made — pushed directly here
+    // rather than via the generic `meta.successMessage` string, which can't
+    // vary per call.
+    onSuccess: (_data, { body }) => {
+      const decisionLabel =
+        body.decision === 'approved' ? 'Đã duyệt.' : body.decision === 'rejected' ? 'Đã từ chối.' : 'Đã yêu cầu chỉnh sửa.'
+      pushToast(decisionLabel, 'success')
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
       setExpandedId(null)
       setActionError(null)
@@ -88,7 +95,8 @@ export function AdminModerationQueuePage() {
   const resolveReportMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'resolved' | 'dismissed' }) =>
       adminModerationApi.resolveReport(id, { status }),
-    onSuccess: () => {
+    onSuccess: (_data, { status }) => {
+      pushToast(status === 'resolved' ? 'Đã xử lý báo cáo.' : 'Đã bỏ qua báo cáo.', 'success')
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
       setActionError(null)
     },

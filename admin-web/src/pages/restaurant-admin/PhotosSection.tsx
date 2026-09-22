@@ -16,6 +16,7 @@ import { ApiError } from '../../api/client'
 import { adminRestaurantsApi } from '../../api/admin-restaurants'
 import type { AttachPhotoBody } from '../../api/admin-restaurants'
 import { adminMediaApi } from '../../api/admin-media'
+import { pushToast } from '../../lib/toastStore'
 
 interface PhotosSectionProps {
   restaurantId: string
@@ -44,12 +45,14 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
 
   const deleteMutation = useMutation({
     mutationFn: (photoId: string) => adminRestaurantsApi.deletePhoto(photoId),
+    meta: { successMessage: 'Đã xoá ảnh.' },
     onSuccess: invalidate,
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa ảnh.'),
   })
 
   const coverMutation = useMutation({
     mutationFn: (photoId: string) => adminRestaurantsApi.setCoverPhoto(restaurantId, photoId),
+    meta: { successMessage: 'Đã đặt ảnh đại diện.' },
     onSuccess: invalidate,
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể đặt ảnh đại diện.'),
   })
@@ -61,6 +64,7 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
     setIsUploading(true)
     try {
       let hadError = false
+      let uploadedCount = 0
       for (const file of files) {
         try {
           const auth = await adminMediaApi.getImageKitAuth()
@@ -74,13 +78,20 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
             token: auth.token,
           })
           if (result.url) {
+            // Bypasses `addMutation`'s own `meta.successMessage` on purpose —
+            // one toast per file in a multi-file upload would be spammy, so
+            // this pushes a single combined toast after the loop instead.
             await addMutation.mutateAsync({ url: result.url, width: result.width, height: result.height })
+            uploadedCount += 1
           } else {
             hadError = true
           }
         } catch {
           hadError = true
         }
+      }
+      if (uploadedCount > 0) {
+        pushToast(uploadedCount === 1 ? 'Đã thêm 1 ảnh.' : `Đã thêm ${uploadedCount} ảnh.`, 'success')
       }
       if (hadError) setError('Không tải được ảnh này. Vui lòng thử lại.')
     } finally {
