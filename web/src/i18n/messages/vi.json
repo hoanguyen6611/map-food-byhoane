@@ -312,6 +312,8 @@
     "publicToggleLabel": "Hiện hồ sơ công khai",
     "publicToggleSub": "Tắt thì đánh giá của bạn hiển thị dưới tên ẩn danh",
     "cancel": "Huỷ",
+    "footerStatusPublic": "Hồ sơ đang ở chế độ công khai",
+    "footerStatusPrivate": "Hồ sơ đang ở chế độ ẩn danh",
     "save": "Lưu thay đổi",
     "saving": "Đang lưu…",
     "saved": "Cập nhập thành công",

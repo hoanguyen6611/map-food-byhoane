@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
-import { CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import type { CuisineDto } from '@foodmap/shared-types';
+import { FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { DISTRICTS } from '@/lib/districts';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FacilityIcon } from './icons';
@@ -36,6 +37,7 @@ function toggleInCsv(csv: string | undefined, value: string): string | undefined
 interface Props {
   search: SearchParamsRecord;
   categoryCounts: { code: string; label: string; count: number }[];
+  cuisineOptions: CuisineDto[];
   totalCount: number;
   locale: string;
   // "Khu vực" (Quận 1/3/Bình Thạnh/Phú Nhuận) only exists for HCMC — see
@@ -43,7 +45,7 @@ interface Props {
   isHcmc: boolean;
 }
 
-export async function SearchFilterForm({ search, categoryCounts, totalCount, locale, isHcmc }: Props) {
+export async function SearchFilterForm({ search, categoryCounts, cuisineOptions, totalCount, locale, isHcmc }: Props) {
   const [t, tLabels] = await Promise.all([getTranslations('filterForm'), getTranslations('labels')]);
 
   const priceBucket = PRICE_BUCKETS.find(
@@ -156,15 +158,15 @@ export async function SearchFilterForm({ search, categoryCounts, totalCount, loc
       <div className="filter-section">
         <span className="filter-section-title">{t('cuisineLabel')}</span>
         <div className="chip-row">
-          {CUISINE_OPTIONS.map((code) => {
-            const active = (search.cuisine?.split(',') ?? []).includes(code);
+          {cuisineOptions.map((cuisine) => {
+            const active = (search.cuisine?.split(',') ?? []).includes(cuisine.code);
             return (
               <Link
-                key={code}
-                href={buildHref(search, { cuisine: toggleInCsv(search.cuisine, code) })}
+                key={cuisine.code}
+                href={buildHref(search, { cuisine: toggleInCsv(search.cuisine, cuisine.code) })}
                 className={`pill ${active ? 'pill-selected' : ''}`}
               >
-                {tLabels(`cuisine.${code}`)}
+                {cuisine.label}
               </Link>
             );
           })}

@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RestaurantService } from '../restaurant/restaurant.service';
 import { slugify } from '../../common/slug.util';
 import { WebRevalidationService } from '../revalidation/web-revalidation.service';
+import { NotificationService } from '../notification/notification.service';
 import { AuditLogService } from './audit-log.service';
 import { PhotoService } from './photo.service';
 import type { CreateRestaurantDto } from './dto/create-restaurant.dto';
@@ -32,6 +33,7 @@ export class AdminRestaurantService {
     private readonly auditLog: AuditLogService,
     private readonly photoService: PhotoService,
     private readonly webRevalidation: WebRevalidationService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -108,6 +110,7 @@ export class AdminRestaurantService {
       district: r.address.district,
       publicationStatus: r.status?.publicationStatus ?? 'pending',
       createdAt: r.createdAt.toISOString(),
+      viewCount: r.status?.viewCount ?? 0,
     }));
 
     return { items, total, page, pageSize };
@@ -370,6 +373,8 @@ export class AdminRestaurantService {
     dto: ReplaceOpeningHoursDto,
     actorId: string,
   ): Promise<void> {
+    const previousHours = await this.prisma.openingHour.findMany({ where: { restaurantId: id } });
+
     await this.prisma.$transaction([
       this.prisma.openingHour.deleteMany({ where: { restaurantId: id } }),
       this.prisma.openingHour.createMany({
@@ -405,6 +410,71 @@ export class AdminRestaurantService {
       afterState: dto,
     });
     void this.revalidateRestaurant(id);
+
+    // Best-effort, same "never block the core flow" shape as every other
+    // notification producer — a failure here must never fail the hours save.
+    this.notifyFavoritesOfHoursChange(id, previousHours, dto).catch((error) =>
+      this.auditLog.record({
+        actorId,
+        action: 'restaurant.opening_hours.notify_failed',
+        targetType: 'restaurant',
+        targetId: id,
+        afterState: { error: error instanceof Error ? error.message : String(error) },
+      }),
+    );
+  }
+
+  private formatTime(date: Date | null): string | null {
+    if (!date) return null;
+    return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  }
+
+  /**
+   * Simple, human-readable diff — the first day whose open time actually
+   * changed (a full per-day diff would need 7 lines in one notification,
+   * which nobody would read; matches the "one representative change" shape
+   * the design asked for). Returns null when nothing meaningfully changed
+   * (e.g. only closeTime/facilities-adjacent fields moved).
+   */
+  private describeHoursChange(
+    previousHours: { dayOfWeek: number; openTime: Date | null; isClosed: boolean }[],
+    dto: ReplaceOpeningHoursDto,
+  ): { oldTime: string; newTime: string } | null {
+    const previousByDay = new Map(previousHours.map((h) => [h.dayOfWeek, h]));
+    for (const day of dto.days) {
+      const previous = previousByDay.get(day.dayOfWeek);
+      const oldTime = previous && !previous.isClosed ? this.formatTime(previous.openTime) : null;
+      const newTime = !day.isClosed && day.openTime ? day.openTime : null;
+      if (oldTime && newTime && oldTime !== newTime) {
+        return { oldTime, newTime };
+      }
+    }
+    return null;
+  }
+
+  private async notifyFavoritesOfHoursChange(
+    restaurantId: string,
+    previousHours: { dayOfWeek: number; openTime: Date | null; isClosed: boolean }[],
+    dto: ReplaceOpeningHoursDto,
+  ): Promise<void> {
+    const change = this.describeHoursChange(previousHours, dto);
+    if (!change) return;
+
+    const [restaurant, favorites] = await Promise.all([
+      this.prisma.restaurant.findUnique({ where: { id: restaurantId }, select: { name: true } }),
+      this.prisma.favorite.findMany({ where: { restaurantId }, select: { userId: true } }),
+    ]);
+    if (!restaurant || favorites.length === 0) return;
+
+    await Promise.all(
+      favorites.map((favorite) =>
+        this.notificationService.create(favorite.userId, 'restaurant_hours_changed', {
+          title: 'Quán bạn lưu vừa đổi giờ mở cửa',
+          body: `${restaurant.name} nay mở từ ${change.newTime} thay vì ${change.oldTime}.`,
+          deepLink: { screen: 'RestaurantDetail', restaurantId },
+        }),
+      ),
+    );
   }
 
   async replaceFacilities(

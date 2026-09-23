@@ -73,6 +73,14 @@ html,
 body {
   padding: 0;
   margin: 0;
+  /* This layout is never meant to scroll sideways — without this, any one
+     element that's ever slightly wider than the viewport (a chip row, a
+     stat grid) lets the whole page scroll horizontally. That's harmless on
+     its own, but a `position: fixed` modal always centers on the true
+     viewport regardless, so if the page was scrolled sideways first, the
+     modal ends up looking "off-center" relative to the (shifted) page
+     content behind it — exactly the "lệch tâm" symptom reported. */
+  overflow-x: hidden;
 }
 
 body {
@@ -1005,9 +1013,13 @@ textarea:focus-visible {
   color: var(--color-ink-faint);
 }
 
+/* Capped at 320px (not `1fr`) so a lone card — or the last, incomplete row
+   of any count — never stretches to fill the whole container; without this,
+   a single result (e.g. the "Đã lưu" tab with just one favorite) blew its
+   photo/placeholder up to the full page width, well past its intended size. */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(228px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(228px, 320px));
   gap: 14px;
 }
 
@@ -1874,9 +1886,12 @@ textarea:focus-visible {
   grid-template-columns: 1fr;
   gap: 14px;
 }
+/* Capped at 420px (not `1fr`) for the same reason as .card-grid — a lone
+   search/district result (or an incomplete last row) shouldn't stretch its
+   photo across the full results width. */
 .result-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 420px));
   gap: 14px;
 }
 .result-footer-line {
@@ -2925,6 +2940,9 @@ table.menu-table td.price {
 }
 .write-review-submit {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 20px;
   border: none;
   border-radius: var(--radius-sm);
@@ -3240,6 +3258,18 @@ table.menu-table td.price {
   font-size: 16px;
   letter-spacing: -0.01em;
   color: var(--color-ink);
+}
+/* Used outside the login page (e.g. the profile edit modal's social-link
+   fields) — matches the height/font of this form's plain `.login-field
+   input`s instead of the login page's own stylized Archivo branding, so an
+   icon-prefixed field doesn't look visually inconsistent next to them. */
+.login-input-wrap-plain {
+  height: 41px;
+}
+.login-input-wrap-plain input {
+  font-family: inherit;
+  font-size: 16px;
+  letter-spacing: normal;
 }
 .login-field-error {
   display: flex;
@@ -4051,6 +4081,18 @@ table.menu-table td.price {
   background: var(--color-cream);
   color: var(--color-cream-ink);
 }
+.notification-icon-review_helpful_vote {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-fg);
+}
+.notification-icon-review_helpful_milestone {
+  background: var(--color-cream);
+  color: var(--color-cream-ink);
+}
+.notification-icon-restaurant_hours_changed {
+  background: #fde8d2;
+  color: #b3690a;
+}
 .notification-body {
   flex: 1;
   min-width: 0;
@@ -4457,15 +4499,46 @@ table.menu-table td.price {
   justify-content: center;
   padding: 24px;
 }
+/* `overflow: hidden` here (not `overflow-y: auto`) is deliberate — this is
+   the element whose rounded corners actually show, and a native scrollbar
+   doesn't respect a parent's border-radius, so scrolling has to happen on
+   an inner wrapper (.profile-edit-modal-scroll) instead. Otherwise the top
+   corners (and whichever bottom corner the scrollbar sits against) render
+   square the moment content is tall enough to scroll. */
 .profile-edit-modal-panel {
   position: relative;
   width: 100%;
   max-width: 560px;
-  max-height: 88vh;
-  overflow-y: auto;
   background: var(--color-surface);
   border-radius: var(--radius-2xl);
+  overflow: hidden;
+}
+.profile-edit-modal-scroll {
+  max-height: 88vh;
+  overflow-y: auto;
   padding: 24px;
+}
+.profile-edit-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.profile-edit-modal-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: none;
+  color: var(--color-ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.profile-edit-modal-close:hover {
+  background: var(--color-border-hairline);
 }
 .profile-edit-modal-sub {
   font-size: 14px;
@@ -4477,11 +4550,23 @@ table.menu-table td.price {
 }
 .profile-edit-modal-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px -24px -24px;
+  padding: 16px 24px;
   border-top: 1px solid var(--color-border-hairline);
-  margin-top: 4px;
+  background: var(--color-canvas);
+  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
+}
+.profile-edit-modal-footer-status {
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
+.profile-edit-modal-footer-actions {
+  display: flex;
+  gap: 10px;
 }
 .profile-edit-two-col {
   display: grid;
@@ -4502,15 +4587,29 @@ table.menu-table td.price {
 
 .avatar-upload-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   flex-wrap: wrap;
+}
+.avatar-upload-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.avatar-upload-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
 }
 .avatar-upload-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .avatar-upload-label {
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 

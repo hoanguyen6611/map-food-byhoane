@@ -4,7 +4,14 @@
 // handful of demo rows are seeded directly (prisma/seed-notifications.ts)
 // so this module's UI has real data to render/test against.
 
-export type NotificationType = 'moderation_result' | 'report_resolved' | 'contribution_status' | 'moderation_queue_new';
+export type NotificationType =
+  | 'moderation_result'
+  | 'report_resolved'
+  | 'contribution_status'
+  | 'moderation_queue_new'
+  | 'review_helpful_vote'
+  | 'review_helpful_milestone'
+  | 'restaurant_hours_changed';
 
 // Deep-link target — `screen` matches a mobile route name in
 // MainStackParamList; the id fields are populated per notification type.
@@ -13,6 +20,9 @@ export type NotificationType = 'moderation_result' | 'report_resolved' | 'contri
 // 'moderation_queue_new' (admin-web only) -> screen: 'AdminModeration',
 // moderationTargetType + contributionId/reviewId — admin-web builds its own
 // `/moderation?targetType=...` link from these, mobile ignores this type.
+// 'review_helpful_vote' / 'review_helpful_milestone' -> screen: 'Reviews',
+// restaurantId + reviewId (same review-detail target as moderation_result).
+// 'restaurant_hours_changed' -> screen: 'RestaurantDetail', restaurantId.
 export interface NotificationDeepLink {
   screen: string;
   restaurantId?: string;

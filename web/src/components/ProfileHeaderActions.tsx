@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { UserProfileDto } from '@foodmap/shared-types';
+import type { CuisineDto, UserProfileDto } from '@foodmap/shared-types';
 import { EditProfileModal } from './EditProfileModal';
 import { ShareButton } from './ShareButton';
 
 interface Props {
   profile: UserProfileDto;
+  cuisineOptions: CuisineDto[];
   shareTitle: string;
 }
 
-export function ProfileHeaderActions({ profile, shareTitle }: Props) {
+export function ProfileHeaderActions({ profile, cuisineOptions, shareTitle }: Props) {
   const t = useTranslations('profile');
   const [editing, setEditing] = useState(false);
 
@@ -21,7 +22,7 @@ export function ProfileHeaderActions({ profile, shareTitle }: Props) {
         {t('editHeading')}
       </button>
       <ShareButton title={shareTitle} />
-      {editing ? <EditProfileModal profile={profile} onClose={() => setEditing(false)} /> : null}
+      {editing ? <EditProfileModal profile={profile} cuisineOptions={cuisineOptions} onClose={() => setEditing(false)} /> : null}
     </div>
   );
 }

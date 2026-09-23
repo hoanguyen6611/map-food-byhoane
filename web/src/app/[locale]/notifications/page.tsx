@@ -6,7 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
-import { AlertIcon, CheckIcon, CameraIcon } from '@/components/icons';
+import { AlertIcon, CheckIcon, CameraIcon, ThumbsUpIcon, StarIcon, ClockIcon } from '@/components/icons';
 import { markAllNotificationsReadAction } from './actions';
 
 interface PageProps {
@@ -22,7 +22,15 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   // ever seen here if an admin/moderator account also browses the public
   // web app, since /me/notifications isn't role-scoped.
   moderation_queue_new: <AlertIcon size={17} />,
+  review_helpful_vote: <ThumbsUpIcon size={17} />,
+  review_helpful_milestone: <StarIcon size={17} filled />,
+  restaurant_hours_changed: <ClockIcon size={17} />,
 };
+
+// Types whose deep-link `screen` is 'Reviews' (see NotificationDeepLink's own
+// comment in shared-types) — these get the review-tab deep link instead of
+// the plain restaurant page.
+const REVIEW_SCREEN_TYPES: NotificationType[] = ['moderation_result', 'review_helpful_vote', 'review_helpful_milestone'];
 
 type Filter = 'all' | 'unread' | 'reviews';
 
@@ -49,7 +57,7 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
   // "Đánh giá" only counts what's on this fetched page (pageSize=20), same
   // approximation used elsewhere (e.g. Profile's contribution count) rather
   // than adding a backend `type` filter for a single tab.
-  const reviewItems = data.items.filter((n) => n.type === 'moderation_result');
+  const reviewItems = data.items.filter((n) => REVIEW_SCREEN_TYPES.includes(n.type));
   const unreadItems = data.items.filter((n) => !n.isRead);
 
   const filter: Filter = rawFilter === 'unread' || rawFilter === 'reviews' ? rawFilter : 'all';
@@ -106,11 +114,15 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
             const slug = notification.payload.deepLink.restaurantId
               ? restaurantSlugById.get(notification.payload.deepLink.restaurantId)
               : null;
-            // moderation_result = a review of yours was decided — deep-link
-            // straight to the review it's about; every other resolvable
-            // restaurant link (e.g. contribution_status) goes to the plain
-            // restaurant page.
-            const target = slug ? (notification.type === 'moderation_result' ? `/restaurant/${slug}?tab=reviews` : `/restaurant/${slug}`) : null;
+            // Review-screen notifications (a review of yours was decided,
+            // marked helpful, or hit a helpful-vote milestone) deep-link
+            // straight to the reviews tab; every other resolvable restaurant
+            // link (e.g. contribution_status) goes to the plain restaurant page.
+            const target = slug
+              ? REVIEW_SCREEN_TYPES.includes(notification.type)
+                ? `/restaurant/${slug}?tab=reviews`
+                : `/restaurant/${slug}`
+              : null;
             const body = (
               <>
                 <span className="notification-title">{notification.payload.title}</span>

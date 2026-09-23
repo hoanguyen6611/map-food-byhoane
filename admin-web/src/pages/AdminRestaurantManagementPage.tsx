@@ -249,6 +249,7 @@ export function AdminRestaurantManagementPage() {
                 <th>Tỉnh/Thành</th>
                 <th>Phường/Xã</th>
                 <th>Trạng thái</th>
+                <th>Lượt xem</th>
                 <th>Ngày tạo</th>
                 <th>Hành động</th>
               </tr>
@@ -256,7 +257,7 @@ export function AdminRestaurantManagementPage() {
             <tbody>
               {data.items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="data-table-empty">
+                  <td colSpan={8} className="data-table-empty">
                     Không tìm thấy nhà hàng nào.
                   </td>
                 </tr>
@@ -272,6 +273,7 @@ export function AdminRestaurantManagementPage() {
                       {statusLabel(item.publicationStatus)}
                     </span>
                   </td>
+                  <td>{item.viewCount.toLocaleString('vi-VN')}</td>
                   <td>{formatDateTime(item.createdAt)}</td>
                   <td className="data-table-actions">
                     <Link to={`/restaurants/${item.id}`} className="button button-small">

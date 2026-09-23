@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { getCategories, searchRestaurants } from '@/lib/api';
+import { getCategories, getCuisines, searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { PlaceRow } from '@/components/PlaceRow';
 import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/components/SearchFilterForm';
-import { CUISINE_OPTIONS, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
 import { getHomeProvince, HCMC_PROVINCE_NAME } from '@/lib/home-province';
@@ -59,12 +59,13 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
 
   const effectiveProvince = await resolveProvince(search.province);
 
-  const [t, tCommon, tLabels, title, categories] = await Promise.all([
+  const [t, tCommon, tLabels, title, categories, cuisineOptions] = await Promise.all([
     getTranslations('search'),
     getTranslations('common'),
     getTranslations('labels'),
     buildTitle(search.q, search.district, effectiveProvince),
     getCategories(),
+    getCuisines(),
   ]);
 
   const [result, totalCountResult, categoryCounts] = await Promise.all([
@@ -122,12 +123,12 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       clearHref: buildSearchHref(search, { priceMin: undefined, priceMax: undefined }),
     });
   }
-  for (const code of CUISINE_OPTIONS) {
-    if (search.cuisine?.split(',').includes(code)) {
-      const next = search.cuisine.split(',').filter((c) => c !== code);
+  for (const cuisine of cuisineOptions) {
+    if (search.cuisine?.split(',').includes(cuisine.code)) {
+      const next = search.cuisine.split(',').filter((c) => c !== cuisine.code);
       activeChips.push({
-        key: `cuisine-${code}`,
-        label: tLabels(`cuisine.${code}`),
+        key: `cuisine-${cuisine.code}`,
+        label: cuisine.label,
         clearHref: buildSearchHref(search, { cuisine: next.length ? next.join(',') : undefined }),
       });
     }
@@ -152,6 +153,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
         <SearchFilterForm
           search={search}
           categoryCounts={categories.map((c, i) => ({ code: c.code, label: c.label, count: categoryCounts[i].total }))}
+          cuisineOptions={cuisineOptions}
           totalCount={totalCountResult.total}
           locale={locale}
           isHcmc={effectiveProvince === HCMC_PROVINCE_NAME}

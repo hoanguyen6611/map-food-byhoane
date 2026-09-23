@@ -8,6 +8,7 @@ import type {
   MyReviewListResponse,
 } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
+import { getCuisines } from '@/lib/api';
 import { formatJoinDate, initialsOf } from '@/lib/format';
 import { Link } from '@/i18n/navigation';
 import { RestaurantCard } from '@/components/RestaurantCard';
@@ -40,11 +41,12 @@ export default async function ProfilePage({ params }: PageProps) {
   const { locale } = await params;
   // Independent, unrelated reads — fired together (see this page's earlier
   // comment history for why serializing them was a real perf bug before).
-  const [meRes, reviewsRes, favoritesRes, photosRes] = await Promise.all([
+  const [meRes, reviewsRes, favoritesRes, photosRes, cuisineOptions] = await Promise.all([
     backendFetchAuthorized('/me'),
     backendFetchAuthorized('/me/reviews?page=1&pageSize=20'),
     backendFetchAuthorized('/me/favorites?page=1&pageSize=24'),
     backendFetchAuthorized(`/me/photos?page=1&pageSize=${PHOTOS_TAB_PAGE_SIZE}`),
+    getCuisines(),
   ]);
   if (!meRes) {
     redirect('/login');
@@ -163,7 +165,7 @@ export default async function ProfilePage({ params }: PageProps) {
             </p>
             {me.profile.bio ? <p className="profile-banner-bio">{me.profile.bio}</p> : null}
           </div>
-          <ProfileHeaderActions profile={me.profile} shareTitle={displayName} />
+          <ProfileHeaderActions profile={me.profile} cuisineOptions={cuisineOptions} shareTitle={displayName} />
         </div>
       </div>
 

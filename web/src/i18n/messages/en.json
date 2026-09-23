@@ -312,6 +312,8 @@
     "publicToggleLabel": "Show public profile",
     "publicToggleSub": "When off, your reviews show under an anonymous name",
     "cancel": "Cancel",
+    "footerStatusPublic": "Your profile is public",
+    "footerStatusPrivate": "Your profile is anonymous",
     "save": "Save changes",
     "saving": "Saving…",
     "saved": "Updated successfully",

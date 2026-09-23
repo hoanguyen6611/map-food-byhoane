@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getSession } from '@/lib/auth';
-import { getCategories } from '@/lib/api';
+import { getCategories, getCuisines } from '@/lib/api';
 import { AddRestaurantForm } from '@/components/AddRestaurantForm';
 
 interface PageProps {
@@ -20,7 +20,11 @@ export default async function AddRestaurantPage() {
   if (!session) {
     redirect('/login');
   }
-  const [t, categories] = await Promise.all([getTranslations('addRestaurant'), getCategories()]);
+  const [t, categories, cuisines] = await Promise.all([
+    getTranslations('addRestaurant'),
+    getCategories(),
+    getCuisines(),
+  ]);
 
   return (
     <div className="container page-sections" style={{ maxWidth: 640 }}>
@@ -30,7 +34,7 @@ export default async function AddRestaurantPage() {
         </h1>
         <p className="page-header-sub">{t('intro')}</p>
       </div>
-      <AddRestaurantForm categories={categories} />
+      <AddRestaurantForm categories={categories} cuisines={cuisines} />
     </div>
   );
 }

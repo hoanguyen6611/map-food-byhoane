@@ -3,12 +3,15 @@
 import { useRef, useState } from 'react';
 import { upload } from '@imagekit/next';
 import { initialsOf } from '@/lib/format';
+import { UploadIcon } from '@/components/icons';
 
 interface Props {
   avatarUrl: string | null;
   displayName: string;
   onUploaded: (url: string) => void;
   onCleared: () => void;
+  label: string;
+  hint: string;
   uploadLabel: string;
   useInitialsLabel: string;
   uploadingLabel: string;
@@ -33,6 +36,8 @@ export function AvatarUploadButton({
   displayName,
   onUploaded,
   onCleared,
+  label,
+  hint,
   uploadLabel,
   useInitialsLabel,
   uploadingLabel,
@@ -82,29 +87,32 @@ export function AvatarUploadButton({
           {initialsOf(displayName)}
         </span>
       )}
-      <div className="avatar-upload-actions">
-        <label className="secondary-btn avatar-upload-label">
-          {uploading ? uploadingLabel : uploadLabel}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            disabled={uploading}
-            onChange={(e) => handleFile(e.target.files?.[0])}
-            style={{ display: 'none' }}
-          />
-        </label>
-        {avatarUrl ? (
-          <button type="button" className="secondary-btn" onClick={onCleared} disabled={uploading}>
+      <div className="avatar-upload-info">
+        <span className="avatar-upload-title">{label}</span>
+        <div className="avatar-upload-actions">
+          <label className="secondary-btn avatar-upload-label">
+            {uploading ? null : <UploadIcon size={14} />}
+            {uploading ? uploadingLabel : uploadLabel}
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={uploading}
+              onChange={(e) => handleFile(e.target.files?.[0])}
+              style={{ display: 'none' }}
+            />
+          </label>
+          <button type="button" className="secondary-btn" onClick={onCleared} disabled={uploading || !avatarUrl}>
             {useInitialsLabel}
           </button>
+        </div>
+        <span className="profile-edit-hint">{hint}</span>
+        {error ? (
+          <p className="write-review-error" role="alert">
+            {errorLabel}
+          </p>
         ) : null}
       </div>
-      {error ? (
-        <p className="write-review-error" role="alert">
-          {errorLabel}
-        </p>
-      ) : null}
     </div>
   );
 }

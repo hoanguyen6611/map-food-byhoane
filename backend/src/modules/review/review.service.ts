@@ -37,6 +37,10 @@ const DEFAULT_MY_REVIEWS_PAGE_SIZE = 20;
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EDIT_MARKER_WINDOW_MS = 48 * 60 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 20;
+// A single, fixed milestone — not the gamification badge thresholds in
+// user/gamification.service.ts, which are about a user's *total* helpful
+// votes across all reviews, not one review's own count.
+const REVIEW_HELPFUL_MILESTONE = 10;
 
 const REVIEW_INCLUDE = {
   user: { include: { profile: true } },
@@ -638,6 +642,7 @@ export class ReviewService {
   async toggleHelpful(reviewId: string, userId: string): Promise<ToggleHelpfulResponse> {
     const review = await this.prisma.review.findFirst({
       where: { id: reviewId, deletedAt: null },
+      include: { restaurant: { select: { name: true } } },
     });
     if (!review) {
       throw new NotFoundException('Không tìm thấy đánh giá');
@@ -645,13 +650,57 @@ export class ReviewService {
     const existing = await this.prisma.reviewHelpfulVote.findUnique({
       where: { reviewId_userId: { reviewId, userId } },
     });
+    const isNewVote = !existing;
     if (existing) {
       await this.prisma.reviewHelpfulVote.delete({ where: { id: existing.id } });
     } else {
       await this.prisma.reviewHelpfulVote.create({ data: { reviewId, userId } });
     }
     const helpfulCount = await this.prisma.reviewHelpfulVote.count({ where: { reviewId } });
+
+    // Best-effort, same "never block the core flow" shape as every other
+    // notification producer in this codebase — a failure here must never
+    // fail the vote itself, which has already been persisted.
+    if (isNewVote) {
+      this.notifyHelpfulVote(review, userId, helpfulCount).catch((error) =>
+        this.logger.error('Failed to send helpful-vote notification', error instanceof Error ? error.stack : error),
+      );
+    }
+
     return { helpfulCount, viewerHasMarkedHelpful: !existing };
+  }
+
+  private async notifyHelpfulVote(
+    review: { id: string; userId: string; restaurantId: string; comment: string | null; restaurant: { name: string } },
+    voterId: string,
+    helpfulCount: number,
+  ): Promise<void> {
+    // Never notify yourself that you found your own review helpful.
+    if (review.userId === voterId) return;
+
+    const deepLink = { screen: 'Reviews', restaurantId: review.restaurantId, reviewId: review.id };
+
+    const voterProfile = await this.prisma.userProfile.findUnique({
+      where: { userId: voterId },
+      select: { displayName: true },
+    });
+    const voterName = voterProfile?.displayName ?? 'Một người dùng';
+    const quotedComment = review.comment ? `"${review.comment.slice(0, 120)}"` : review.restaurant.name;
+    await this.notificationService.create(review.userId, 'review_helpful_vote', {
+      title: `${voterName} thấy đánh giá của bạn hữu ích`,
+      body: quotedComment,
+      deepLink,
+    });
+
+    // Fires exactly once — only on the toggle that brings the count to
+    // exactly REVIEW_HELPFUL_MILESTONE, never again on subsequent votes.
+    if (helpfulCount === REVIEW_HELPFUL_MILESTONE) {
+      await this.notificationService.create(review.userId, 'review_helpful_milestone', {
+        title: `Đánh giá của bạn đạt ${REVIEW_HELPFUL_MILESTONE} lượt hữu ích`,
+        body: `${review.restaurant.name} — đánh giá của bạn.`,
+        deepLink,
+      });
+    }
   }
 
   async listReplies(reviewId: string): Promise<ReviewReplyListResponse> {

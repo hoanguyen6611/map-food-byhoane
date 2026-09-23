@@ -236,6 +236,8 @@ export class AdminModerationService {
     });
 
     if (sideEffect) {
+      const isApprovedReview =
+        moderationResult.targetType === 'review' && dto.decision === 'approved';
       const notificationType: NotificationType =
         moderationResult.targetType === 'review'
           ? 'moderation_result'
@@ -244,10 +246,15 @@ export class AdminModerationService {
         sideEffect.contributorUserId,
         notificationType,
         {
-          title: this.decisionTitle(dto.decision, sideEffect.restaurantName),
+          title:
+            isApprovedReview && sideEffect.restaurantName
+              ? 'Đánh giá của bạn được duyệt'
+              : this.decisionTitle(dto.decision, sideEffect.restaurantName),
           body:
             dto.reason ??
-            this.decisionDefaultBody(dto.decision, sideEffect.restaurantName),
+            (isApprovedReview && sideEffect.restaurantName
+              ? `${sideEffect.restaurantName} — đánh giá ${sideEffect.overallRating} sao của bạn đã hiển thị trên trang quán.`
+              : this.decisionDefaultBody(dto.decision, sideEffect.restaurantName)),
           deepLink: sideEffect.deepLink,
         },
       );
@@ -275,6 +282,10 @@ export class AdminModerationService {
     // instead of a generic "your content was approved" with no way to tell
     // which of the user's several submissions it refers to.
     restaurantName?: string;
+    // Review-only — lets an approved-review notification say "your 5-star
+    // review is now live" instead of the generic wording every other
+    // decision/target type shares.
+    overallRating?: number;
   } | null> {
     switch (moderationResult.targetType) {
       case 'review': {
@@ -300,6 +311,7 @@ export class AdminModerationService {
           contributorUserId: review.userId,
           deepLink: { screen: 'Reviews', restaurantId: review.restaurantId },
           restaurantName: review.restaurant.name,
+          overallRating: review.overallRating,
         };
       }
       case 'contribution': {

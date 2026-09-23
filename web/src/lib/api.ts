@@ -5,6 +5,7 @@
 // `NEXT_PUBLIC_*`/Expo's `extra` mechanism the other two client apps use.
 import type {
   CategoryDto,
+  CuisineDto,
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
@@ -53,6 +54,13 @@ const CATALOG_REVALIDATE_SECONDS = 300;
 
 export async function getCategories(): Promise<CategoryDto[]> {
   return apiFetch<CategoryDto[]>('/categories', CATALOG_REVALIDATE_SECONDS, ['categories']);
+}
+
+// Admin-editable (AdminCuisineManagementPage), same revalidation window as
+// getCategories — replaces lib/labels.ts's hardcoded CUISINE_OPTIONS, which
+// couldn't reflect a newly-added/renamed cuisine without a code deploy.
+export async function getCuisines(): Promise<CuisineDto[]> {
+  return apiFetch<CuisineDto[]>('/cuisines', CATALOG_REVALIDATE_SECONDS, ['cuisines']);
 }
 
 export interface SearchParams {

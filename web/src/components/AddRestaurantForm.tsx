@@ -6,8 +6,8 @@ import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[lo
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { FacilityIcon, LocateIcon } from '@/components/icons';
-import { CUISINE_OPTIONS, FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import { VN_PROVINCES, type CategoryDto, type CuisineCode, type DuplicateCandidateDto, type FacilityType } from '@foodmap/shared-types';
+import { FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
+import { VN_PROVINCES, type CategoryDto, type CuisineCode, type CuisineDto, type DuplicateCandidateDto, type FacilityType } from '@foodmap/shared-types';
 
 type Phase =
   | { kind: 'form' }
@@ -18,9 +18,11 @@ type Phase =
 interface Props {
   /** Live categories (admin-editable) fetched server-side — not a hardcoded list, so a newly admin-created category is selectable here too. */
   categories: CategoryDto[];
+  /** Live cuisines (admin-editable), same reasoning as `categories`. */
+  cuisines: CuisineDto[];
 }
 
-export function AddRestaurantForm({ categories }: Props) {
+export function AddRestaurantForm({ categories, cuisines }: Props) {
   const t = useTranslations('addRestaurant');
   const tLabels = useTranslations('labels');
   const tCommon = useTranslations('common');
@@ -263,14 +265,14 @@ export function AddRestaurantForm({ categories }: Props) {
       <div className="login-field">
         <span>{t('cuisineLabel')}</span>
         <div className="chip-row">
-          {CUISINE_OPTIONS.map((code) => (
+          {cuisines.map((cuisine) => (
             <button
-              key={code}
+              key={cuisine.code}
               type="button"
-              className={`chip chip-toggle ${cuisineCodes.includes(code) ? 'chip-selected' : ''}`}
-              onClick={() => toggleCuisine(code)}
+              className={`chip chip-toggle ${cuisineCodes.includes(cuisine.code) ? 'chip-selected' : ''}`}
+              onClick={() => toggleCuisine(cuisine.code)}
             >
-              {tLabels(`cuisine.${code}`)}
+              {cuisine.label}
             </button>
           ))}
         </div>

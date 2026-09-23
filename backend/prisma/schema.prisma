@@ -920,6 +920,16 @@ enum NotificationType {
   // contributor) — fired when a new contribution or review lands in the
   // Admin Moderation Queue as `pending`. See NotificationService.notifyAdmins.
   moderation_queue_new
+  // Fired at ReviewService.toggleHelpful — someone (not the author) marks
+  // the author's review helpful.
+  review_helpful_vote
+  // Fired once, the moment a single review's helpful count first reaches
+  // REVIEW_HELPFUL_MILESTONE (see review.service.ts) — guarded so it can't
+  // re-fire on every subsequent toggle past the threshold.
+  review_helpful_milestone
+  // Fired at AdminRestaurantService.replaceOpeningHours for every user who
+  // has this restaurant favorited, when the new hours differ from the old.
+  restaurant_hours_changed
 }
 
 // `payload` carries the deep-link target (screen + id) per the ERD note —

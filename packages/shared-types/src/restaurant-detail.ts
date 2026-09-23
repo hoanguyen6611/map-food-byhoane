@@ -128,6 +128,7 @@ export interface AdminRestaurantListItemDto {
   district: string;
   publicationStatus: RestaurantPublicationStatus;
   createdAt: string;
+  viewCount: number;
 }
 
 // build-prompts/09-public-web.md's sitemap.xml generator — every published

@@ -18,7 +18,6 @@ interface Props {
   initialReplyCount: number;
   helpfulLabel: string;
   reportLabel: string;
-  replyCountLabel: string;
   replyPlaceholder: string;
   replySubmitLabel: string;
 }
@@ -37,12 +36,16 @@ export function ReviewCardFooter({
   initialReplyCount,
   helpfulLabel,
   reportLabel,
-  replyCountLabel,
   replyPlaceholder,
   replySubmitLabel,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('common');
+  // Called directly here (not a pre-formatted string prop) so it can
+  // re-interpolate `count` on every render as `replyCount` state changes —
+  // next-intl's `t()` requires the ICU variable at the call site, it can't
+  // be deferred to a manual string `.replace()` on an already-evaluated value.
+  const tRestaurant = useTranslations('restaurant');
   const { showToast } = useToast();
   const [helpfulCount, setHelpfulCount] = useState(initialHelpfulCount);
   const [hasMarkedHelpful, setHasMarkedHelpful] = useState(initialViewerHasMarkedHelpful);
@@ -117,7 +120,7 @@ export function ReviewCardFooter({
         </button>
         <button type="button" className="review-card-reply-toggle" onClick={toggleReplies}>
           <MessageCircleIcon size={15} />
-          {replyCountLabel.replace('{count}', String(replyCount))}
+          {tRestaurant('replyCountLabel', { count: replyCount })}
         </button>
         <span className="font-meta" style={{ fontSize: 14, color: 'var(--color-ink-subtle)' }}>
           {reportLabel}

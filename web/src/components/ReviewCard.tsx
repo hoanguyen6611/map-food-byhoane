@@ -12,8 +12,6 @@ interface Props {
   reportLabel: string;
   /** Pre-translated "Hữu ích" label. */
   helpfulLabel: string;
-  /** Pre-translated "{count} phản hồi" label (literal "{count}" token, replaced client-side). */
-  replyCountLabel: string;
   replyPlaceholder: string;
   replySubmitLabel: string;
 }
@@ -24,7 +22,6 @@ export function ReviewCard({
   isLoggedIn,
   reportLabel,
   helpfulLabel,
-  replyCountLabel,
   replyPlaceholder,
   replySubmitLabel,
 }: Props) {
@@ -56,7 +53,6 @@ export function ReviewCard({
         initialReplyCount={review.replyCount}
         helpfulLabel={helpfulLabel}
         reportLabel={reportLabel}
-        replyCountLabel={replyCountLabel}
         replyPlaceholder={replyPlaceholder}
         replySubmitLabel={replySubmitLabel}
       />

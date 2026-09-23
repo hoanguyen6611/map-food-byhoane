@@ -66,6 +66,10 @@ export function EditReviewModal({ review, onClose }: Props) {
   const ratedCount = Object.values(ratings).filter((v) => v > 0).length;
   const canSubmit = overallRating >= 1 && ratedCount >= 1;
 
+  const originalRatingsByCode = Object.fromEntries(review.ratings.map((r) => [r.criteriaCode, r.score]));
+  const ratingsChanged = CRITERIA_ORDER.some((code) => (ratings[code] ?? 0) !== (originalRatingsByCode[code] ?? 0));
+  const isDirty = overallRating !== review.overallRating || ratingsChanged || comment !== (review.comment ?? '');
+
   async function submit() {
     if (!canSubmit) {
       setError(tWrite('validationError'));
@@ -92,12 +96,15 @@ export function EditReviewModal({ review, onClose }: Props) {
   return (
     <div className="profile-edit-modal-overlay" onClick={onClose}>
       <div className="profile-edit-modal-panel" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="photo-lightbox-close" aria-label={t('cancel')} onClick={onClose}>
-          <CloseIcon size={16} />
-        </button>
-        <h2 className="info-card-title" style={{ margin: '0 0 12px' }}>
-          {t('editReviewHeading')}
-        </h2>
+        <div className="profile-edit-modal-scroll">
+        <div className="profile-edit-modal-header">
+          <h2 className="info-card-title" style={{ margin: '0 0 12px' }}>
+            {t('editReviewHeading')}
+          </h2>
+          <button type="button" className="profile-edit-modal-close" aria-label={t('cancel')} onClick={onClose}>
+            <CloseIcon size={16} />
+          </button>
+        </div>
 
         {error ? (
           <p className="write-review-error" role="alert">
@@ -130,9 +137,10 @@ export function EditReviewModal({ review, onClose }: Props) {
           <button type="button" className="secondary-btn" onClick={onClose}>
             {t('cancel')}
           </button>
-          <button type="button" className="write-review-submit" onClick={submit} disabled={isSaving || !canSubmit}>
+          <button type="button" className="write-review-submit" onClick={submit} disabled={isSaving || !canSubmit || !isDirty}>
             {isSaving ? tWrite('submitting') : t('save')}
           </button>
+        </div>
         </div>
       </div>
     </div>

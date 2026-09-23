@@ -2,7 +2,7 @@
 // src/i18n/messages/{locale}.json under `labels.*` (see LABEL_MESSAGE_KEY
 // helpers below) — this file only enumerates the valid codes, mirroring
 // mobile/src/screens/main/FilterScreen.tsx's `_OPTIONS` convention.
-import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
+import type { FacilityType, PriceRangeCode, RestaurantCategoryCode } from '@foodmap/shared-types';
 
 // A curated subset of the live /categories list — only used by SiteFooter's
 // hand-picked quick links (see its own comment). Everywhere else that shows
@@ -18,8 +18,6 @@ export const CATEGORY_OPTIONS: RestaurantCategoryCode[] = [
   'quan_via_he',
   'quan_bar',
 ];
-
-export const CUISINE_OPTIONS: CuisineCode[] = ['mon_viet', 'mon_han', 'mon_nhat', 'mon_chay', 'mon_thai', 'mon_au'];
 
 export const FACILITY_OPTIONS: FacilityType[] = [
   'wifi',

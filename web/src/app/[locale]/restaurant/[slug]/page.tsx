@@ -369,7 +369,6 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                       isLoggedIn={!!session}
                       reportLabel={t('reportLabel')}
                       helpfulLabel={t('helpfulLabel')}
-                      replyCountLabel={t('replyCountLabel')}
                       replyPlaceholder={t('replyPlaceholder')}
                       replySubmitLabel={t('replySubmit')}
                     />
