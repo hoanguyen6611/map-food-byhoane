@@ -396,6 +396,7 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
           ownerType="restaurant"
           coverUrl={coverUrl}
           onCoverChange={setCoverUrl}
+          maxPhotos={20}
         />
       </div>
 

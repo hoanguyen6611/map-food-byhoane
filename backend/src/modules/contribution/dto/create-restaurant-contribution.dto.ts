@@ -180,10 +180,12 @@ export class CreateRestaurantContributionDto {
   // Externally-hosted photos (web's ImageKit.io upload flow) attached by URL
   // instead of a backend Photo id — see MediaService.attachExternalUrls,
   // which also enforces these actually come from the configured ImageKit
-  // account before trusting them.
+  // account before trusting them. Cap raised to 20 to match web's Add
+  // Restaurant form (AddRestaurantForm.tsx's PhotoUploadField `maxPhotos`) —
+  // `photoIds` (mobile's own upload path) keeps its own separate limit.
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(20)
   @IsUrl({}, { each: true })
   photoUrls?: string[];
 
