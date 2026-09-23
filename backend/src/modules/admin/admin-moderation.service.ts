@@ -61,6 +61,35 @@ export class AdminModerationService {
       decision: query.decision ?? 'pending',
     };
 
+    if (query.hasReports) {
+      // Report has no FK to ModerationResult — the two are linked only by
+      // matching (targetType, targetId) (ReportService.ensureQueueVisible),
+      // so "narrow to reported rows" means resolving that match ourselves:
+      // fetch which targets currently have an open report, group their ids
+      // by type, then OR those groups into the queue's own where-clause.
+      const reportedTargets = await this.prisma.report.findMany({
+        where: { status: { in: ['open', 'escalated'] } },
+        select: { targetType: true, targetId: true },
+        distinct: ['targetType', 'targetId'],
+      });
+      const idsByType = new Map<string, string[]>();
+      for (const { targetType, targetId } of reportedTargets) {
+        const ids = idsByType.get(targetType) ?? [];
+        ids.push(targetId);
+        idsByType.set(targetType, ids);
+      }
+      where.OR = Array.from(idsByType.entries()).map(([targetType, targetIds]) => ({
+        targetType: targetType as AdminModerationQueryDto['targetType'],
+        targetId: { in: targetIds },
+      }));
+      // No open reports at all — short-circuit rather than let an empty OR
+      // array (which Prisma treats as "match nothing" anyway, but relying on
+      // that would be a subtle, undocumented behavior to depend on).
+      if (where.OR.length === 0) {
+        return { items: [], total: 0, page, pageSize };
+      }
+    }
+
     const [rows, total] = await Promise.all([
       this.prisma.moderationResult.findMany({
         where,

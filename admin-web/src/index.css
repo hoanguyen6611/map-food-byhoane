@@ -163,6 +163,15 @@ body {
   z-index: 20;
 }
 
+/* Dashboard's "Hoạt động gần đây" feed reuses the dropdown's item styling
+   inline (not as a popover) — same shape, different container. */
+.notification-dropdown-static {
+  position: static;
+  width: 100%;
+  max-height: none;
+  box-shadow: none;
+}
+
 .notification-dropdown-header {
   padding: 10px 14px;
   font-weight: 600;
@@ -405,6 +414,25 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 8px 10px;
+}
+
+/* A plain checkbox filter alongside the text/select fields above — those
+   set `.filter-field input { width: 200px }` for text inputs, which would
+   stretch a checkbox into a 200px box, so this variant overrides back to a
+   normal inline row instead of the stacked label-above-control layout. */
+.filter-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  align-self: flex-end;
+}
+.filter-field-checkbox input {
+  width: auto;
+}
+.filter-field-checkbox span {
+  font-size: 13px;
+  color: var(--color-text);
 }
 
 .filter-field select {

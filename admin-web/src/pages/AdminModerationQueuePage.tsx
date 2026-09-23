@@ -46,16 +46,18 @@ export function AdminModerationQueuePage() {
   const [decision, setDecision] = useState<ModerationDecision | ''>(
     () => (searchParams.get('decision') as ModerationDecision | null) ?? 'pending',
   )
+  const [hasReports, setHasReports] = useState(() => searchParams.get('hasReports') === 'true')
   const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const listQuery = useQuery({
-    queryKey: ['admin-moderation-queue', targetType, decision, page],
+    queryKey: ['admin-moderation-queue', targetType, decision, hasReports, page],
     queryFn: () =>
       adminModerationApi.list({
         targetType: targetType || undefined,
         decision: decision || undefined,
+        hasReports: hasReports || undefined,
         page,
         pageSize: PAGE_SIZE,
       }),
@@ -113,6 +115,11 @@ export function AdminModerationQueuePage() {
     setPage(1)
   }
 
+  function handleHasReportsChange(value: boolean) {
+    setHasReports(value)
+    setPage(1)
+  }
+
   const data = listQuery.data
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
@@ -151,6 +158,15 @@ export function AdminModerationQueuePage() {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="filter-field filter-field-checkbox">
+          <input
+            type="checkbox"
+            checked={hasReports}
+            onChange={(event) => handleHasReportsChange(event.target.checked)}
+          />
+          <span>Chỉ hiện mục bị báo cáo</span>
         </label>
       </div>
 

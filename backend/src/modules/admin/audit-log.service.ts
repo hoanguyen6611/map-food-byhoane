@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { AuditLogEntryDto, Paginated } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
 
 export interface RecordAuditLogInput {
   actorId: string;
@@ -38,6 +42,37 @@ export class AuditLogService {
         afterState: this.toJson(input.afterState),
       },
     });
+  }
+
+  /**
+   * "Hoạt động gần đây" on the Admin Dashboard — read-only, does not affect
+   * the append-only write contract above. Ordered newest first; the actor's
+   * email is joined in since a raw `actorId` UUID isn't useful to display.
+   */
+  async list(params: { page?: number; pageSize?: number }): Promise<Paginated<AuditLogEntryDto>> {
+    const page = params.page ?? DEFAULT_PAGE;
+    const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { actor: { select: { email: true } } },
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+
+    const items: AuditLogEntryDto[] = rows.map((row) => ({
+      id: row.id,
+      actorEmail: row.actor.email,
+      action: row.action,
+      targetType: row.targetType,
+      targetId: row.targetId,
+      createdAt: row.createdAt.toISOString(),
+    }));
+
+    return { items, total, page, pageSize };
   }
 
   private toJson(value: unknown): Prisma.InputJsonValue | undefined {

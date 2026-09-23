@@ -22,6 +22,7 @@ import { apiClient } from './client'
 export interface AdminModerationListQuery {
   targetType?: ModerationTargetType
   decision?: ModerationDecision
+  hasReports?: boolean
   page?: number
   pageSize?: number
 }
@@ -30,6 +31,7 @@ function buildListQueryString(query: AdminModerationListQuery): string {
   const params = new URLSearchParams()
   if (query.targetType) params.set('targetType', query.targetType)
   if (query.decision) params.set('decision', query.decision)
+  if (query.hasReports) params.set('hasReports', 'true')
   if (query.page !== undefined) params.set('page', String(query.page))
   if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize))
   const qs = params.toString()

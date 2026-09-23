@@ -17,5 +17,6 @@ export * from './contribution';
 export * from './moderation';
 export * from './ai-summary';
 export * from './admin-dashboard';
+export * from './audit-log';
 export * from './data/vn-address';
 export * from './push';
