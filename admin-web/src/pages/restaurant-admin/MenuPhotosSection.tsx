@@ -1,12 +1,14 @@
 /**
- * Photo attachment — uploads straight from the browser to ImageKit.io
- * (`@imagekit/javascript`'s `upload()`), authorized by a short-lived
- * signature `GET /admin/media/imagekit-auth` mints server-side from the
- * ImageKit PRIVATE key (admin-web has no server of its own to hold that
- * key — see AdminMediaService's doc comment). The resulting URL is then
- * attached the same way any HTTPS photo URL always has been, via the
- * existing `POST /admin/restaurants/:id/photos` (PhotoService.attach,
- * admin/moderator-gated, no origin restriction) — that part is unchanged.
+ * "Ảnh menu" — up to MAX_PHOTOS photos of the physical menu (a menu board,
+ * a printed card), separate from each MenuItem's own name/price/category
+ * and from the restaurant's general photo gallery (PhotosSection.tsx). Same
+ * ImageKit-direct-upload-then-attach flow as PhotosSection, just simpler:
+ * no cover-photo concept, one Menu per restaurant in practice.
+ *
+ * Keyed off `restaurantId`, not a menuId — most restaurants have no Menu row
+ * at all until their first menu item is added, so this always renders
+ * (MenuSection.tsx mounts it once, outside the per-menu `.map()`) and the
+ * backend find-or-creates the Menu row on first upload.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
@@ -18,16 +20,14 @@ import type { AttachPhotoBody } from '../../api/admin-restaurants'
 import { adminMediaApi } from '../../api/admin-media'
 import { pushToast } from '../../lib/toastStore'
 
-interface PhotosSectionProps {
+const MAX_PHOTOS = 20
+
+interface MenuPhotosSectionProps {
   restaurantId: string
   photos: PhotoDto[]
-  /** Which photo (if any) is the explicitly-chosen "ảnh đại diện" — null falls back to the oldest-photo default. */
-  coverPhotoId: string | null
 }
 
-const MAX_PHOTOS = 10
-
-export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSectionProps) {
+export function MenuPhotosSection({ restaurantId, photos }: MenuPhotosSectionProps) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -38,32 +38,33 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
   }
 
   const addMutation = useMutation({
-    mutationFn: (body: AttachPhotoBody) => adminRestaurantsApi.attachPhoto(restaurantId, body),
+    mutationFn: (body: AttachPhotoBody) => adminRestaurantsApi.attachMenuPhoto(restaurantId, body),
     onSuccess: invalidate,
-    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể thêm ảnh.'),
+    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể thêm ảnh menu.'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (photoId: string) => adminRestaurantsApi.deletePhoto(photoId),
-    meta: { successMessage: 'Đã xoá ảnh.' },
+    meta: { successMessage: 'Đã xoá ảnh menu.' },
     onSuccess: (_data, photoId) => {
       // Patch the cached detail immediately rather than only invalidating —
       // the delete otherwise stayed visible until the next manual page
       // reload happened to refetch it (background invalidation alone
       // wasn't reliably re-rendering this list).
       queryClient.setQueryData<AdminRestaurantDetailDto>(['admin-restaurant', restaurantId], (old) =>
-        old ? { ...old, photos: old.photos.filter((photo) => photo.id !== photoId) } : old,
+        old
+          ? {
+              ...old,
+              menus: old.menus.map((menu) => ({
+                ...menu,
+                photos: menu.photos.filter((photo) => photo.id !== photoId),
+              })),
+            }
+          : old,
       )
       invalidate()
     },
-    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa ảnh.'),
-  })
-
-  const coverMutation = useMutation({
-    mutationFn: (photoId: string) => adminRestaurantsApi.setCoverPhoto(restaurantId, photoId),
-    meta: { successMessage: 'Đã đặt ảnh đại diện.' },
-    onSuccess: invalidate,
-    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể đặt ảnh đại diện.'),
+    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Không thể xóa ảnh menu.'),
   })
 
   async function handleFiles(fileList: FileList | null) {
@@ -80,16 +81,13 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
           const result = await upload({
             file,
             fileName: file.name,
-            folder: '/foodmap/restaurant',
+            folder: '/foodmap/menu',
             publicKey: auth.publicKey,
             signature: auth.signature,
             expire: auth.expire,
             token: auth.token,
           })
           if (result.url) {
-            // Bypasses `addMutation`'s own `meta.successMessage` on purpose —
-            // one toast per file in a multi-file upload would be spammy, so
-            // this pushes a single combined toast after the loop instead.
             await addMutation.mutateAsync({ url: result.url, width: result.width, height: result.height })
             uploadedCount += 1
           } else {
@@ -100,7 +98,7 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
         }
       }
       if (uploadedCount > 0) {
-        pushToast(uploadedCount === 1 ? 'Đã thêm 1 ảnh.' : `Đã thêm ${uploadedCount} ảnh.`, 'success')
+        pushToast(uploadedCount === 1 ? 'Đã thêm 1 ảnh menu.' : `Đã thêm ${uploadedCount} ảnh menu.`, 'success')
       }
       if (hadError) setError('Không tải được ảnh này. Vui lòng thử lại.')
     } finally {
@@ -110,35 +108,22 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
   }
 
   return (
-    <section className="detail-section">
-      <h2>Ảnh</h2>
-
+    <div className="menu-photos-block">
+      <h4>Ảnh menu ({photos.length}/{MAX_PHOTOS})</h4>
       <div className="photo-grid">
-        {photos.map((photo) => {
-          const isCover = photo.id === coverPhotoId
-          return (
-            <div key={photo.id} className="photo-tile">
-              <img src={photo.url} alt="" loading="lazy" />
-              <button
-                type="button"
-                className={`button button-small ${isCover ? 'button-primary' : ''}`}
-                disabled={coverMutation.isPending || isCover}
-                title={isCover ? 'Đang là ảnh đại diện' : 'Đặt làm ảnh đại diện'}
-                onClick={() => coverMutation.mutate(photo.id)}
-              >
-                {isCover ? '★ Ảnh đại diện' : '☆ Đặt đại diện'}
-              </button>
-              <button
-                type="button"
-                className="button button-small button-danger"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(photo.id)}
-              >
-                Xóa
-              </button>
-            </div>
-          )
-        })}
+        {photos.map((photo) => (
+          <div key={photo.id} className="photo-tile">
+            <img src={photo.url} alt="" loading="lazy" />
+            <button
+              type="button"
+              className="button button-small button-danger"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate(photo.id)}
+            >
+              Xóa
+            </button>
+          </div>
+        ))}
         {photos.length < MAX_PHOTOS && (
           <label className="photo-tile photo-tile-add">
             <span>{isUploading ? 'Đang tải lên…' : '+ Thêm ảnh'}</span>
@@ -155,6 +140,6 @@ export function PhotosSection({ restaurantId, photos, coverPhotoId }: PhotosSect
         )}
       </div>
       {error && <p className="field-error">{error}</p>}
-    </section>
+    </div>
   )
 }

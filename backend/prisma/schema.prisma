@@ -472,6 +472,9 @@ enum PhotoOwnerType {
   user_profile
   review
   contribution
+  // Up to 3 photos of a restaurant's physical menu, attached to a Menu row
+  // (ownerId = Menu.id) — see the "menu photos" feature, admin-web only.
+  menu
 }
 
 // Two producers write this table now: the admin-only stopgap (PhotoService,

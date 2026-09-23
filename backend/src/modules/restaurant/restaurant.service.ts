@@ -231,11 +231,26 @@ export class RestaurantService {
     // 0 for admin/internal reads, which shouldn't move the public counter.
     { viewCountDelta = 0 }: { viewCountDelta?: number } = {},
   ): Promise<RestaurantDetailDto> {
-    const [restaurantPhotos, reviewRows, publishedReviews] = await Promise.all([
+    const [restaurantPhotos, menuPhotos, reviewRows, publishedReviews] = await Promise.all([
       this.prisma.photo.findMany({
         where: {
           ownerType: 'restaurant',
           ownerId: restaurant.id,
+          deletedAt: null,
+          status: 'approved',
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // Photo has no relation to Menu (ownerId is a loose id, not an FK,
+      // same reasoning as reviewPhotos below) — one batched lookup across
+      // every one of this restaurant's Menu rows (almost always just one).
+      // Always queries (even `in: []`) rather than a ternary against
+      // `Promise.resolve([])` — that shape collapses the array's element
+      // type to `any[]` (a real bug hit earlier in this codebase).
+      this.prisma.photo.findMany({
+        where: {
+          ownerType: 'menu',
+          ownerId: { in: restaurant.menus.map((menu) => menu.id) },
           deletedAt: null,
           status: 'approved',
         },
@@ -285,6 +300,12 @@ export class RestaurantService {
         )
       : restaurantPhotos;
     const photos = [...orderedRestaurantPhotos, ...reviewPhotos];
+    const menuPhotosByMenuId = new Map<string, typeof menuPhotos>();
+    for (const photo of menuPhotos) {
+      const list = menuPhotosByMenuId.get(photo.ownerId!) ?? [];
+      list.push(photo);
+      menuPhotosByMenuId.set(photo.ownerId!, list);
+    }
     const vnNow = toVnNow(new Date());
     const openingHourRows: OpeningHourRow[] = restaurant.openingHours;
 
@@ -329,6 +350,12 @@ export class RestaurantService {
           priceVnd: item.priceVnd,
           category: item.category,
           isPopular: item.isPopular,
+        })),
+        photos: (menuPhotosByMenuId.get(menu.id) ?? []).map((p) => ({
+          id: p.id,
+          url: this.s3.publicUrl(p.storageKey),
+          width: p.width,
+          height: p.height,
         })),
       })),
       photos: photos.map((p) => ({

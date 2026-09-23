@@ -14,6 +14,7 @@ import { Stars } from '@/components/Stars';
 import { OpenBadge } from '@/components/OpenBadge';
 import { AxisBars } from '@/components/AxisBars';
 import { ReviewCard } from '@/components/ReviewCard';
+import { ReviewCardPhotos } from '@/components/ReviewCardPhotos';
 import { MapCanvas } from '@/components/MapCanvas';
 import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
 import { SocialLinksCard } from '@/components/SocialLinksCard';
@@ -312,7 +313,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                 ))}
               </div>
 
-              {!firstMenu || firstMenu.items.length === 0 ? (
+              {!firstMenu || (firstMenu.items.length === 0 && firstMenu.photos.length === 0) ? (
                 <div className="no-menu-card">
                   <MenuFolderIcon size={26} />
                   <span className="no-menu-title">{t('noMenu')}</span>
@@ -320,25 +321,32 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               ) : (
                 <div className="info-card">
                   <h2 className="info-card-title">{t('menuHeading')}</h2>
-                  <table className="menu-table">
-                    <caption className="sr-only">{t('menuCaption', { name: restaurant.name })}</caption>
-                    <tbody>
-                      {firstMenu.items.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            {item.name}
-                            {item.isPopular ? (
-                              <>
-                                {' '}
-                                <span aria-label={t('popularDish')}>🔥</span>
-                              </>
-                            ) : null}
-                          </td>
-                          <td className="price">{formatVndFull(item.priceVnd, locale)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {firstMenu.items.length > 0 ? (
+                    <table className="menu-table">
+                      <caption className="sr-only">{t('menuCaption', { name: restaurant.name })}</caption>
+                      <tbody>
+                        {firstMenu.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              {item.name}
+                              {item.isPopular ? (
+                                <>
+                                  {' '}
+                                  <span aria-label={t('popularDish')}>🔥</span>
+                                </>
+                              ) : null}
+                            </td>
+                            <td className="price">{formatVndFull(item.priceVnd, locale)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                  {firstMenu.photos.length > 0 ? (
+                    <div style={{ marginTop: firstMenu.items.length > 0 ? 16 : 0 }}>
+                      <ReviewCardPhotos photos={firstMenu.photos} />
+                    </div>
+                  ) : null}
                 </div>
               )}
             </>

@@ -126,6 +126,11 @@ export interface UpdateMenuItemBody {
   isPopular?: boolean
 }
 
+/** Body for POST /admin/restaurants/:id/menu-items/bulk (MenuImportDialog.tsx's Excel import). */
+export interface BulkCreateMenuItemsBody {
+  items: CreateMenuItemBody[]
+}
+
 export interface AttachPhotoBody {
   url: string
   width?: number
@@ -177,6 +182,9 @@ export const adminRestaurantsApi = {
   createMenuItem: (id: string, body: CreateMenuItemBody) =>
     apiClient.post<MenuItemDto>(`/admin/restaurants/${id}/menu-items`, body),
 
+  bulkCreateMenuItems: (id: string, body: BulkCreateMenuItemsBody) =>
+    apiClient.post<MenuItemDto[]>(`/admin/restaurants/${id}/menu-items/bulk`, body),
+
   updateMenuItem: (itemId: string, body: UpdateMenuItemBody) =>
     apiClient.patch<MenuItemDto>(`/admin/restaurants/menu-items/${itemId}`, body),
 
@@ -188,6 +196,10 @@ export const adminRestaurantsApi = {
 
   deletePhoto: (photoId: string) =>
     apiClient.delete<void>(`/admin/restaurants/photos/${photoId}`),
+
+  /** "Ảnh menu" — up to MAX_PHOTOS (MenuPhotosSection.tsx) photos of the physical menu, attached to the restaurant's Menu row (find-or-created server-side). Deletion reuses `deletePhoto` above (same underlying route, server branches on the photo's ownerType). */
+  attachMenuPhoto: (id: string, body: AttachPhotoBody) =>
+    apiClient.post<PhotoDto>(`/admin/restaurants/${id}/menu-photos`, body),
 
   /** `photoId: null` clears the explicit choice, falling back to the oldest-photo default. */
   setCoverPhoto: (id: string, photoId: string | null) =>

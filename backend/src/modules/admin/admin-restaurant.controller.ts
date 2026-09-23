@@ -32,6 +32,7 @@ import { AdminRestaurantQueryDto } from './dto/admin-restaurant-query.dto';
 import { ReplaceOpeningHoursDto } from './dto/opening-hours.dto';
 import { ReplaceFacilitiesDto } from './dto/facilities.dto';
 import { CreateMenuItemDto, UpdateMenuItemDto } from './dto/menu-item.dto';
+import { BulkCreateMenuItemsDto } from './dto/bulk-create-menu-items.dto';
 import { AttachPhotoDto } from './dto/attach-photo.dto';
 import { SetCoverPhotoDto } from './dto/set-cover-photo.dto';
 
@@ -136,6 +137,17 @@ export class AdminRestaurantController {
     return this.adminRestaurantService.addMenuItem(id, dto, user.id);
   }
 
+  // Excel-import flow (admin-web's MenuImportDialog.tsx parses the file
+  // client-side and posts the parsed rows here as one batch).
+  @Post(':id/menu-items/bulk')
+  addMenuItemsBulk(
+    @Param('id') id: string,
+    @Body() dto: BulkCreateMenuItemsDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<MenuItemDto[]> {
+    return this.adminRestaurantService.addMenuItemsBulk(id, dto.items, user.id);
+  }
+
   // Not nested under :restaurantId — menu item ids are already globally
   // unique (Prisma cuid), and admin-web's menu editor addresses items directly.
   @Patch('menu-items/:itemId')
@@ -172,6 +184,23 @@ export class AdminRestaurantController {
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
     return this.adminRestaurantService.removePhoto(photoId, user.id);
+  }
+
+  // Menu photos — up to MAX_MENU_PHOTOS (admin-restaurant.service.ts)
+  // photos of the physical menu, attached to the
+  // restaurant's Menu row (not any one menu item; find-or-created on first
+  // use, same as addMenuItem, since most restaurants have no Menu row until
+  // their first item is added). Deletion reuses the existing DELETE
+  // photos/:photoId route above (PhotoService.remove is already generic
+  // over ownerType; removePhoto() branches on it to know which restaurant
+  // to revalidate).
+  @Post(':id/menu-photos')
+  attachMenuPhoto(
+    @Param('id') id: string,
+    @Body() dto: AttachPhotoDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<PhotoDto> {
+    return this.adminRestaurantService.attachMenuPhoto(id, dto, user.id);
   }
 
   @Put(':id/cover-photo')

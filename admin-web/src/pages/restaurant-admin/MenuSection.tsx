@@ -13,6 +13,8 @@ import { ApiError } from '../../api/client'
 import { adminRestaurantsApi } from '../../api/admin-restaurants'
 import type { CreateMenuItemBody } from '../../api/admin-restaurants'
 import { formatVnd } from './constants'
+import { MenuImportDialog } from './MenuImportDialog'
+import { MenuPhotosSection } from './MenuPhotosSection'
 
 const MAX_PRICE_VND = 10_000_000
 
@@ -236,7 +238,10 @@ interface MenuSectionProps {
 export function MenuSection({ restaurantId, menus }: MenuSectionProps) {
   return (
     <section className="detail-section">
-      <h2>Thực đơn</h2>
+      <div className="page-header-row">
+        <h2>Thực đơn</h2>
+        <MenuImportDialog restaurantId={restaurantId} />
+      </div>
       {menus.length === 0 && <p>Chưa có món nào.</p>}
       {menus.map((menu) => (
         <div key={menu.id} className="menu-block">
@@ -263,6 +268,8 @@ export function MenuSection({ restaurantId, menus }: MenuSectionProps) {
           )}
         </div>
       ))}
+
+      <MenuPhotosSection restaurantId={restaurantId} photos={menus[0]?.photos ?? []} />
 
       <AddMenuItemForm restaurantId={restaurantId} />
     </section>

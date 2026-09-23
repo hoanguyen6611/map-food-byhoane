@@ -756,6 +756,17 @@ body {
   margin: 0 0 8px;
 }
 
+.menu-photos-block {
+  margin-top: 12px;
+}
+
+.menu-photos-block h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;
@@ -772,6 +783,12 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 8px 10px;
+}
+
+.menu-import-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 .photo-grid {

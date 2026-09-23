@@ -24,6 +24,7 @@ import type { AttachPhotoDto } from './dto/attach-photo.dto';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
+const MAX_MENU_PHOTOS = 20;
 
 @Injectable()
 export class AdminRestaurantService {
@@ -571,6 +572,64 @@ export class AdminRestaurantService {
     };
   }
 
+  /**
+   * Excel-import bulk create (admin-web's MenuImportDialog.tsx) — one audit
+   * log entry and one revalidation for the whole batch, instead of the N of
+   * each a naive loop of `addMenuItem()` calls would produce. Same
+   * best-effort Dish-catalog linking as `addMenuItem`, just resolved in one
+   * batched query instead of one query per item.
+   */
+  async addMenuItemsBulk(
+    restaurantId: string,
+    items: CreateMenuItemDto[],
+    actorId: string,
+  ): Promise<MenuItemDto[]> {
+    let menu = await this.prisma.menu.findFirst({ where: { restaurantId } });
+    if (!menu) {
+      menu = await this.prisma.menu.create({
+        data: { restaurantId, isActive: true },
+      });
+    }
+    const menuId = menu.id;
+
+    const dishes = await this.prisma.dish.findMany({
+      where: { name: { in: items.map((i) => i.name), mode: 'insensitive' } },
+    });
+    const dishIdByLowerName = new Map(dishes.map((d) => [d.name.toLowerCase(), d.id]));
+
+    const created = await this.prisma.$transaction(
+      items.map((dto) =>
+        this.prisma.menuItem.create({
+          data: {
+            menuId,
+            dishId: dishIdByLowerName.get(dto.name.toLowerCase()) ?? null,
+            name: dto.name,
+            priceVnd: dto.priceVnd,
+            category: dto.category,
+            isPopular: dto.isPopular ?? false,
+          },
+        }),
+      ),
+    );
+
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.menu_item.bulk_create',
+      targetType: 'restaurant',
+      targetId: restaurantId,
+      afterState: { count: created.length, names: created.map((item) => item.name) },
+    });
+    void this.revalidateRestaurant(restaurantId);
+
+    return created.map((item) => ({
+      id: item.id,
+      name: item.name,
+      priceVnd: item.priceVnd,
+      category: item.category,
+      isPopular: item.isPopular,
+    }));
+  }
+
   async updateMenuItem(
     itemId: string,
     dto: UpdateMenuItemDto,
@@ -651,6 +710,62 @@ export class AdminRestaurantService {
   }
 
   /**
+   * "Ảnh menu" — up to `MAX_MENU_PHOTOS` photos of the physical menu,
+   * attached to the Menu row (not the restaurant, and not any one
+   * MenuItem). Unlike `attachPhoto`, this enforces its cap server-side
+   * (the restaurant-photo path's own client-side-only cap is a pre-existing
+   * gap this doesn't inherit) and never touches the viewport cache/cover
+   * photo — menu photos don't feed either.
+   *
+   * Takes a restaurantId, not a menuId — most restaurants have no Menu row
+   * at all until their first menu item is added (see `addMenuItem`'s own
+   * find-or-create), so gating this on an existing menuId would leave no
+   * way to upload menu photos before any item exists. Find-or-creates the
+   * same way `addMenuItem` does.
+   */
+  async attachMenuPhoto(
+    restaurantId: string,
+    dto: AttachPhotoDto,
+    actorId: string,
+  ): Promise<PhotoDto> {
+    let menu = await this.prisma.menu.findFirst({ where: { restaurantId } });
+    if (!menu) {
+      menu = await this.prisma.menu.create({
+        data: { restaurantId, isActive: true },
+      });
+    }
+    const menuId = menu.id;
+    const existingCount = await this.prisma.photo.count({
+      where: { ownerType: 'menu', ownerId: menuId, deletedAt: null },
+    });
+    if (existingCount >= MAX_MENU_PHOTOS) {
+      throw new BadRequestException(`Chỉ được phép tối đa ${MAX_MENU_PHOTOS} ảnh menu.`);
+    }
+    const photo = await this.photoService.attach({
+      ownerType: 'menu',
+      ownerId: menuId,
+      url: dto.url,
+      width: dto.width,
+      height: dto.height,
+      uploadedBy: actorId,
+    });
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.menu_photo.attach',
+      targetType: 'restaurant',
+      targetId: restaurantId,
+      afterState: { photoId: photo.id, url: dto.url },
+    });
+    void this.revalidateRestaurant(restaurantId);
+    return {
+      id: photo.id,
+      url: photo.storageKey,
+      width: photo.width,
+      height: photo.height,
+    };
+  }
+
+  /**
    * "Ảnh đại diện" — `photoId: null` (or omitted) clears the explicit
    * choice, falling back to the oldest-approved-photo default everywhere
    * thumbnailUrl is derived (RestaurantService/SearchService).
@@ -701,6 +816,14 @@ export class AdminRestaurantService {
     await this.restaurantService.invalidateViewportCache();
     if (photo?.ownerType === 'restaurant' && photo.ownerId) {
       void this.revalidateRestaurant(photo.ownerId);
+    } else if (photo?.ownerType === 'menu' && photo.ownerId) {
+      // Menu photos are ownerId = Menu.id, not Restaurant.id — one extra
+      // lookup to find which restaurant's page actually needs revalidating.
+      const menu = await this.prisma.menu.findUnique({
+        where: { id: photo.ownerId },
+        select: { restaurantId: true },
+      });
+      if (menu) void this.revalidateRestaurant(menu.restaurantId);
     }
   }
 

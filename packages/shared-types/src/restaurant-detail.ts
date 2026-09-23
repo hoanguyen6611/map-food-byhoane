@@ -55,6 +55,10 @@ export interface MenuDto {
   id: string;
   name: string | null;
   items: MenuItemDto[];
+  // Up to 3 photos of the physical menu (distinct from each MenuItem's own
+  // data) — uploaded via admin-web's MenuPhotosSection, displayed read-only
+  // on the public web restaurant detail page.
+  photos: PhotoDto[];
 }
 
 export type SocialPlatform = 'facebook' | 'instagram' | 'tiktok' | 'website';
