@@ -185,7 +185,7 @@
     "profileLink": "Hồ sơ",
     "viewProfileHint": "Xem hồ sơ của bạn",
     "notificationsLink": "Thông báo",
-    "addRestaurantLink": "Thêm nhà hàng",
+    "addRestaurantLink": "Thêm địa điểm",
     "createAccount": "Tạo tài khoản",
     "emailInvalid": "Email chưa đúng định dạng",
     "forgotPassword": "Quên mật khẩu?",
@@ -460,7 +460,7 @@
     }
   },
   "addRestaurant": {
-    "title": "Thêm nhà hàng",
+    "title": "Thêm địa điểm",
     "intro": "Biết một quán ngon chưa có trên bản đồ? Thêm vào bên dưới — hệ thống sẽ kiểm duyệt nhanh trước khi hiển thị công khai.",
     "nameLabel": "Tên quán",
     "descriptionLabel": "Mô tả (tùy chọn)",
@@ -506,7 +506,7 @@
     "genericError": "Có lỗi khi gửi thông tin quán. Vui lòng thử lại.",
     "duplicateTitle": "Có vẻ giống một quán đã có sẵn",
     "duplicateBody": "Chúng tôi tìm thấy vài quán gần đó có tên tương tự. Nếu quán của bạn thực sự khác, bạn có thể vẫn gửi.",
-    "publishedTitle": "Đã thêm nhà hàng!",
+    "publishedTitle": "Đã thêm địa điểm!",
     "publishedBody": "Cảm ơn đóng góp của bạn — quán đã hiển thị công khai trên bản đồ.",
     "pendingTitle": "Đã gửi để duyệt",
     "pendingBody": "Thông tin của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai."
