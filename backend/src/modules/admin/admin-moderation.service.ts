@@ -38,6 +38,48 @@ const CONTENT_KIND_LABELS: Record<string, string> = {
   restaurant: 'Nhà hàng bị báo cáo',
 };
 
+// User-facing notification copy for a contribution decision, one entry per
+// `ContributionType` — every type used to share one generic "Nội dung của
+// bạn..." template (decisionTitle/decisionDefaultBody below), which reads
+// the same whether you submitted a whole new restaurant, an edit, a
+// status update, or a closure report. `subject` becomes the notification
+// title's subject clause (see decisionTitle); the three body fields are the
+// notification body per decision.
+const CONTRIBUTION_NOTIFICATION_COPY: Record<
+  string,
+  {
+    subject: (restaurantName: string) => string;
+    approvedBody: (restaurantName: string) => string;
+    rejectedBody: (restaurantName: string) => string;
+    editRequestedBody: (restaurantName: string) => string;
+  }
+> = {
+  new_restaurant: {
+    subject: (name) => `Quán "${name}" bạn đóng góp`,
+    approvedBody: (name) => `${name} đã được duyệt và hiển thị công khai trên Bản Đồ Ẩm Thực.`,
+    rejectedBody: (name) => `Quán "${name}" bạn gửi không đáp ứng tiêu chuẩn cộng đồng.`,
+    editRequestedBody: (name) => `Vui lòng bổ sung/chỉnh sửa thông tin quán "${name}" và gửi lại.`,
+  },
+  edit_suggestion: {
+    subject: (name) => `Đề xuất chỉnh sửa của bạn về ${name}`,
+    approvedBody: (name) => `Thông tin bạn cập nhật cho ${name} đã được áp dụng.`,
+    rejectedBody: (name) => `Đề xuất chỉnh sửa cho ${name} không được áp dụng.`,
+    editRequestedBody: (name) => `Vui lòng chỉnh sửa đề xuất của bạn về ${name} và gửi lại.`,
+  },
+  status_update: {
+    subject: (name) => `Cập nhật trạng thái của bạn về ${name}`,
+    approvedBody: (name) => `Cập nhật trạng thái bạn gửi cho ${name} đã được áp dụng.`,
+    rejectedBody: (name) => `Cập nhật trạng thái cho ${name} không được áp dụng.`,
+    editRequestedBody: (name) => `Vui lòng chỉnh sửa cập nhật trạng thái của bạn về ${name} và gửi lại.`,
+  },
+  closure_report: {
+    subject: (name) => `Báo cáo đóng cửa của bạn về ${name}`,
+    approvedBody: (name) => `Cảm ơn bạn đã báo cáo — ${name} đã được cập nhật trạng thái đóng cửa.`,
+    rejectedBody: (name) => `Báo cáo đóng cửa về ${name} không được xác nhận.`,
+    editRequestedBody: (name) => `Vui lòng bổ sung thông tin cho báo cáo đóng cửa về ${name} và gửi lại.`,
+  },
+};
+
 @Injectable()
 export class AdminModerationService {
   constructor(
@@ -278,12 +320,12 @@ export class AdminModerationService {
           title:
             isApprovedReview && sideEffect.restaurantName
               ? 'Đánh giá của bạn được duyệt'
-              : this.decisionTitle(dto.decision, sideEffect.restaurantName),
+              : this.decisionTitle(dto.decision, sideEffect.restaurantName, sideEffect.contributionType),
           body:
             dto.reason ??
             (isApprovedReview && sideEffect.restaurantName
               ? `${sideEffect.restaurantName} — đánh giá ${sideEffect.overallRating} sao của bạn đã hiển thị trên trang quán.`
-              : this.decisionDefaultBody(dto.decision, sideEffect.restaurantName)),
+              : this.decisionDefaultBody(dto.decision, sideEffect.restaurantName, sideEffect.contributionType)),
           deepLink: sideEffect.deepLink,
         },
       );
@@ -315,6 +357,11 @@ export class AdminModerationService {
     // review is now live" instead of the generic wording every other
     // decision/target type shares.
     overallRating?: number;
+    // Contribution-only — `ContributionType` (new_restaurant/edit_suggestion/
+    // status_update/closure_report), lets decisionTitle/decisionDefaultBody
+    // pick CONTRIBUTION_NOTIFICATION_COPY instead of one shared generic
+    // template for every contribution type.
+    contributionType?: string;
   } | null> {
     switch (moderationResult.targetType) {
       case 'review': {
@@ -371,6 +418,7 @@ export class AdminModerationService {
             restaurantId: contribution.targetRestaurantId ?? undefined,
           },
           restaurantName: contribution.targetRestaurant?.name,
+          contributionType: contribution.type,
         };
       }
       case 'photo': {
@@ -407,6 +455,7 @@ export class AdminModerationService {
   private decisionTitle(
     decision: ModerationDecision,
     restaurantName?: string,
+    contributionType?: string,
   ): string {
     if (!restaurantName) {
       // Target was deleted/unresolvable by the time the notification was
@@ -423,22 +472,38 @@ export class AdminModerationService {
           return 'Cập nhật trạng thái nội dung';
       }
     }
+    const copy = contributionType ? CONTRIBUTION_NOTIFICATION_COPY[contributionType] : undefined;
+    const subject = copy ? copy.subject(restaurantName) : `Nội dung của bạn về ${restaurantName}`;
     switch (decision) {
       case 'approved':
-        return `Nội dung của bạn về ${restaurantName} đã được duyệt`;
+        return `${subject} đã được duyệt`;
       case 'rejected':
-        return `Nội dung của bạn về ${restaurantName} đã bị từ chối`;
+        return `${subject} đã bị từ chối`;
       case 'edit_requested':
-        return `Nội dung của bạn về ${restaurantName} cần chỉnh sửa`;
+        return `${subject} cần chỉnh sửa`;
       default:
-        return `Cập nhật trạng thái nội dung về ${restaurantName}`;
+        return `Cập nhật trạng thái: ${subject}`;
     }
   }
 
   private decisionDefaultBody(
     decision: ModerationDecision,
     restaurantName?: string,
+    contributionType?: string,
   ): string {
+    const copy = contributionType ? CONTRIBUTION_NOTIFICATION_COPY[contributionType] : undefined;
+    if (copy && restaurantName) {
+      switch (decision) {
+        case 'approved':
+          return copy.approvedBody(restaurantName);
+        case 'rejected':
+          return copy.rejectedBody(restaurantName);
+        case 'edit_requested':
+          return copy.editRequestedBody(restaurantName);
+        default:
+          return '';
+      }
+    }
     const place = restaurantName ? ` cho ${restaurantName}` : '';
     switch (decision) {
       case 'approved':
