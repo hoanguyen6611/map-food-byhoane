@@ -3,22 +3,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import { CheckIcon, ChevronDownIcon } from './icons';
+import { CheckIcon, ChevronDownIcon, GlobeIcon } from './icons';
 
 // Language name + region are shown as each language's own self-description
 // (same convention as YouTube/X's language pickers) — never re-translated
 // through the currently active locale, so "Tiếng Việt · Việt Nam" reads the
 // same whether the UI itself is currently in Vietnamese or English.
+//
+// No flag emoji here on purpose — flag sequences (regional-indicator pairs)
+// have no guaranteed glyph on plenty of real browsers/OSes (older Windows,
+// many Linux desktops, some WebViews), and fall back to garbled/mismatched
+// glyphs (one lone circled letter, tofu boxes) instead of failing cleanly.
+// The inline-SVG GlobeIcon (this file's own icon system, same reasoning as
+// icons.tsx's doc comment) renders identically everywhere.
 const LANGUAGES = [
-  { code: 'vi', name: 'Tiếng Việt', region: 'Việt Nam', flag: '🇻🇳' },
-  { code: 'en', name: 'English', region: 'International', flag: '🇬🇧' },
+  { code: 'vi', name: 'Tiếng Việt', region: 'Việt Nam' },
+  { code: 'en', name: 'English', region: 'International' },
 ] as const;
 
 /**
  * Vi/En switcher in the site header — switches locale while staying on the
  * exact current page (same pathname + query string), per next-intl's
  * locale-aware router (`router.replace(pathname, { locale })`). Redesigned
- * from a plain two-button toggle into a flag + code trigger that opens a
+ * from a plain two-button toggle into a globe + code trigger that opens a
  * dropdown menu, per the requested design.
  */
 export function LanguageSwitcher() {
@@ -64,9 +71,7 @@ export function LanguageSwitcher() {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="lang-flag" aria-hidden="true">
-          {active.flag}
-        </span>
+        <GlobeIcon size={15} className="lang-flag" aria-hidden="true" />
         <span className="lang-trigger-code">{active.code.toUpperCase()}</span>
         <ChevronDownIcon size={14} />
       </button>
@@ -82,9 +87,7 @@ export function LanguageSwitcher() {
               className="lang-menu-item"
               onClick={() => selectLocale(lang.code)}
             >
-              <span className="lang-flag lang-flag-lg" aria-hidden="true">
-                {lang.flag}
-              </span>
+              <GlobeIcon size={18} className="lang-flag lang-flag-lg" aria-hidden="true" />
               <span className="lang-menu-text">
                 <span className="lang-menu-name">{lang.name}</span>
                 <span className="lang-menu-region">{lang.region}</span>

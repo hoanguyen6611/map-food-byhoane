@@ -40,7 +40,8 @@
     "mapNavLink": "Map",
     "aboutNavLink": "How scoring works",
     "categoriesNavLink": "Categories",
-    "footerBrandDesc": "Find restaurants, cafes, and eateries in Ho Chi Minh City through real reviews."
+    "footerBrandDesc": "Find restaurants, cafes, and eateries in Ho Chi Minh City through real reviews.",
+    "accountSectionLabel": "Account"
   },
   "home": {
     "heroTitle": "Find the right place, not just the nearest one",
@@ -182,6 +183,7 @@
     "greeting": "Hi, {email}",
     "favoritesLink": "Favorites",
     "profileLink": "Profile",
+    "viewProfileHint": "View your profile",
     "notificationsLink": "Notifications",
     "addRestaurantLink": "Add a restaurant",
     "createAccount": "Create account",

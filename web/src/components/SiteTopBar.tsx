@@ -4,7 +4,7 @@ import { SITE_NAME } from '@/lib/constants';
 import { TopBarNav } from './TopBarNav';
 import { MapLogoIcon } from './icons';
 
-/** Sticky site header — README's `SiteTopBar`. Composes the existing AuthStatus/LanguageSwitcher (session-fetch/locale-switch logic untouched) via TopBarNav, the client-side piece that owns the mobile menu toggle. */
+/** Sticky site header — README's `SiteTopBar`. Composes the existing AuthStatus/LanguageSwitcher (session-fetch/locale-switch logic untouched) via TopBarNav, the client-side piece that owns the mobile menu toggle and its own translations. */
 export async function SiteTopBar() {
   const t = await getTranslations('common');
 
@@ -18,14 +18,7 @@ export async function SiteTopBar() {
           {SITE_NAME}
         </Link>
 
-        <TopBarNav
-          mainNavLabel={t('mainNav')}
-          findRestaurantsLabel={t('findRestaurants')}
-          categoriesLabel={t('categoriesNavLink')}
-          mapLabel={t('mapNavLink')}
-          menuLabel={t('menuAriaLabel')}
-          closeMenuLabel={t('closeMenuAriaLabel')}
-        />
+        <TopBarNav />
       </div>
     </header>
   );

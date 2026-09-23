@@ -40,7 +40,8 @@
     "mapNavLink": "Bản đồ",
     "aboutNavLink": "Cách chấm điểm",
     "categoriesNavLink": "Danh mục",
-    "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở khắp Việt Nam qua đánh giá thật."
+    "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở khắp Việt Nam qua đánh giá thật.",
+    "accountSectionLabel": "Tài khoản"
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
@@ -182,6 +183,7 @@
     "greeting": "Xin chào, {email}",
     "favoritesLink": "Yêu thích",
     "profileLink": "Hồ sơ",
+    "viewProfileHint": "Xem hồ sơ của bạn",
     "notificationsLink": "Thông báo",
     "addRestaurantLink": "Thêm nhà hàng",
     "createAccount": "Tạo tài khoản",

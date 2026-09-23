@@ -9,34 +9,16 @@ import { initialsOf } from '@/lib/format';
 import type { SessionInfo } from '@/app/api/session/route';
 import { BellIcon, UserIcon, BookmarkIcon, PlusIcon, LogOutIcon, ChevronDownIcon } from './icons';
 
-/**
- * Client-fetched (not server-read) on purpose — see `api/session/route.ts`'s
- * doc comment: reading the session cookie directly in the root layout would
- * force every page on this SEO-focused, mostly-static site to render
- * dynamically. This trades a tiny client-side flash (briefly shows "Sign
- * in") for keeping home/search/restaurant-detail statically generated.
- */
-export function AuthStatus() {
+interface Props {
+  /** Fetched once by the shared parent (TopBarNav) via `useSessionInfo` — see its own doc comment for why this is a client fetch rather than a server read. */
+  session: SessionInfo | null | undefined;
+}
+
+export function AuthStatus({ session }: Props) {
   const t = useTranslations('auth');
   const locale = useLocale();
-  const [session, setSession] = useState<SessionInfo | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/session')
-      .then((res) => res.json())
-      .then((data: SessionInfo | null) => {
-        if (!cancelled) setSession(data);
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
