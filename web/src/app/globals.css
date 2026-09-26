@@ -3802,6 +3802,71 @@ table.menu-table td.price {
   letter-spacing: -0.01em;
   color: var(--color-ink);
 }
+/* MapFilterDrawer.tsx's trigger — a full filter set (category/area/price/
+   cuisine/facilities/open-now, same as /search) in a modal instead of a
+   permanent sidebar column; the map's own list+canvas layout has no room
+   for a third column. */
+.map-filter-trigger-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-inter-tight), sans-serif;
+  cursor: pointer;
+}
+.map-filter-trigger-btn:hover {
+  background: var(--color-canvas);
+}
+.map-filter-trigger-badge {
+  position: static;
+  box-shadow: none;
+}
+/* Overrides `.profile-edit-modal-panel`'s single scrolling block with a
+   fixed header + scrolling filter list + fixed "currently selected" footer,
+   so the title/close button never scroll out of reach and the selected
+   restaurant is always visible without needing to scroll to the bottom. */
+.map-filter-drawer-panel {
+  max-width: 400px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.map-filter-drawer-header {
+  flex: none;
+  padding: 24px 24px 16px;
+}
+.map-filter-drawer-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding: 0 24px 24px;
+}
+.map-filter-drawer-selected {
+  flex: none;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 24px;
+  border-top: 1px solid var(--color-border-hairline);
+  background: var(--color-surface);
+}
+/* `.profile-edit-modal-overlay`'s own z-index (100) is fine for every other
+   place it's reused, but the map canvas's controls/floating card sit at
+   1001/1002 specifically to beat Leaflet's internal panes (see
+   `.map-controls`'s comment) — without this override, those bled through
+   on top of this modal's backdrop instead of being dimmed behind it. */
+.map-filter-drawer-overlay {
+  z-index: 1003;
+}
 .map-page-list {
   flex: 1;
   min-height: 0;
@@ -3873,23 +3938,60 @@ table.menu-table td.price {
   height: 100%;
   object-fit: cover;
 }
-/* Unlike search/detail/about's flex-wrap layouts, this one has no wrap at
-   all (panel + canvas both have real minimum content widths that add up to
-   far more than a phone viewport) — it needs an actual axis flip, not just
-   a wrap, so the list and the map stack instead of squeezing side by side. */
+/* Mobile drops the side-by-side panel+canvas layout for a draggable bottom
+   sheet over a full-bleed map (the common Grab/Google-Maps mobile pattern) —
+   the map gets nearly the whole screen by default, and the list/filters are
+   one drag away instead of permanently eating ~42% of the viewport. Drag
+   physics live in MapPageClient.tsx (`sheetHeight` state, applied here as an
+   inline `height`); `height: 230px` below is just the pre-hydration default
+   so the collapsed/"peek" state renders correctly even before that effect
+   runs, matching the JS default so there's no layout jump on hydration. */
 @media (max-width: 767px) {
   .map-page {
-    flex-direction: column;
+    position: relative;
   }
   .map-page-panel {
-    flex: 0 0 42%;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
     width: 100%;
     max-width: none;
+    height: 230px;
     border-right: none;
-    border-bottom: 1px solid var(--color-border);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -4px 20px rgba(2, 6, 23, 0.16);
+    transition: height 260ms var(--ease-standard);
+  }
+  .map-page-panel-dragging {
+    transition: none;
+  }
+  .map-page-sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    height: 22px;
+    touch-action: none;
+    cursor: grab;
+  }
+  .map-page-sheet-handle-bar {
+    width: 36px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border);
   }
   .map-page-canvas-wrap {
-    flex: 1 1 auto;
+    position: absolute;
+    inset: 0;
+  }
+  /* Selection is already shown on the map (selected pin) and in the sheet's
+     own list highlight — this floating card would just duplicate that and
+     fight the sheet for the same screen space. */
+  .map-page-floating-card {
+    display: none;
   }
 }
 

@@ -7,24 +7,11 @@ import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/co
 import { FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
-import { getHomeProvince, HCMC_PROVINCE_NAME } from '@/lib/home-province';
+import { ALL_PROVINCES_OVERRIDE, HCMC_PROVINCE_NAME, resolveEffectiveProvince } from '@/lib/home-province';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
   searchParams: Promise<SearchParamsRecord>;
-}
-
-// `province=all` is an explicit "show every province" override (reachable
-// only via the active-filter chip's own "×") — distinct from the param
-// being absent, which instead falls back to whatever province was last
-// selected on Home (a persistent, site-wide preference, not a one-off
-// search filter someone would expect "Xoá tất cả bộ lọc" to reset).
-const ALL_PROVINCES = 'all';
-
-async function resolveProvince(raw: string | undefined): Promise<string | undefined> {
-  if (raw === ALL_PROVINCES) return undefined;
-  if (raw) return raw;
-  return getHomeProvince();
 }
 
 async function buildTitle(q?: string, district?: string, province?: string): Promise<string> {
@@ -57,7 +44,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   const page = Number(search.page ?? '1') || 1;
   const view = search.view === 'grid' ? 'grid' : 'list';
 
-  const effectiveProvince = await resolveProvince(search.province);
+  const effectiveProvince = await resolveEffectiveProvince(search.province);
 
   const [t, tCommon, tLabels, title, categories, cuisineOptions] = await Promise.all([
     getTranslations('search'),
@@ -107,20 +94,20 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
     activeChips.push({
       key: 'category',
       label: categories.find((c) => c.code === search.category)?.label ?? search.category,
-      clearHref: buildSearchHref(search, { category: undefined }),
+      clearHref: buildSearchHref('/search', search, { category: undefined }),
     });
   }
   if (search.district) {
-    activeChips.push({ key: 'district', label: search.district, clearHref: buildSearchHref(search, { district: undefined }) });
+    activeChips.push({ key: 'district', label: search.district, clearHref: buildSearchHref('/search', search, { district: undefined }) });
   }
   if (effectiveProvince) {
-    activeChips.push({ key: 'province', label: effectiveProvince, clearHref: buildSearchHref(search, { province: ALL_PROVINCES }) });
+    activeChips.push({ key: 'province', label: effectiveProvince, clearHref: buildSearchHref('/search', search, { province: ALL_PROVINCES_OVERRIDE }) });
   }
   if (priceBucket) {
     activeChips.push({
       key: 'price',
       label: tLabels(`priceBucket.${priceBucket.code}`),
-      clearHref: buildSearchHref(search, { priceMin: undefined, priceMax: undefined }),
+      clearHref: buildSearchHref('/search', search, { priceMin: undefined, priceMax: undefined }),
     });
   }
   for (const cuisine of cuisineOptions) {
@@ -129,7 +116,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       activeChips.push({
         key: `cuisine-${cuisine.code}`,
         label: cuisine.label,
-        clearHref: buildSearchHref(search, { cuisine: next.length ? next.join(',') : undefined }),
+        clearHref: buildSearchHref('/search', search, { cuisine: next.length ? next.join(',') : undefined }),
       });
     }
   }
@@ -139,12 +126,12 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       activeChips.push({
         key: `facility-${code}`,
         label: tLabels(`facilityLabel.${code}`),
-        clearHref: buildSearchHref(search, { facilities: next.length ? next.join(',') : undefined }),
+        clearHref: buildSearchHref('/search', search, { facilities: next.length ? next.join(',') : undefined }),
       });
     }
   }
   if (search.openNow === 'true') {
-    activeChips.push({ key: 'openNow', label: tCommon('openNow'), clearHref: buildSearchHref(search, { openNow: undefined }) });
+    activeChips.push({ key: 'openNow', label: tCommon('openNow'), clearHref: buildSearchHref('/search', search, { openNow: undefined }) });
   }
 
   return (
@@ -157,6 +144,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
           totalCount={totalCountResult.total}
           locale={locale}
           isHcmc={effectiveProvince === HCMC_PROVINCE_NAME}
+          basePath="/search"
         />
       </div>
 
@@ -173,7 +161,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
             <SearchIcon size={17} />
             <input type="text" name="q" defaultValue={search.q ?? ''} placeholder={t('searchPlaceholder')} aria-label={t('searchAriaLabel')} />
             {search.q ? (
-              <Link href={buildSearchHref(search, { q: undefined })} className="search-clear-btn" aria-label={tCommon('clearSearch')}>
+              <Link href={buildSearchHref('/search', search, { q: undefined })} className="search-clear-btn" aria-label={tCommon('clearSearch')}>
                 <CloseIcon size={11} />
               </Link>
             ) : null}
@@ -181,14 +169,14 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
 
           <div className="view-switch">
             <Link
-              href={buildSearchHref(search, { view: undefined })}
+              href={buildSearchHref('/search', search, { view: undefined })}
               className={`view-switch-btn ${view === 'list' ? 'view-switch-btn-active' : ''}`}
               aria-label={tCommon('viewList')}
             >
               <ListViewIcon size={17} />
             </Link>
             <Link
-              href={buildSearchHref(search, { view: 'grid' })}
+              href={buildSearchHref('/search', search, { view: 'grid' })}
               className={`view-switch-btn ${view === 'grid' ? 'view-switch-btn-active' : ''}`}
               aria-label={tCommon('viewGrid')}
             >

@@ -58,3 +58,16 @@ export async function setHomeProvince(province: string): Promise<void> {
     maxAge: MAX_AGE_SECONDS,
   });
 }
+
+// `province=all` is an explicit "show every province" override (reachable
+// only via the active-filter chip's own "×") — distinct from the param
+// being absent, which instead falls back to `getHomeProvince()`'s own
+// precedence. Shared by Search and Map — both scope their default listing
+// to the same home province and need the same escape hatch out of it.
+export const ALL_PROVINCES_OVERRIDE = 'all';
+
+export async function resolveEffectiveProvince(raw: string | undefined): Promise<string | undefined> {
+  if (raw === ALL_PROVINCES_OVERRIDE) return undefined;
+  if (raw) return raw;
+  return getHomeProvince();
+}

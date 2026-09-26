@@ -153,6 +153,14 @@ export function SortIcon(props: IconProps) {
   );
 }
 
+export function FilterIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 5h16M7 12h10M10 19h4" />
+    </Base>
+  );
+}
+
 export function ListViewIcon(props: IconProps) {
   return (
     <Base {...props}>
