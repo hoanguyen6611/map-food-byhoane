@@ -362,10 +362,12 @@
     "empty": "Bạn chưa có thông báo nào.",
     "emptyUnread": "Không có thông báo chưa đọc.",
     "emptyReviews": "Không có thông báo về đánh giá.",
+    "emptyPlaces": "Không có thông báo về địa điểm.",
     "markRead": "Đánh dấu đã đọc",
     "tabAll": "Tất cả",
     "tabUnread": "Chưa đọc",
-    "tabReviews": "Đánh giá"
+    "tabReviews": "Đánh giá",
+    "tabPlaces": "Địa điểm"
   },
   "map": {
     "pageTitle": "Bản đồ quán ăn",

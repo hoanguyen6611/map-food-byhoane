@@ -6,7 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
-import { AlertIcon, CheckIcon, CameraIcon, ThumbsUpIcon, StarIcon, ClockIcon } from '@/components/icons';
+import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon } from '@/components/icons';
 import { markAllNotificationsReadAction } from './actions';
 
 interface PageProps {
@@ -15,9 +15,18 @@ interface PageProps {
 }
 
 const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
-  moderation_result: <CheckIcon size={17} />,
+  // Review-decision notifications only (see admin-moderation.service.ts:
+  // notificationType is 'moderation_result' exclusively for targetType
+  // 'review') — a filled star reads as "about your review" at a glance,
+  // distinct from report_resolved's generic checkmark below.
+  moderation_result: <StarIcon size={17} filled />,
   report_resolved: <CheckIcon size={17} />,
-  contribution_status: <CameraIcon size={17} />,
+  // Shared by every contribution decision (new_restaurant/edit_suggestion/
+  // status_update/closure_report — one NotificationType covers all of
+  // them), but new_restaurant is by far the most common, so a map-pin
+  // ("new place") reads better here than the old camera glyph, which never
+  // actually meant "photo" for this notification type.
+  contribution_status: <MapPinIcon size={17} />,
   // Admin/moderator-facing (see NotificationService.notifyAdmins) — only
   // ever seen here if an admin/moderator account also browses the public
   // web app, since /me/notifications isn't role-scoped.
@@ -32,7 +41,13 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
 // the plain restaurant page.
 const REVIEW_SCREEN_TYPES: NotificationType[] = ['moderation_result', 'review_helpful_vote', 'review_helpful_milestone'];
 
-type Filter = 'all' | 'unread' | 'reviews';
+// Everything else that's about a place rather than a review — a
+// contribution's own decision (new_restaurant/edit_suggestion/status_update/
+// closure_report, all sharing one NotificationType), and a favorited
+// restaurant's hours changing.
+const PLACE_SCREEN_TYPES: NotificationType[] = ['contribution_status', 'restaurant_hours_changed'];
+
+type Filter = 'all' | 'unread' | 'reviews' | 'places';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
@@ -54,20 +69,31 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
 
   const [t, tCommon] = await Promise.all([getTranslations('notifications'), getTranslations('common')]);
 
-  // "Đánh giá" only counts what's on this fetched page (pageSize=20), same
-  // approximation used elsewhere (e.g. Profile's contribution count) rather
-  // than adding a backend `type` filter for a single tab.
+  // "Đánh giá"/"Địa điểm" only count what's on this fetched page (pageSize=20),
+  // same approximation used elsewhere (e.g. Profile's contribution count)
+  // rather than adding a backend `type` filter for these tabs.
   const reviewItems = data.items.filter((n) => REVIEW_SCREEN_TYPES.includes(n.type));
+  const placeItems = data.items.filter((n) => PLACE_SCREEN_TYPES.includes(n.type));
   const unreadItems = data.items.filter((n) => !n.isRead);
 
-  const filter: Filter = rawFilter === 'unread' || rawFilter === 'reviews' ? rawFilter : 'all';
-  const visibleItems = filter === 'unread' ? unreadItems : filter === 'reviews' ? reviewItems : data.items;
-  const emptyText = filter === 'unread' ? t('emptyUnread') : filter === 'reviews' ? t('emptyReviews') : t('empty');
+  const filter: Filter =
+    rawFilter === 'unread' || rawFilter === 'reviews' || rawFilter === 'places' ? rawFilter : 'all';
+  const visibleItems =
+    filter === 'unread' ? unreadItems : filter === 'reviews' ? reviewItems : filter === 'places' ? placeItems : data.items;
+  const emptyText =
+    filter === 'unread'
+      ? t('emptyUnread')
+      : filter === 'reviews'
+        ? t('emptyReviews')
+        : filter === 'places'
+          ? t('emptyPlaces')
+          : t('empty');
 
   const tabs: { key: Filter; href: string; label: string; count: number }[] = [
     { key: 'all', href: '/notifications', label: t('tabAll'), count: data.total },
     { key: 'unread', href: '/notifications?filter=unread', label: t('tabUnread'), count: data.unreadCount },
     { key: 'reviews', href: '/notifications?filter=reviews', label: t('tabReviews'), count: reviewItems.length },
+    { key: 'places', href: '/notifications?filter=places', label: t('tabPlaces'), count: placeItems.length },
   ];
 
   // Resolves each notification's target restaurant to a real, public slug

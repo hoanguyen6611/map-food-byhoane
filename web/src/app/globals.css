@@ -4348,9 +4348,12 @@ table.menu-table td.price {
   align-items: center;
   justify-content: center;
 }
+/* Review-approved notification — star/gold theme (same as the review-card
+   rating stars and the profile level badge), not the generic green
+   checkmark still used by report_resolved below. */
 .notification-icon-moderation_result {
-  background: #e3f5ec;
-  color: var(--color-open-dot);
+  background: var(--color-cream);
+  color: var(--color-cream-ink);
 }
 .notification-icon-report_resolved {
   background: #e6ecfd;
@@ -4964,9 +4967,6 @@ table.menu-table td.price {
 }
 :root[data-theme='dark'] .toast-error .toast-icon-badge {
   background: #3a1620;
-}
-:root[data-theme='dark'] .notification-icon-moderation_result {
-  background: #123024;
 }
 :root[data-theme='dark'] .notification-icon-report_resolved {
   background: var(--color-chip-selected-bg);

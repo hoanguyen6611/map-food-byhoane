@@ -362,10 +362,12 @@
     "empty": "You have no notifications yet.",
     "emptyUnread": "No unread notifications.",
     "emptyReviews": "No review notifications.",
+    "emptyPlaces": "No place notifications.",
     "markRead": "Mark all as read",
     "tabAll": "All",
     "tabUnread": "Unread",
-    "tabReviews": "Reviews"
+    "tabReviews": "Reviews",
+    "tabPlaces": "Places"
   },
   "map": {
     "pageTitle": "Restaurant map",
