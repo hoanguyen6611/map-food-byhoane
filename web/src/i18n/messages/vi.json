@@ -13,6 +13,8 @@
     "favoriteAdd": "Lưu vào yêu thích",
     "favoriteRemove": "Bỏ khỏi yêu thích",
     "languageSwitcherLabel": "Chọn ngôn ngữ",
+    "themeToggleToLight": "Chuyển sang giao diện sáng",
+    "themeToggleToDark": "Chuyển sang giao diện tối",
     "languageMenuHeading": "Ngôn ngữ",
     "home": "Trang chủ",
     "breadcrumbLabel": "Breadcrumb",
@@ -508,7 +510,7 @@
     "duplicateBody": "Chúng tôi tìm thấy vài quán gần đó có tên tương tự. Nếu quán của bạn thực sự khác, bạn có thể vẫn gửi.",
     "publishedTitle": "Đã thêm địa điểm!",
     "publishedBody": "Cảm ơn đóng góp của bạn — quán đã hiển thị công khai trên bản đồ.",
-    "pendingTitle": "Đã gửi để duyệt",
-    "pendingBody": "Thông tin của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai."
+    "pendingTitle": "Cảm ơn đóng góp của bạn",
+    "pendingBody": "Thông tin địa điểm của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai."
   }
 }

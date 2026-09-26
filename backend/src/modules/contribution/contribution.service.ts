@@ -328,6 +328,16 @@ export class ContributionService {
       textContent: dto.description ?? null,
       menuItemPricesVnd: dto.menuItems?.map((item) => item.priceVnd),
     });
+    // New-restaurant submissions always go to a human moderator now — the AI
+    // risk score/labels/reason still run and are still shown to whoever
+    // reviews it (recordResult below persists them as-is), but can no
+    // longer publish a place on its own by hitting the auto-approve
+    // threshold. `recordResult`/`finalizeAfterModeration` both key off this
+    // same `moderation` object, so overriding it here is the one place that
+    // needs to change for both to agree.
+    if (moderation.recommendedAction === 'auto_approve') {
+      moderation.recommendedAction = 'hold_for_review';
+    }
     const moderationResultId = await this.moderationService.recordResult(
       contribution.id,
       moderation,

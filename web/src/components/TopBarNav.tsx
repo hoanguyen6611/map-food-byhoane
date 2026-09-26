@@ -9,6 +9,7 @@ import { useSessionInfo } from '@/lib/useSessionInfo';
 import { initialsOf } from '@/lib/format';
 import { AuthStatus } from './AuthStatus';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 import {
   CloseIcon,
   MenuIcon,
@@ -90,6 +91,7 @@ export function TopBarNav() {
           {t('mapNavLink')}
         </Link>
         <span className="topbar-divider" aria-hidden="true" />
+        <ThemeToggle />
         <LanguageSwitcher />
         <AuthStatus session={session} />
       </nav>
@@ -174,6 +176,7 @@ export function TopBarNav() {
 
           <div className="mobile-nav-footer">
             <div className="mobile-nav-footer-lang">
+              <ThemeToggle />
               <LanguageSwitcher />
             </div>
             {session === undefined ? null : session ? (

@@ -53,16 +53,64 @@
   --radius-2xl: 16px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 1px 1px 0 rgba(44, 54, 53, 0.025), inset 0 0 0 2px #ffffff;
+  /* Reference `--color-surface`/`--color-border` (both already equal to the
+     literal value below in light mode) rather than repeating the hex — lets
+     the dark theme block below inherit a correct surface-colored ring/frame
+     for free, without redeclaring these two shadow tokens at all. */
+  --shadow-card: 0 1px 1px 0 rgba(44, 54, 53, 0.025), inset 0 0 0 2px var(--color-surface);
   --shadow-card-md: 0 1px 2px 0 rgba(2, 6, 23, 0.06);
   --shadow-card-lg: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
   --shadow-pin: 0 1px 2px 0 rgba(2, 6, 23, 0.16);
-  --shadow-segment: 0 1px 1px 0 rgba(44, 54, 53, 0.06), inset 0 0 0 1px #e2e2e4;
+  --shadow-segment: 0 1px 1px 0 rgba(44, 54, 53, 0.06), inset 0 0 0 1px var(--color-border);
 
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   --max-width: 1120px;
   --max-width-wide: 1280px;
+}
+
+/* Dark theme — same token set, applied by next-themes via `data-theme` on
+   `<html>` (ThemeToggle.tsx / [locale]/layout.tsx). Every rule elsewhere in
+   this file that already reads a `var(--color-*)` token repaints for free;
+   see this file's end for the smaller number of rules that instead hardcode
+   a one-off decorative hex and need their own explicit dark override. */
+:root[data-theme='dark'] {
+  --color-canvas: #0e0f13;
+  --color-surface: #181a20;
+  --color-ink: #eceef1;
+  --color-ink-muted: #9a9ca3;
+  --color-ink-subtle: #7d8087;
+  --color-ink-faint: #565a63;
+  --color-ink-disabled: #44474e;
+  --color-border-hairline: #24262c;
+  --color-border: #33353c;
+
+  --gradient-primary: linear-gradient(180deg, #2f5bff 0%, #1a3fc4 100%);
+  --color-primary: #5b8dff;
+  --color-primary-hover: #7ba3ff;
+  --gradient-ink: linear-gradient(180deg, #46484c 0%, #2b2d30 100%);
+  --gradient-ink-hover: linear-gradient(180deg, #58595d 0%, #37393c 100%);
+  --gradient-magenta: linear-gradient(180deg, #ff33ff 0%, #e619e0 100%);
+
+  --color-star: #f0cd86;
+  --color-star-empty: #3a3d44;
+
+  --color-cream: #2a2416;
+  --color-cream-border: #a3812f;
+  --color-cream-ink: #f0cd86;
+
+  --color-open-bg: #12261c;
+  --color-open-fg: #5fd996;
+  --color-open-dot: #34c483;
+  --color-closed-bg: #2a2c31;
+  --color-closed-fg: #9a9ca3;
+  --color-closed-dot: #5a5d66;
+
+  --color-chip-selected-bg: #152a52;
+  --color-chip-selected-border: #2d4a8a;
+  --color-chip-selected-fg: #7ba3ff;
+
+  --color-error: #ff5c7a;
 }
 
 * {
@@ -250,7 +298,7 @@ textarea:focus-visible {
   color: var(--color-ink);
 }
 .nav-link-active {
-  background: #f3f3f3;
+  background: var(--color-border-hairline);
   color: var(--color-ink);
 }
 .topbar-divider {
@@ -398,6 +446,11 @@ textarea:focus-visible {
     padding: 14px 20px;
     border-top: 1px solid var(--color-border-hairline);
   }
+  .mobile-nav-footer-lang {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   /* The language switcher's own dropdown normally opens downward and
      right-anchored (`.lang-menu`'s `top: calc(100% + 8px); right: 0`) — that
      assumes its trigger sits at the right edge of a wide desktop header, so
@@ -467,6 +520,23 @@ textarea:focus-visible {
   color: var(--color-ink-muted);
 }
 .notification-bell-btn:hover {
+  background: var(--color-border-hairline);
+  color: var(--color-ink);
+}
+.theme-toggle-btn {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+.theme-toggle-btn:hover {
   background: var(--color-border-hairline);
   color: var(--color-ink);
 }
@@ -585,7 +655,7 @@ textarea:focus-visible {
   z-index: 30;
   width: 240px;
   padding: 8px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card-lg);
@@ -1497,7 +1567,7 @@ textarea:focus-visible {
   gap: 5px;
   padding: 0 9px;
   border-radius: var(--radius-pill);
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font-family: var(--font-inter-tight), sans-serif;
   font-size: 13px;
@@ -1513,7 +1583,7 @@ textarea:focus-visible {
   width: 7px;
   height: 7px;
   border-radius: var(--radius-pill);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.78);
 }
 .map-pin-selected .map-pin-dot {
@@ -1537,7 +1607,7 @@ textarea:focus-visible {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-pin);
   display: flex;
   align-items: center;
@@ -1648,7 +1718,7 @@ textarea:focus-visible {
   width: 22px;
   height: 22px;
   border-radius: var(--radius-pill);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
 }
 
@@ -1956,7 +2026,7 @@ textarea:focus-visible {
   color: var(--color-ink-faint);
 }
 .view-switch-btn-active {
-  background: #f3f3f3;
+  background: var(--color-border-hairline);
   color: var(--color-ink);
 }
 
@@ -1998,7 +2068,7 @@ textarea:focus-visible {
   cursor: pointer;
 }
 .active-filter-clear-all:hover {
-  background: #f3f3f3;
+  background: var(--color-border-hairline);
 }
 
 .result-count-row {
@@ -3051,7 +3121,7 @@ table.menu-table td.price {
   font-weight: 400;
   font-family: inherit;
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-surface);
   resize: vertical;
 }
 .star-picker {
@@ -3102,7 +3172,7 @@ table.menu-table td.price {
   font-size: 16px;
   font-weight: 600;
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-surface);
   cursor: pointer;
   font-family: var(--font-inter-tight), sans-serif;
 }
@@ -3144,7 +3214,7 @@ table.menu-table td.price {
   padding: 8px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary);
   font-size: 14px;
   font-weight: 600;
@@ -3283,7 +3353,7 @@ table.menu-table td.price {
   color: var(--color-ink-subtle);
 }
 .login-tab-btn-active {
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   box-shadow: var(--shadow-segment);
 }
@@ -3313,7 +3383,7 @@ table.menu-table td.price {
   font-size: 16px;
   font-family: inherit;
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-surface);
   resize: vertical;
   box-sizing: border-box;
 }
@@ -3333,7 +3403,7 @@ table.menu-table td.price {
   z-index: 20;
   max-height: 240px;
   overflow-y: auto;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card-md);
@@ -3377,7 +3447,7 @@ table.menu-table td.price {
   gap: 9px;
   height: 44px;
   padding: 0 13px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -3480,7 +3550,7 @@ table.menu-table td.price {
   margin-top: 1px;
   border-radius: 5px;
   border: 1px solid var(--color-ink-disabled);
-  background: #fff;
+  background: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3548,7 +3618,7 @@ table.menu-table td.price {
   height: 44px;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3791,10 +3861,10 @@ table.menu-table td.price {
   color: var(--color-ink-muted);
 }
 .about-nav-item:hover {
-  background: #f3f3f3;
+  background: var(--color-border-hairline);
 }
 .about-nav-item-active {
-  background: #f3f3f3;
+  background: var(--color-border-hairline);
   color: var(--color-ink);
   font-weight: 600;
 }
@@ -4794,3 +4864,65 @@ table.menu-table td.price {
   gap: 6px;
 }
 
+
+/* ---------- Dark theme: one-off decorative colors ----------
+   Everything above that already reads a var(--color-*) token repaints for
+   free once :root[data-theme='dark'] redefines it. These are the handful of
+   rules that instead hardcode a specific pastel background/foreground pair
+   (status badges, notification/profile icon chips) — each gets its own
+   muted-dark counterpart here so it doesn't stay a glaring light patch on a
+   dark page. Deliberately NOT touched: brand colors (Facebook/Instagram/
+   TikTok icons), the map pin marker (sits on map tiles, not page canvas),
+   and the illustrative gradient tiles (category/area/similar-place cards,
+   profile banner) — those are meant to read as colorful accents in both
+   themes, not neutral chrome. */
+:root[data-theme='dark'] .leaflet-container {
+  background: #1c1e24;
+}
+:root[data-theme='dark'] .mobile-nav-row-icon-magenta {
+  background: #3a1830;
+}
+:root[data-theme='dark'] .status-badge-rejected,
+:root[data-theme='dark'] .status-badge-hidden {
+  background: #3a1620;
+}
+:root[data-theme='dark'] .toast-error .toast-icon-badge {
+  background: #3a1620;
+}
+:root[data-theme='dark'] .notification-icon-moderation_result {
+  background: #123024;
+}
+:root[data-theme='dark'] .notification-icon-report_resolved {
+  background: var(--color-chip-selected-bg);
+}
+:root[data-theme='dark'] .notification-icon-contribution_status {
+  background: #3a1830;
+}
+:root[data-theme='dark'] .notification-icon-restaurant_hours_changed {
+  background: #3a260f;
+  color: #e8934a;
+}
+:root[data-theme='dark'] .profile-stat-icon-star {
+  background: #3a2e12;
+  color: #e0ac4a;
+}
+:root[data-theme='dark'] .profile-stat-icon-photo,
+:root[data-theme='dark'] .profile-badge-chip-coffee_hunter {
+  background: #16233f;
+  color: #6e97ef;
+}
+:root[data-theme='dark'] .profile-badge-chip-coffee_hunter {
+  border-color: #2d4a8a;
+}
+:root[data-theme='dark'] .profile-stat-icon-saved {
+  background: #241a3f;
+  color: #a483ea;
+}
+:root[data-theme='dark'] .profile-stat-icon-helpful,
+:root[data-theme='dark'] .profile-badge-chip-helpful_100 {
+  background: #12291b;
+  color: #4ecb84;
+}
+:root[data-theme='dark'] .profile-badge-chip-helpful_100 {
+  border-color: #245c38;
+}

@@ -384,3 +384,20 @@ export function UserIcon(props: IconProps) {
     </Base>
   );
 }
+
+export function SunIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2.5v2.5M12 19v2.5M4.4 4.4l1.8 1.8M17.8 17.8l1.8 1.8M2.5 12H5M19 12h2.5M4.4 19.6l1.8-1.8M17.8 6.2l1.8-1.8" />
+    </Base>
+  );
+}
+
+export function MoonIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" />
+    </Base>
+  );
+}

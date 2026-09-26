@@ -25,14 +25,19 @@ const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB, per build-prompts/07's cap.
 const UPLOAD_URL_EXPIRES_SECONDS = 300;
 const ORPHAN_MAX_AGE_HOURS = 24;
 
-// Per-owner photo caps, per build-prompts/07: "max 6 photos per review, 10
-// per restaurant submission." Contributions don't have their own cap here —
-// a contribution's photos are reparented onto the restaurant they create,
-// so the restaurant cap applies transitively.
+// Per-owner photo caps, per build-prompts/07: "max 6 photos per review, 20
+// per restaurant submission" (raised from the original 10 — see
+// AddRestaurantForm.tsx's PhotoUploadField `maxPhotos` and
+// create-restaurant-contribution.dto.ts's `photoUrls`/`photoIds`
+// `@ArrayMaxSize`, both raised in step with this one; missing this one
+// left the DTO accepting 20 while this cap still rejected past 10).
+// Contributions don't have their own cap here — a contribution's photos
+// are reparented onto the restaurant they create, so the restaurant cap
+// applies transitively.
 const OWNER_PHOTO_CAPS: Record<MediaOwnerType, number> = {
   review: 6,
-  restaurant: 10,
-  contribution: 10,
+  restaurant: 20,
+  contribution: 20,
   user_profile: 1,
 };
 

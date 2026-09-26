@@ -41,6 +41,12 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
   const [lng, setLng] = useState('');
   const [mapLink, setMapLink] = useState('');
   const [linkStatus, setLinkStatus] = useState<'idle' | 'resolving' | 'resolved' | 'error'>('idle');
+  // The (trimmed) link value `linkStatus` currently reflects — lets onChange/
+  // onBlur tell "this exact link already resolved (or is resolving)" apart
+  // from "the field changed since then", instead of both independently
+  // racing to call resolveMapLink for the same paste (see resolveMapLink's
+  // own doc comment for the bug this fixes).
+  const [resolvedLink, setResolvedLink] = useState<string | null>(null);
   const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'resolved' | 'unsupported' | 'denied' | 'error'>('idle');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -68,6 +74,7 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
         setLng(String(position.coords.longitude));
         setMapLink('');
         setLinkStatus('idle');
+        setResolvedLink(null);
         setGeoStatus('resolved');
       },
       (error) => {
@@ -77,10 +84,25 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
     );
   }
 
+  /**
+   * Was reachable from three places — onPaste (immediate), onBlur
+   * (fallback for typed/edited links) and the "Áp dụng" button — with
+   * onBlur's guard checking `linkStatus === 'idle'`. Pasting fires onPaste
+   * (starts resolving, i.e. sets 'resolving') immediately followed by
+   * onChange (which unconditionally reset status back to 'idle'); if the
+   * user then blurred the field before the paste's own resolve finished,
+   * onBlur saw 'idle' and fired a SECOND concurrent resolve for the same
+   * link — the "double" behavior reported. `resolvedLink` now tracks which
+   * link the current status actually reflects, so onChange/onBlur only
+   * reset/re-trigger when the field holds a link that isn't already
+   * resolved-or-resolving.
+   */
   async function resolveMapLink(link: string) {
-    if (!link.trim()) return;
+    const trimmed = link.trim();
+    if (!trimmed) return;
     setLinkStatus('resolving');
-    const result = await resolveGoogleMapsLinkAction(link.trim());
+    setResolvedLink(trimmed);
+    const result = await resolveGoogleMapsLinkAction(trimmed);
     if (result.ok) {
       setLat(String(result.location.lat));
       setLng(String(result.location.lng));
@@ -334,18 +356,26 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
             placeholder={t('mapLinkPlaceholder')}
             value={mapLink}
             onChange={(e) => {
-              setMapLink(e.target.value);
-              setLinkStatus('idle');
+              const value = e.target.value;
+              setMapLink(value);
+              if (value.trim() !== resolvedLink) setLinkStatus('idle');
             }}
             onPaste={(e) => {
               const pasted = e.clipboardData.getData('text');
               if (pasted) {
+                // Without this, the browser's own default paste ALSO inserts
+                // the clipboard text into the field on top of the value this
+                // sets via state — the exact "link duplicated in the input"
+                // bug reported (both writes land in the same uncontrolled
+                // instant, so React's controlled re-render doesn't get a
+                // chance to be the only writer).
+                e.preventDefault();
                 setMapLink(pasted);
                 void resolveMapLink(pasted);
               }
             }}
             onBlur={() => {
-              if (linkStatus === 'idle') void resolveMapLink(mapLink);
+              if (linkStatus === 'idle' && mapLink.trim() !== resolvedLink) void resolveMapLink(mapLink);
             }}
           />
           <button

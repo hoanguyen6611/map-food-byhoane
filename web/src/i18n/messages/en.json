@@ -13,6 +13,8 @@
     "favoriteAdd": "Save to favorites",
     "favoriteRemove": "Remove from favorites",
     "languageSwitcherLabel": "Choose language",
+    "themeToggleToLight": "Switch to light mode",
+    "themeToggleToDark": "Switch to dark mode",
     "languageMenuHeading": "Language",
     "home": "Home",
     "breadcrumbLabel": "Breadcrumb",

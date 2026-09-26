@@ -3,6 +3,7 @@ import { Archivo, Figtree, Inter_Tight } from 'next/font/google';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { ThemeProvider } from 'next-themes';
 import { routing } from '@/i18n/routing';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { ToastProvider } from '@/components/ToastProvider';
@@ -49,7 +50,10 @@ export async function generateMetadata({ params }: LayoutProps): Promise<Metadat
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#003cff',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#003cff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e0f13' },
+  ],
 };
 
 export default async function LocaleLayout({ children, params }: LayoutProps) {
@@ -63,24 +67,32 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
   const t = await getTranslations('common');
 
   return (
-    <html lang={locale} className={`${archivo.variable} ${interTight.variable} ${figtree.variable}`}>
+    // suppressHydrationWarning on <html> is next-themes' own documented
+    // requirement — it sets `data-theme` via an inline script before
+    // hydration (so there's no flash of the wrong theme), which makes the
+    // server-rendered and first-client-rendered attribute legitimately
+    // differ; this tells React that one specific, expected mismatch is fine
+    // without suppressing real ones anywhere else.
+    <html lang={locale} className={`${archivo.variable} ${interTight.variable} ${figtree.variable}`} suppressHydrationWarning>
       <body>
-        <NextIntlClientProvider>
-          <ToastProvider>
-            <FavoritesProvider>
-              <a href="#main-content" className="skip-link">
-                {t('skipToContent')}
-              </a>
-              <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
-                <SiteTopBar />
-                <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  {children}
-                </main>
-                <SiteFooter />
-              </div>
-            </FavoritesProvider>
-          </ToastProvider>
-        </NextIntlClientProvider>
+        <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
+          <NextIntlClientProvider>
+            <ToastProvider>
+              <FavoritesProvider>
+                <a href="#main-content" className="skip-link">
+                  {t('skipToContent')}
+                </a>
+                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+                  <SiteTopBar />
+                  <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {children}
+                  </main>
+                  <SiteFooter />
+                </div>
+              </FavoritesProvider>
+            </ToastProvider>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
