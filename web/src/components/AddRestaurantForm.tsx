@@ -5,9 +5,15 @@ import { useTranslations } from 'next-intl';
 import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { FacilityIcon, LocateIcon } from '@/components/icons';
-import { FACILITY_ICON_PATH, FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
-import { VN_PROVINCES, type CategoryDto, type CuisineCode, type CuisineDto, type DuplicateCandidateDto, type FacilityType } from '@foodmap/shared-types';
+import { CloseIcon, FacilityIcon, LocateIcon } from '@/components/icons';
+import { DEFAULT_FACILITY_ICON_PATH, FACILITY_ICON_PATH, PRICE_BUCKETS } from '@/lib/labels';
+import { VN_PROVINCES, type CategoryDto, type CuisineCode, type CuisineDto, type DuplicateCandidateDto, type FacilityDto, type FacilityType } from '@foodmap/shared-types';
+
+// A contributor's own "+ Thêm mới" cuisine/facility isn't in the catalog yet
+// (that's the whole point), so it can't be toggled by matching a `code` —
+// tracked as free-text labels instead, alongside the existing code-based
+// selections, and submitted as `newCuisineLabels`/`newFacilityLabels`.
+const MAX_NEW_OPTIONS = 5;
 
 type Phase =
   | { kind: 'form' }
@@ -20,9 +26,11 @@ interface Props {
   categories: CategoryDto[];
   /** Live cuisines (admin-editable), same reasoning as `categories`. */
   cuisines: CuisineDto[];
+  /** Live facilities (admin-editable), same reasoning as `cuisines`. */
+  facilities: FacilityDto[];
 }
 
-export function AddRestaurantForm({ categories, cuisines }: Props) {
+export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
   const t = useTranslations('addRestaurant');
   const tLabels = useTranslations('labels');
   const tCommon = useTranslations('common');
@@ -34,6 +42,14 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
   const [phone, setPhone] = useState('');
   const [cuisineCodes, setCuisineCodes] = useState<CuisineCode[]>([]);
   const [facilityCodes, setFacilityCodes] = useState<FacilityType[]>([]);
+  // "+ Thêm mới" — free-text options not yet in the catalog; see this
+  // file's top-of-file comment.
+  const [newCuisineLabels, setNewCuisineLabels] = useState<string[]>([]);
+  const [newFacilityLabels, setNewFacilityLabels] = useState<string[]>([]);
+  const [newCuisineInput, setNewCuisineInput] = useState('');
+  const [newFacilityInput, setNewFacilityInput] = useState('');
+  const [isAddingCuisine, setIsAddingCuisine] = useState(false);
+  const [isAddingFacility, setIsAddingFacility] = useState(false);
   const [line, setLine] = useState('');
   const [provinceCode, setProvinceCode] = useState('');
   const [wardCode, setWardCode] = useState('');
@@ -122,6 +138,30 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
     setFacilityCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   }
 
+  function addNewCuisine() {
+    const label = newCuisineInput.trim();
+    if (!label) return;
+    const alreadyAdded = newCuisineLabels.some((l) => l.toLowerCase() === label.toLowerCase());
+    if (!alreadyAdded) setNewCuisineLabels((prev) => [...prev, label]);
+    setNewCuisineInput('');
+  }
+
+  function removeNewCuisine(label: string) {
+    setNewCuisineLabels((prev) => prev.filter((l) => l !== label));
+  }
+
+  function addNewFacility() {
+    const label = newFacilityInput.trim();
+    if (!label) return;
+    const alreadyAdded = newFacilityLabels.some((l) => l.toLowerCase() === label.toLowerCase());
+    if (!alreadyAdded) setNewFacilityLabels((prev) => [...prev, label]);
+    setNewFacilityInput('');
+  }
+
+  function removeNewFacility(label: string) {
+    setNewFacilityLabels((prev) => prev.filter((l) => l !== label));
+  }
+
   function toggleClosedDay(dayOfWeek: number) {
     setClosedDays((prev) => (prev.includes(dayOfWeek) ? prev.filter((d) => d !== dayOfWeek) : [...prev, dayOfWeek]));
   }
@@ -171,7 +211,9 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
       address: { line: line.trim(), ward: ward.name, province: selectedProvince.name },
       location: { lat: Number(lat), lng: Number(lng) },
       cuisineCodes: cuisineCodes.length > 0 ? cuisineCodes : undefined,
+      newCuisineLabels: newCuisineLabels.length > 0 ? newCuisineLabels : undefined,
       facilities: facilityCodes.length > 0 ? facilityCodes : undefined,
+      newFacilityLabels: newFacilityLabels.length > 0 ? newFacilityLabels : undefined,
       openingHours:
         hasOpeningHours && openTime && closeTime
           ? Array.from({ length: 7 }, (_, dayOfWeek) => {
@@ -297,24 +339,122 @@ export function AddRestaurantForm({ categories, cuisines }: Props) {
               {cuisine.label}
             </button>
           ))}
+          {newCuisineLabels.map((label) => (
+            <span key={label} className="chip chip-selected chip-new">
+              {label}
+              <button
+                type="button"
+                className="chip-remove-btn"
+                aria-label={t('removeCustomOption')}
+                onClick={() => removeNewCuisine(label)}
+              >
+                <CloseIcon size={11} />
+              </button>
+            </span>
+          ))}
+          {!isAddingCuisine && newCuisineLabels.length < MAX_NEW_OPTIONS ? (
+            <button type="button" className="chip chip-add-new" onClick={() => setIsAddingCuisine(true)}>
+              + {t('addCustomOption')}
+            </button>
+          ) : null}
         </div>
+        {isAddingCuisine ? (
+          <div className="chip-add-input-row">
+            <input
+              type="text"
+              value={newCuisineInput}
+              placeholder={t('addCustomOptionPlaceholder')}
+              maxLength={50}
+              onChange={(e) => setNewCuisineInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addNewCuisine();
+                }
+              }}
+            />
+            <button type="button" className="chip-add-confirm-btn" disabled={!newCuisineInput.trim()} onClick={addNewCuisine}>
+              {t('addCustomOptionConfirm')}
+            </button>
+            <button
+              type="button"
+              className="chip-add-cancel-btn"
+              onClick={() => {
+                setIsAddingCuisine(false);
+                setNewCuisineInput('');
+              }}
+            >
+              {t('addCustomOptionCancel')}
+            </button>
+          </div>
+        ) : null}
+        {newCuisineLabels.length > 0 ? <p className="chip-add-hint">{t('customOptionPendingHint')}</p> : null}
       </div>
 
       <div className="login-field">
         <span>{t('facilitiesLabel')}</span>
         <div className="chip-row">
-          {FACILITY_OPTIONS.map((code) => (
+          {facilities.map((facility) => (
             <button
-              key={code}
+              key={facility.code}
               type="button"
-              className={`chip chip-toggle ${facilityCodes.includes(code) ? 'chip-selected' : ''}`}
-              onClick={() => toggleFacility(code)}
+              className={`chip chip-toggle ${facilityCodes.includes(facility.code) ? 'chip-selected' : ''}`}
+              onClick={() => toggleFacility(facility.code)}
             >
-              <FacilityIcon path={FACILITY_ICON_PATH[code]} size={13} />
-              {tLabels(`facilityLabel.${code}`)}
+              <FacilityIcon path={FACILITY_ICON_PATH[facility.code] ?? DEFAULT_FACILITY_ICON_PATH} size={13} />
+              {facility.label}
             </button>
           ))}
+          {newFacilityLabels.map((label) => (
+            <span key={label} className="chip chip-selected chip-new">
+              {label}
+              <button
+                type="button"
+                className="chip-remove-btn"
+                aria-label={t('removeCustomOption')}
+                onClick={() => removeNewFacility(label)}
+              >
+                <CloseIcon size={11} />
+              </button>
+            </span>
+          ))}
+          {!isAddingFacility && newFacilityLabels.length < MAX_NEW_OPTIONS ? (
+            <button type="button" className="chip chip-add-new" onClick={() => setIsAddingFacility(true)}>
+              + {t('addCustomOption')}
+            </button>
+          ) : null}
         </div>
+        {isAddingFacility ? (
+          <div className="chip-add-input-row">
+            <input
+              type="text"
+              value={newFacilityInput}
+              placeholder={t('addCustomOptionPlaceholder')}
+              maxLength={50}
+              onChange={(e) => setNewFacilityInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addNewFacility();
+                }
+              }}
+            />
+            <button type="button" className="chip-add-confirm-btn" disabled={!newFacilityInput.trim()} onClick={addNewFacility}>
+              {t('addCustomOptionConfirm')}
+            </button>
+            <button
+              type="button"
+              className="chip-add-cancel-btn"
+              onClick={() => {
+                setIsAddingFacility(false);
+                setNewFacilityInput('');
+              }}
+            >
+              {t('addCustomOptionCancel')}
+            </button>
+          </div>
+        ) : null}
+        {newFacilityLabels.length > 0 ? <p className="chip-add-hint">{t('customOptionPendingHint')}</p> : null}
       </div>
 
       <label className="login-field">

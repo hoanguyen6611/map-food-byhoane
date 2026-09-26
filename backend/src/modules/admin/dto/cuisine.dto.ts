@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 // Same code-shape convention as category.dto.ts/facility.dto.ts.
 const CODE_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -27,4 +27,11 @@ export class UpdateCuisineDto {
   @MinLength(1)
   @MaxLength(100)
   label?: string;
+
+  // Lets an admin manually publish a contributor-proposed ("+ Thêm mới")
+  // cuisine early, independent of the restaurant's own approval decision —
+  // or hide one back if it turns out to be junk.
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

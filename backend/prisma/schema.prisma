@@ -212,6 +212,13 @@ model Facility {
   code                 String               @unique
   label                String
   icon                 String?
+  // Defaults true for every admin-created row (today's only path). A
+  // contributor-proposed facility (Add Restaurant form's "+ Thêm mới") is
+  // created with this false and only flips to true — becoming selectable
+  // by every other user — once the restaurant that proposed it is approved
+  // (ContributionFinalizeService.applySideEffect's new_restaurant case).
+  // Admins can also flip it manually via the existing update endpoint.
+  isPublic             Boolean              @default(true) @map("is_public")
   restaurantFacilities RestaurantFacility[]
 
   @@map("facilities")
@@ -232,6 +239,9 @@ model Cuisine {
   id                 String              @id @default(uuid())
   code               String              @unique
   label              String
+  // See Facility.isPublic's doc comment — same "pending until the
+  // proposing restaurant is approved" convention.
+  isPublic           Boolean             @default(true) @map("is_public")
   dishes             Dish[]
   restaurantCuisines RestaurantCuisine[]
 

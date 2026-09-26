@@ -105,6 +105,11 @@ export interface FacilityDto {
   code: string;
   label: string;
   icon: string | null;
+  // Always true on the public catalog endpoint (non-public rows are
+  // filtered out server-side) — present so admin-web can also render a
+  // "Chờ duyệt" badge from this same DTO instead of a parallel admin-only
+  // shape.
+  isPublic: boolean;
 }
 
 export interface CreateCategoryRequest {
@@ -127,6 +132,7 @@ export interface CreateFacilityRequest {
 export interface UpdateFacilityRequest {
   label?: string;
   icon?: string;
+  isPublic?: boolean;
 }
 
 // No `icon` column on Cuisine (unlike Category/Facility above).
@@ -134,6 +140,8 @@ export interface CuisineDto {
   id: string;
   code: string;
   label: string;
+  // See FacilityDto.isPublic's doc comment — same reasoning.
+  isPublic: boolean;
 }
 
 export interface CreateCuisineRequest {
@@ -143,4 +151,5 @@ export interface CreateCuisineRequest {
 
 export interface UpdateCuisineRequest {
   label?: string;
+  isPublic?: boolean;
 }

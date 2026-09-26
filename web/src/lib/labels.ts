@@ -47,6 +47,12 @@ export const FACILITY_ICON_PATH: Record<FacilityType, string> = {
   private_room: 'M6 11V8a6 6 0 1 1 12 0v3M5 11h14v9H5z',
 };
 
+// A user-proposed facility (AddRestaurantForm's "+ Thêm mới") has no entry
+// above — this map is a fixed compile-time set, unlike the live-fetched
+// facility list itself — so it falls back to a generic tag glyph instead of
+// `FacilityIcon` getting `undefined` as its SVG path.
+export const DEFAULT_FACILITY_ICON_PATH = 'M4 4h8l8 8-8 8-8-8V4z M8 8h.01';
+
 export interface PriceBucket {
   code: PriceRangeCode;
   min: number;

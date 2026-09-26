@@ -6,6 +6,7 @@
 import type {
   CategoryDto,
   CuisineDto,
+  FacilityDto,
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
@@ -61,6 +62,15 @@ export async function getCategories(): Promise<CategoryDto[]> {
 // couldn't reflect a newly-added/renamed cuisine without a code deploy.
 export async function getCuisines(): Promise<CuisineDto[]> {
   return apiFetch<CuisineDto[]>('/cuisines', CATALOG_REVALIDATE_SECONDS, ['cuisines']);
+}
+
+// Same reasoning as getCuisines — used by AddRestaurantForm.tsx so a
+// contributor's own "+ Thêm mới" facility (once approved) is actually
+// selectable here. Other facility call sites (SearchFilterForm, restaurant
+// detail page) still read lib/labels.ts's hardcoded FACILITY_OPTIONS — that
+// broader migration is out of scope for this one.
+export async function getFacilities(): Promise<FacilityDto[]> {
+  return apiFetch<FacilityDto[]>('/facilities', CATALOG_REVALIDATE_SECONDS, ['facilities']);
 }
 
 export interface SearchParams {

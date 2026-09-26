@@ -6,8 +6,8 @@ import { AuditLogService } from './audit-log.service';
 import type { CreateFacilityDto } from './dto/facility.dto';
 import type { UpdateFacilityDto } from './dto/facility.dto';
 
-function toDto(row: { id: string; code: string; label: string; icon: string | null }): FacilityDto {
-  return { id: row.id, code: row.code, label: row.label, icon: row.icon };
+function toDto(row: { id: string; code: string; label: string; icon: string | null; isPublic: boolean }): FacilityDto {
+  return { id: row.id, code: row.code, label: row.label, icon: row.icon, isPublic: row.isPublic };
 }
 
 @Injectable()
@@ -52,6 +52,7 @@ export class AdminFacilityService {
       data: {
         label: dto.label ?? undefined,
         icon: dto.icon ?? undefined,
+        isPublic: dto.isPublic ?? undefined,
       },
     });
     await this.auditLog.record({
@@ -59,7 +60,7 @@ export class AdminFacilityService {
       action: 'facility.update',
       targetType: 'facility',
       targetId: id,
-      beforeState: { label: before.label, icon: before.icon },
+      beforeState: { label: before.label, icon: before.icon, isPublic: before.isPublic },
       afterState: dto,
     });
     void this.webRevalidation.revalidate(['facilities']);

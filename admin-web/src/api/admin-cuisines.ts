@@ -9,6 +9,7 @@ export interface CreateCuisineBody {
 
 export interface UpdateCuisineBody {
   label?: string
+  isPublic?: boolean
 }
 
 export const adminCuisinesApi = {

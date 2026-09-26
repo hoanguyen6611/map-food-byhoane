@@ -150,6 +150,16 @@ export class CreateRestaurantContributionDto {
   @IsString({ each: true })
   cuisineCodes?: CuisineCode[];
 
+  // "+ Thêm mới" — free-text labels for a cuisine not yet in the catalog.
+  // Capped at 5: this is a "propose a new tag" affordance, not a bulk-import
+  // path (that's MenuImportDialog's job, for menu items specifically).
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  newCuisineLabels?: string[];
+
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => ContributionOpeningHourDto)
@@ -161,6 +171,14 @@ export class CreateRestaurantContributionDto {
   @IsArray()
   @IsString({ each: true })
   facilities?: FacilityType[];
+
+  // Same "+ Thêm mới" convention as `newCuisineLabels`, for facilities.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  newFacilityLabels?: string[];
 
   @IsOptional()
   @ValidateNested({ each: true })

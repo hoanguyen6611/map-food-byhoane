@@ -465,6 +465,12 @@ function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> })
     : []
   const cuisineCodes = Array.isArray(payload.cuisineCodes) ? (payload.cuisineCodes as string[]) : []
   const facilities = Array.isArray(payload.facilities) ? (payload.facilities as string[]) : []
+  // "+ Thêm mới" — cuisines/facilities the contributor typed that weren't in
+  // the catalog yet. Already created (isPublic:false — see
+  // ContributionService.toCatalogCode) by the time this shows up here; only
+  // become publicly selectable if this contribution is approved.
+  const newCuisineLabels = Array.isArray(payload.newCuisineLabels) ? (payload.newCuisineLabels as string[]) : []
+  const newFacilityLabels = Array.isArray(payload.newFacilityLabels) ? (payload.newFacilityLabels as string[]) : []
 
   return (
     <div>
@@ -517,6 +523,18 @@ function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> })
           <div className="form-field form-field-wide">
             <span>Tiện ích</span>
             <span>{facilities.join(', ')}</span>
+          </div>
+        )}
+        {newCuisineLabels.length > 0 && (
+          <div className="form-field form-field-wide">
+            <span>⚠ Ẩm thực mới đề xuất (chưa công khai)</span>
+            <span>{newCuisineLabels.join(', ')}</span>
+          </div>
+        )}
+        {newFacilityLabels.length > 0 && (
+          <div className="form-field form-field-wide">
+            <span>⚠ Tiện ích mới đề xuất (chưa công khai)</span>
+            <span>{newFacilityLabels.join(', ')}</span>
           </div>
         )}
       </div>

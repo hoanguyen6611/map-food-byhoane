@@ -72,6 +72,20 @@ export function AdminFacilityManagementPage() {
     onError: reportError,
   })
 
+  // A "+ Thêm mới" facility a contributor typed on the Add Restaurant form —
+  // created isPublic:false, normally promoted automatically once that
+  // restaurant is approved (ContributionFinalizeService). This lets an admin
+  // publish it early instead of waiting on that specific decision.
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => adminFacilitiesApi.update(id, { isPublic: true }),
+    meta: { successMessage: 'Đã duyệt tiện ích.' },
+    onSuccess: () => {
+      setActionError(null)
+      invalidate()
+    },
+    onError: reportError,
+  })
+
   function startEdit(facility: FacilityDto) {
     setEditingId(facility.id)
     setEditLabel(facility.label)
@@ -148,6 +162,7 @@ export function AdminFacilityManagementPage() {
               <th>Mã</th>
               <th>Tên hiển thị</th>
               <th>Icon</th>
+              <th>Trạng thái</th>
               <th></th>
             </tr>
           </thead>
@@ -172,6 +187,23 @@ export function AdminFacilityManagementPage() {
                   )}
                 </td>
                 <td>
+                  {facility.isPublic ? (
+                    <span className="status-badge status-badge-approved">Công khai</span>
+                  ) : (
+                    <span className="status-badge status-badge-pending">Chờ duyệt</span>
+                  )}
+                </td>
+                <td>
+                  {!facility.isPublic && (
+                    <button
+                      type="button"
+                      className="button button-small button-primary"
+                      disabled={publishMutation.isPending}
+                      onClick={() => publishMutation.mutate(facility.id)}
+                    >
+                      Duyệt
+                    </button>
+                  )}
                   {editingId === facility.id ? (
                     <>
                       <button

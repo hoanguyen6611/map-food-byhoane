@@ -71,6 +71,20 @@ export function AdminCuisineManagementPage() {
     onError: reportError,
   })
 
+  // A "+ Thêm mới" cuisine a contributor typed on the Add Restaurant form —
+  // created isPublic:false, normally promoted automatically once that
+  // restaurant is approved (ContributionFinalizeService). This lets an admin
+  // publish it early instead of waiting on that specific decision.
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => adminCuisinesApi.update(id, { isPublic: true }),
+    meta: { successMessage: 'Đã duyệt ẩm thực.' },
+    onSuccess: () => {
+      setActionError(null)
+      invalidate()
+    },
+    onError: reportError,
+  })
+
   function startEdit(cuisine: CuisineDto) {
     setEditingId(cuisine.id)
     setEditLabel(cuisine.label)
@@ -136,6 +150,7 @@ export function AdminCuisineManagementPage() {
             <tr>
               <th>Mã</th>
               <th>Tên hiển thị</th>
+              <th>Trạng thái</th>
               <th></th>
             </tr>
           </thead>
@@ -153,6 +168,23 @@ export function AdminCuisineManagementPage() {
                   )}
                 </td>
                 <td>
+                  {cuisine.isPublic ? (
+                    <span className="status-badge status-badge-approved">Công khai</span>
+                  ) : (
+                    <span className="status-badge status-badge-pending">Chờ duyệt</span>
+                  )}
+                </td>
+                <td>
+                  {!cuisine.isPublic && (
+                    <button
+                      type="button"
+                      className="button button-small button-primary"
+                      disabled={publishMutation.isPending}
+                      onClick={() => publishMutation.mutate(cuisine.id)}
+                    >
+                      Duyệt
+                    </button>
+                  )}
                   {editingId === cuisine.id ? (
                     <>
                       <button

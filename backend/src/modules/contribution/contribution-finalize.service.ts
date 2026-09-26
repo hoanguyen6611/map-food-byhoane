@@ -177,6 +177,7 @@ export class ContributionFinalizeService {
           where: { restaurantId: contribution.targetRestaurantId },
           data: { publicationStatus: 'published' },
         });
+        await this.promotePendingCatalogEntries(contribution.targetRestaurantId);
         await this.restaurantService.invalidateViewportCache();
         void this.revalidateRestaurant(contribution.targetRestaurantId);
         return;
@@ -209,6 +210,45 @@ export class ContributionFinalizeService {
         // surfaced via the moderation queue / closure-escalation logic.
         return;
     }
+  }
+
+  /**
+   * "+ Thêm mới" cuisines/facilities (ContributionService's toCatalogCode
+   * path) are created `isPublic: false` — invisible to every other user's
+   * chip list/search filter — right up until the restaurant that proposed
+   * them is approved, which is this call. Only flips rows that are actually
+   * linked to THIS restaurant and still non-public — an admin-created (or
+   * already-promoted, e.g. reused-by-code) row is never touched. A rejected
+   * contribution never reaches this method, so a proposed tag from a
+   * rejected submission simply stays non-public indefinitely (cleanable via
+   * the existing admin cuisine/facility "Xoá" action, same as any other
+   * unused catalog row).
+   */
+  private async promotePendingCatalogEntries(restaurantId: string): Promise<void> {
+    const [cuisineLinks, facilityLinks] = await Promise.all([
+      this.prisma.restaurantCuisine.findMany({
+        where: { restaurantId },
+        select: { cuisineId: true },
+      }),
+      this.prisma.restaurantFacility.findMany({
+        where: { restaurantId },
+        select: { facilityCode: true },
+      }),
+    ]);
+
+    const [promotedCuisines, promotedFacilities] = await Promise.all([
+      this.prisma.cuisine.updateMany({
+        where: { id: { in: cuisineLinks.map((c) => c.cuisineId) }, isPublic: false },
+        data: { isPublic: true },
+      }),
+      this.prisma.facility.updateMany({
+        where: { code: { in: facilityLinks.map((f) => f.facilityCode) }, isPublic: false },
+        data: { isPublic: true },
+      }),
+    ]);
+
+    if (promotedCuisines.count > 0) void this.webRevalidation.revalidate(['cuisines']);
+    if (promotedFacilities.count > 0) void this.webRevalidation.revalidate(['facilities']);
   }
 
   private async applyStatusReport(

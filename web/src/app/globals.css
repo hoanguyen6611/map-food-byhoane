@@ -1695,6 +1695,82 @@ textarea:focus-visible {
   border-color: #141414;
   color: #fff;
 }
+/* AddRestaurantForm.tsx's "+ Thêm mới" — propose a cuisine/facility not yet
+   in the catalog. Dashed border on both the trigger and the resulting chip
+   marks them as "not a real catalog option yet" (pending until this
+   restaurant is approved), distinct from the solid-border toggle chips
+   above. */
+.chip-add-new {
+  background: none;
+  border-style: dashed;
+  color: var(--color-ink-muted);
+}
+.chip.chip-new {
+  border-style: dashed;
+}
+.chip-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.chip-add-input-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chip-add-input-row input {
+  flex: 1;
+  min-width: 160px;
+  height: 42px;
+}
+/* "Thêm"/"Huỷ" next to the input — same small-pill-button-beside-an-input
+   pattern as the Toạ độ field's .map-link-apply-btn just above in this
+   file, not the much larger/bolder .secondary-btn (meant for a form's own
+   Huỷ/Lưu footer, not an inline micro-action). */
+.chip-add-confirm-btn {
+  flex: none;
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-inter-tight), sans-serif;
+  cursor: pointer;
+}
+.chip-add-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.chip-add-cancel-btn {
+  flex: none;
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  background: none;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-inter-tight), sans-serif;
+  cursor: pointer;
+}
+.chip-add-cancel-btn:hover {
+  color: var(--color-ink);
+}
+.chip-add-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-ink-subtle);
+}
 .toggle-switch {
   width: 44px;
   height: 26px;

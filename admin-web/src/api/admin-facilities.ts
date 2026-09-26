@@ -11,6 +11,7 @@ export interface CreateFacilityBody {
 export interface UpdateFacilityBody {
   label?: string
   icon?: string
+  isPublic?: boolean
 }
 
 export const adminFacilitiesApi = {

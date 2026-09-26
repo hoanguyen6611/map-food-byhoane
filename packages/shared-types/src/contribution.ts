@@ -65,11 +65,20 @@ export interface CreateRestaurantContributionRequest {
   address: CreateRestaurantAddressInput;
   location: LocationDto;
   cuisineCodes?: CuisineCode[];
+  // Free-text labels for a cuisine that isn't in the existing catalog yet
+  // (Add Restaurant form's "+ Thêm mới" chip) — the backend slugifies each
+  // into a code and creates it with `isPublic: false`; it only becomes
+  // selectable by other users once this restaurant is approved. Capped at
+  // 5 server-side, same anti-abuse reasoning as everything else in this
+  // untrusted-input DTO.
+  newCuisineLabels?: string[];
   // When provided, must contain exactly 7 entries (one per dayOfWeek) —
   // enforced server-side (@ArrayMinSize(7) @ArrayMaxSize(7)), not just by
   // this type.
   openingHours?: ContributionOpeningHourInput[];
   facilities?: FacilityType[];
+  // Same "+ Thêm mới" convention as `newCuisineLabels`, for facilities.
+  newFacilityLabels?: string[];
   menuItems?: MenuItemInputDto[];
   // At least one photo required across photoIds+photoUrls combined —
   // enforced server-side, not just by this type. `photoIds` are backend

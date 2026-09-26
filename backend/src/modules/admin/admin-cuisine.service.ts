@@ -6,8 +6,8 @@ import { AuditLogService } from './audit-log.service';
 import type { CreateCuisineDto } from './dto/cuisine.dto';
 import type { UpdateCuisineDto } from './dto/cuisine.dto';
 
-function toDto(row: { id: string; code: string; label: string }): CuisineDto {
-  return { id: row.id, code: row.code, label: row.label };
+function toDto(row: { id: string; code: string; label: string; isPublic: boolean }): CuisineDto {
+  return { id: row.id, code: row.code, label: row.label, isPublic: row.isPublic };
 }
 
 @Injectable()
@@ -49,14 +49,14 @@ export class AdminCuisineService {
     }
     const updated = await this.prisma.cuisine.update({
       where: { id },
-      data: { label: dto.label ?? undefined },
+      data: { label: dto.label ?? undefined, isPublic: dto.isPublic ?? undefined },
     });
     await this.auditLog.record({
       actorId,
       action: 'cuisine.update',
       targetType: 'cuisine',
       targetId: id,
-      beforeState: { label: before.label },
+      beforeState: { label: before.label, isPublic: before.isPublic },
       afterState: dto,
     });
     void this.webRevalidation.revalidate(['cuisines']);

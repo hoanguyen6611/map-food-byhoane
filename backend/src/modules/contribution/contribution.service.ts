@@ -197,6 +197,34 @@ export class ContributionService {
           });
         }
 
+        // "+ Thêm mới" — a cuisine the contributor typed that isn't in the
+        // catalog yet. Created with `isPublic: false` (invisible to every
+        // other user's chip list/search filter) and only promoted to public
+        // once THIS restaurant is approved — see
+        // ContributionFinalizeService.applySideEffect's new_restaurant case.
+        // Reuses an existing row by code if one already exists (another
+        // contributor proposed/an admin created the same tag first), public
+        // or not, rather than risking a unique-constraint conflict.
+        if (dto.newCuisineLabels && dto.newCuisineLabels.length > 0) {
+          for (const rawLabel of dto.newCuisineLabels) {
+            const label = rawLabel.trim();
+            if (!label) continue;
+            const code = this.toCatalogCode(label);
+            const cuisine = await tx.cuisine.upsert({
+              where: { code },
+              create: { code, label, isPublic: false },
+              update: {},
+            });
+            await tx.restaurantCuisine.upsert({
+              where: {
+                restaurantId_cuisineId: { restaurantId: restaurant.id, cuisineId: cuisine.id },
+              },
+              create: { restaurantId: restaurant.id, cuisineId: cuisine.id },
+              update: {},
+            });
+          }
+        }
+
         if (dto.openingHours && dto.openingHours.length > 0) {
           await tx.openingHour.createMany({
             data: dto.openingHours.map((day) => ({
@@ -232,6 +260,27 @@ export class ContributionService {
                 restaurantId: restaurant.id,
                 facilityCode,
               })),
+            });
+          }
+        }
+
+        // "+ Thêm mới" — same convention as newCuisineLabels above.
+        if (dto.newFacilityLabels && dto.newFacilityLabels.length > 0) {
+          for (const rawLabel of dto.newFacilityLabels) {
+            const label = rawLabel.trim();
+            if (!label) continue;
+            const code = this.toCatalogCode(label);
+            const facility = await tx.facility.upsert({
+              where: { code },
+              create: { code, label, isPublic: false },
+              update: {},
+            });
+            await tx.restaurantFacility.upsert({
+              where: {
+                restaurantId_facilityCode: { restaurantId: restaurant.id, facilityCode: facility.code },
+              },
+              create: { restaurantId: restaurant.id, facilityCode: facility.code },
+              update: {},
             });
           }
         }
@@ -664,5 +713,19 @@ export class ContributionService {
   private parseTime(hhmm: string): Date {
     const [hour, minute] = hhmm.split(':').map(Number);
     return new Date(Date.UTC(1970, 0, 1, hour, minute));
+  }
+
+  /**
+   * Cuisine/facility `code` needs the admin catalog's own shape
+   * (`/^[a-z][a-z0-9_]*$/` — see admin cuisine.dto.ts/facility.dto.ts), which
+   * is stricter than `slugify()`'s hyphen-separated restaurant-slug output:
+   * underscores instead of hyphens, and must start with a letter (a
+   * contributor typing a name that starts with a digit is unlikely but not
+   * impossible, e.g. "24h").
+   */
+  private toCatalogCode(label: string): string {
+    const base = slugify(label).replace(/-/g, '_');
+    const withLeadingLetter = /^[a-z]/.test(base) ? base : `mon_${base}`;
+    return withLeadingLetter.slice(0, 50).replace(/_+$/, '') || 'mon_moi';
   }
 }
