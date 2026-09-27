@@ -2449,6 +2449,17 @@ textarea:focus-visible {
 .photo-hero-grid-3 .photo-hero-tile-2 {
   grid-column: 2;
 }
+/* Single-photo hero, portrait source (see PhotoGalleryHero's isPortrait) —
+   a blurred, darkened copy of the same photo fills the box behind it
+   (avoids bare background on the sides), the sharp photo sits on top
+   letterboxed via `object-fit: contain` so nothing is cropped out. */
+.photo-hero-single-backdrop {
+  filter: blur(24px) brightness(0.7);
+  transform: scale(1.15);
+}
+.photo-hero-single-fg {
+  z-index: 1;
+}
 .photo-hero-more-overlay {
   position: absolute;
   inset: 0;

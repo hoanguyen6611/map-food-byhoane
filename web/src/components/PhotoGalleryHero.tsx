@@ -19,6 +19,68 @@ interface Props {
 
 const VISIBLE_TILE_COUNT = 4;
 
+// A portrait (phone-shot) photo `object-fit: cover`'d into this wide,
+// short hero box loses most of its content to cropping — only relevant for
+// the single-photo case (a 2-4 photo grid's smaller tiles crop the same way
+// every other app's photo grid does, which isn't what was reported).
+function isPortraitFromMetadata(photo: PhotoDto): boolean {
+  return photo.width !== null && photo.height !== null && photo.height > photo.width;
+}
+
+interface SinglePhotoTileProps {
+  photo: PhotoDto;
+  alt: string;
+}
+
+/**
+ * The single-photo hero case, split out so it can carry its own orientation
+ * state. Stored `width`/`height` is null for any photo uploaded through the
+ * ImageKit direct-upload path (see MediaService.attachExternalUrls — it
+ * never runs the sharp-based dimension extraction the S3 path does), so
+ * `photo.width`/`height` alone isn't reliable enough to detect portrait
+ * photos anymore. Falls back to reading the actual loaded `<img>`'s
+ * `naturalWidth`/`naturalHeight` once the browser has it — a one-time
+ * re-render from cover to contain+backdrop if that reveals a portrait photo
+ * metadata didn't already tell us about, invisible if metadata already
+ * knew (no swap needed).
+ */
+function SinglePhotoTile({ photo, alt }: SinglePhotoTileProps) {
+  const [portrait, setPortrait] = useState(isPortraitFromMetadata(photo));
+
+  return (
+    <>
+      {portrait ? (
+        // Blurred, cropped fill so a portrait photo's box never shows bare
+        // background on the sides — purely decorative.
+        <Image
+          src={photo.url}
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="(max-width: 860px) 50vw, 380px"
+          className="photo-hero-single-backdrop"
+          style={{ objectFit: 'cover' }}
+        />
+      ) : null}
+      <Image
+        src={photo.url}
+        alt={alt}
+        fill
+        sizes="(max-width: 860px) 50vw, 380px"
+        priority
+        className={portrait ? 'photo-hero-single-fg' : undefined}
+        style={{ objectFit: portrait ? 'contain' : 'cover' }}
+        onLoad={(event) => {
+          const img = event.currentTarget;
+          if (!portrait && img.naturalWidth > 0 && img.naturalHeight > img.naturalWidth) {
+            setPortrait(true);
+          }
+        }}
+      />
+    </>
+  );
+}
+
 /**
  * README's redesigned detail-page photo hero — one large tile + up to two
  * stacked tiles + a 4th tile that becomes a dimmed "+N / see all" overlay
@@ -59,14 +121,18 @@ export function PhotoGalleryHero({ photos, photoAlts, emptyText, seeAllLabel, mo
               onClick={() => setLightboxOpen(true)}
               aria-label={isOverlayTile ? seeAllLabel : photoAlts[index]}
             >
-              <Image
-                src={photo.url}
-                alt={isOverlayTile ? '' : photoAlts[index]}
-                fill
-                sizes="(max-width: 860px) 50vw, 380px"
-                priority={index === 0}
-                style={{ objectFit: 'cover' }}
-              />
+              {visible.length === 1 ? (
+                <SinglePhotoTile photo={photo} alt={photoAlts[index]} />
+              ) : (
+                <Image
+                  src={photo.url}
+                  alt={isOverlayTile ? '' : photoAlts[index]}
+                  fill
+                  sizes="(max-width: 860px) 50vw, 380px"
+                  priority={index === 0}
+                  style={{ objectFit: 'cover' }}
+                />
+              )}
               {isOverlayTile ? (
                 <span className="photo-hero-more-overlay">
                   <span className="photo-hero-more-count">{moreCountLabel}</span>

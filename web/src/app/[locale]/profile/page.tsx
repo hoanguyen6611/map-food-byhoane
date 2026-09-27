@@ -9,10 +9,9 @@ import type {
   PublicProfileDto,
 } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
-import { getCuisines } from '@/lib/api';
+import { getCategories, getCuisines } from '@/lib/api';
 import { formatJoinDate, initialsOf } from '@/lib/format';
 import { Link } from '@/i18n/navigation';
-import { RestaurantCard } from '@/components/RestaurantCard';
 import { ProfileHeaderActions } from '@/components/ProfileHeaderActions';
 import { ProfileReviewItem } from '@/components/ProfileReviewItem';
 import { ContributedRestaurantsList } from '@/components/ContributedRestaurantsList';
@@ -43,12 +42,13 @@ export default async function ProfilePage({ params }: PageProps) {
   const { locale } = await params;
   // Independent, unrelated reads — fired together (see this page's earlier
   // comment history for why serializing them was a real perf bug before).
-  const [meRes, reviewsRes, favoritesRes, photosRes, cuisineOptions] = await Promise.all([
+  const [meRes, reviewsRes, favoritesRes, photosRes, cuisineOptions, categories] = await Promise.all([
     backendFetchAuthorized('/me'),
     backendFetchAuthorized('/me/reviews?page=1&pageSize=20'),
     backendFetchAuthorized('/me/favorites?page=1&pageSize=24'),
     backendFetchAuthorized(`/me/photos?page=1&pageSize=${PHOTOS_TAB_PAGE_SIZE}`),
     getCuisines(),
+    getCategories(),
   ]);
   if (!meRes) {
     redirect('/login');
@@ -86,6 +86,19 @@ export default async function ProfilePage({ params }: PageProps) {
   ]);
   const displayName = me.profile.displayName || me.user.email.split('@')[0];
   const { gamification } = me;
+  const categoryLabelByCode = new Map(categories.map((c) => [c.code, c.label]));
+  // Same row UI as the "contributed" tab (ContributedRestaurantsList) —
+  // FavoriteRestaurantSummaryDto only carries categoryCode, not the
+  // human-readable label ContributedRestaurantsList's DTO shape expects, so
+  // it's resolved here from the already-fetched category list.
+  const savedRestaurants = favorites.items.map((favorite) => ({
+    id: favorite.restaurant.id,
+    name: favorite.restaurant.name,
+    slug: favorite.restaurant.slug,
+    thumbnailUrl: favorite.restaurant.thumbnailUrl,
+    categoryLabel: categoryLabelByCode.get(favorite.restaurant.categoryCode) ?? favorite.restaurant.categoryCode,
+    compositeScore: favorite.restaurant.compositeScore,
+  }));
 
   const tabs: { key: ProfileTabKey; label: string; count: number; content: React.ReactNode }[] = [
     {
@@ -123,11 +136,7 @@ export default async function ProfilePage({ params }: PageProps) {
           <p className="empty-state">{t('noSaved')}</p>
         ) : (
           <>
-            <div className="card-grid">
-              {favorites.items.map((favorite) => (
-                <RestaurantCard key={favorite.id} restaurant={favorite.restaurant} />
-              ))}
-            </div>
+            <ContributedRestaurantsList restaurants={savedRestaurants} />
             {favorites.total > favorites.items.length ? (
               <Link href="/favorites" className="profile-review-action">
                 {tCommon('seeAllRestaurants')}
