@@ -12,10 +12,14 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('admin/media')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin', 'moderator')
+@Roles('admin', 'moderator', 'owner')
 export class AdminMediaController {
   constructor(private readonly adminMediaService: AdminMediaService) {}
 
+  // Stateless signed-upload credentials, not restaurant-scoped — safe to
+  // extend to 'owner' here (no resource-ownership check needed, unlike the
+  // actual attach/remove routes on OwnerRestaurantController which ARE
+  // restaurant-scoped).
   @Get('imagekit-auth')
   getImageKitAuth(): ImageKitUploadAuth {
     return this.adminMediaService.getUploadAuth();

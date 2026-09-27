@@ -18,6 +18,7 @@ import { ReviewCardPhotos } from '@/components/ReviewCardPhotos';
 import { MapCanvas } from '@/components/MapCanvas';
 import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
 import { SocialLinksCard } from '@/components/SocialLinksCard';
+import { OwnerClaimForm } from '@/components/OwnerClaimForm';
 import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon } from '@/components/icons';
 import type { SocialPlatform } from '@foodmap/shared-types';
 import { getSession } from '@/lib/auth';
@@ -297,6 +298,10 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   reportHint={t('socialReportHint')}
                   platformLabel={(platform: SocialPlatform) => t(`socialPlatform.${platform}`)}
                 />
+              ) : null}
+
+              {!restaurant.hasOwner ? (
+                <OwnerClaimForm restaurantId={restaurant.id} isLoggedIn={!!session} />
               ) : null}
 
               <div className="info-card">

@@ -25,6 +25,7 @@ import {
   TARGET_TYPE_TABS,
   contributionTypeLabel,
   decisionLabel,
+  fieldNameLabel,
   formatDateTime,
   reportReasonLabel,
   riskScoreLabel,
@@ -127,7 +128,7 @@ export function AdminModerationQueuePage() {
     <div className="page">
       <div className="page-header-row">
         <div>
-          <h1>Hàng đợi Kiểm duyệt</h1>
+          <h1>Danh sách phê duyệt</h1>
           <p>Xét duyệt nội dung do cộng đồng đóng góp: đánh giá, quán mới, chỉnh sửa, ảnh.</p>
         </div>
       </div>
@@ -181,7 +182,7 @@ export function AdminModerationQueuePage() {
         <p className="form-error" role="alert">
           {listQuery.error instanceof ApiError
             ? listQuery.error.message
-            : 'Không thể tải hàng đợi kiểm duyệt.'}
+            : 'Không thể tải danh sách phê duyệt.'}
         </p>
       )}
 
@@ -424,21 +425,49 @@ function ContributionDetail({ detail }: { detail: Extract<AdminModerationDetailD
         <div className="form-grid">
           <div className="form-field">
             <span>Trường</span>
-            <span>{String(payload.fieldName ?? '')}</span>
+            <span>{fieldNameLabel(String(payload.fieldName ?? ''))}</span>
           </div>
-          <div className="form-field">
-            <span>Giá trị cũ</span>
-            <span>{formatRawValue(detail.oldValue)}</span>
-          </div>
-          <div className="form-field">
-            <span>Giá trị mới</span>
-            <span>{formatRawValue(payload.newValue)}</span>
-          </div>
+          {payload.fieldName === 'openingHours' ? (
+            <div className="form-field form-field-wide">
+              <span>Giờ mở cửa (cũ → mới)</span>
+              <OpeningHoursDiff oldValue={detail.oldValue} newValue={payload.newValue} />
+            </div>
+          ) : (
+            <>
+              <div className="form-field">
+                <span>Giá trị cũ</span>
+                <span>{formatFieldValue(String(payload.fieldName ?? ''), detail.oldValue)}</span>
+              </div>
+              <div className="form-field">
+                <span>Giá trị mới</span>
+                <span>{formatFieldValue(String(payload.fieldName ?? ''), payload.newValue)}</span>
+              </div>
+            </>
+          )}
+          {Array.isArray(payload.newFacilityLabels) && payload.newFacilityLabels.length > 0 && (
+            <div className="form-field form-field-wide">
+              <span>⚠ Tiện ích mới đề xuất (chưa công khai)</span>
+              <span>{(payload.newFacilityLabels as string[]).join(', ')}</span>
+            </div>
+          )}
         </div>
       )}
 
       {(detail.contributionType === 'status_update' || detail.contributionType === 'closure_report') && (
         <KeyValueList payload={payload} />
+      )}
+
+      {detail.contributionType === 'owner_claim' && (
+        <div className="form-grid">
+          <div className="form-field">
+            <span>Số điện thoại liên hệ</span>
+            <span>{String(payload.contactPhone ?? '')}</span>
+          </div>
+          <div className="form-field form-field-wide">
+            <span>Ghi chú xác minh</span>
+            <span>{String(payload.note ?? '')}</span>
+          </div>
+        </div>
       )}
 
       {detail.photos.length > 0 && (
@@ -642,6 +671,81 @@ function formatRawValue(value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
+}
+
+// `facilities` is the one other edit_suggestion field shaped as an array —
+// a plain comma list reads far better than the JSON.stringify fallback.
+function formatFieldValue(fieldName: string, value: unknown): string {
+  if (fieldName === 'facilities' && Array.isArray(value)) {
+    return value.length > 0 ? value.join(', ') : '—'
+  }
+  if (fieldName === 'location' && value && typeof value === 'object' && 'lat' in value && 'lng' in value) {
+    const { lat, lng } = value as { lat: number; lng: number }
+    return `${lat}, ${lng}`
+  }
+  return formatRawValue(value)
+}
+
+interface OpeningHourEntry {
+  dayOfWeek: number
+  openTime?: string | null
+  closeTime?: string | null
+  isClosed: boolean
+}
+
+function parseOpeningHours(value: unknown): OpeningHourEntry[] {
+  return Array.isArray(value) ? (value as OpeningHourEntry[]) : []
+}
+
+// Old values come from EditSuggestion.oldValue, read straight off the live
+// Restaurant/OpeningHour rows — openTime/closeTime serialize as full ISO
+// datetimes (e.g. "1970-01-01T16:00:00.000Z", since they're Date columns
+// anchored to the epoch date). New values are the submitter's own plain
+// "HH:mm" strings. Both need to end up in the same shape for the table
+// below to compare them meaningfully instead of just dumping raw JSON.
+function normalizeHourTime(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw) return null
+  const isoMatch = raw.match(/T(\d{2}):(\d{2})/)
+  return isoMatch ? `${isoMatch[1]}:${isoMatch[2]}` : raw
+}
+
+function describeOpeningHourEntry(entry: OpeningHourEntry | undefined): string {
+  if (!entry) return '—'
+  if (entry.isClosed) return 'Đóng cửa'
+  const open = normalizeHourTime(entry.openTime)
+  const close = normalizeHourTime(entry.closeTime)
+  return open && close ? `${open} - ${close}` : '—'
+}
+
+/** A per-day before/after table for the one edit_suggestion field a flat 2-column diff can't represent well. */
+function OpeningHoursDiff({ oldValue, newValue }: { oldValue: unknown; newValue: unknown }) {
+  const oldByDay = new Map(parseOpeningHours(oldValue).map((h) => [h.dayOfWeek, h]))
+  const newByDay = new Map(parseOpeningHours(newValue).map((h) => [h.dayOfWeek, h]))
+
+  return (
+    <table className="hours-table">
+      <thead>
+        <tr>
+          <th>Ngày</th>
+          <th>Cũ</th>
+          <th>Mới</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: 7 }, (_, day) => {
+          const oldDesc = describeOpeningHourEntry(oldByDay.get(day))
+          const newDesc = describeOpeningHourEntry(newByDay.get(day))
+          return (
+            <tr key={day}>
+              <td>{DAY_LABELS[day]}</td>
+              <td>{oldDesc}</td>
+              <td style={oldDesc !== newDesc ? { fontWeight: 700 } : undefined}>{newDesc}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
 }
 
 interface DecisionPanelProps {

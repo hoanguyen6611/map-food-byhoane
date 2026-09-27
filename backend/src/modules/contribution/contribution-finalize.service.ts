@@ -13,6 +13,7 @@ const CONTRIBUTION_TYPE_TITLE: Record<Contribution['type'], string> = {
   edit_suggestion: 'Đề xuất chỉnh sửa cần duyệt',
   status_update: 'Báo cáo trạng thái cần duyệt',
   closure_report: 'Báo cáo đóng cửa cần duyệt',
+  owner_claim: 'Yêu cầu làm chủ quán cần duyệt',
 };
 
 interface StatusReportPayload {
@@ -191,6 +192,13 @@ export class ContributionFinalizeService {
           payload.fieldName,
           payload.newValue,
         );
+        // A "+ Thêm mới" facility proposed via this same edit (see
+        // ContributionService.createEditSuggestion) was created isPublic:
+        // false — this is what actually makes it public, reusing the exact
+        // same promotion logic new_restaurant approval already uses.
+        if (payload.fieldName === 'facilities') {
+          await this.promotePendingCatalogEntries(contribution.targetRestaurantId);
+        }
         await this.restaurantService.invalidateViewportCache();
         void this.revalidateRestaurant(contribution.targetRestaurantId);
         return;
@@ -209,7 +217,42 @@ export class ContributionFinalizeService {
         // Never auto-applies to the live restaurant — informational only,
         // surfaced via the moderation queue / closure-escalation logic.
         return;
+      case 'owner_claim': {
+        if (!contribution.targetRestaurantId) return;
+        const ownerRoleId = await this.getOwnerRoleId();
+        await this.prisma.$transaction([
+          this.prisma.restaurant.update({
+            where: { id: contribution.targetRestaurantId },
+            data: { ownerId: contribution.userId },
+          }),
+          this.prisma.user.update({
+            where: { id: contribution.userId },
+            data: { roleId: ownerRoleId },
+          }),
+        ]);
+        // No revalidation needed — ownership isn't part of any public-facing
+        // DTO's cached shape besides `hasOwner`, which is cheap enough to
+        // read fresh on next request; unlike edit_suggestion/new_restaurant
+        // this doesn't change anything ISR has tag-cached.
+        return;
+      }
     }
+  }
+
+  // Role rows are seed data (never change at runtime) — a single cached
+  // lookup is enough, same reasoning/TTL convention as PermissionsService's
+  // roleId -> permission-codes cache.
+  private ownerRoleIdCache: { id: string; expiresAt: number } | null = null;
+  private async getOwnerRoleId(): Promise<string> {
+    if (this.ownerRoleIdCache && this.ownerRoleIdCache.expiresAt > Date.now()) {
+      return this.ownerRoleIdCache.id;
+    }
+    const role = await this.prisma.role.findUniqueOrThrow({
+      where: { code: 'owner' },
+      select: { id: true },
+    });
+    this.ownerRoleIdCache = { id: role.id, expiresAt: Date.now() + 60_000 };
+    return role.id;
   }
 
   /**
@@ -327,6 +370,10 @@ export class ContributionFinalizeService {
       case 'name':
       case 'description':
       case 'phone':
+      case 'facebookUrl':
+      case 'instagramUrl':
+      case 'tiktokUrl':
+      case 'websiteUrl':
         await this.prisma.restaurant.update({
           where: { id: restaurantId },
           data: { [fieldName]: newValue },
@@ -356,6 +403,20 @@ export class ContributionFinalizeService {
               .filter(Boolean)
               .join(', '),
           },
+        });
+        return;
+      }
+      case 'location': {
+        const { lat, lng } = newValue as { lat: number; lng: number };
+        const restaurant = await this.prisma.restaurant.findUniqueOrThrow({
+          where: { id: restaurantId },
+        });
+        // Same write AdminRestaurantService.update() does — re-fires the DB
+        // trigger that keeps Location.geo_point in sync with lat/lng (see
+        // schema.prisma's Location model comment), no manual geo_point write.
+        await this.prisma.location.update({
+          where: { id: restaurant.locationId },
+          data: { lat, lng },
         });
         return;
       }

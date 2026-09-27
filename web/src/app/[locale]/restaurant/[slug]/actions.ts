@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { backendFetchAuthorized } from '@/lib/auth';
 import type {
+  CreateOwnerClaimResponse,
   ReviewDto,
   ReviewRatingInput,
   ReviewReplyDto,
@@ -67,6 +68,32 @@ export async function listRepliesAction(reviewId: string): Promise<ReviewReplyDt
   if (!res.ok) return [];
   const body = (await res.json()) as ReviewReplyListResponse;
   return body.items;
+}
+
+export type SubmitOwnerClaimResult =
+  | { ok: true; status: CreateOwnerClaimResponse['status'] }
+  | { ok: false; error: 'unauthorized' | 'conflict' | 'generic'; message?: string };
+
+export async function submitOwnerClaimAction(
+  restaurantId: string,
+  input: { contactPhone: string; note: string; proofPhotoUrls?: string[] },
+): Promise<SubmitOwnerClaimResult> {
+  const res = await backendFetchAuthorized(`/restaurants/${restaurantId}/owner-claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res) {
+    return { ok: false, error: 'unauthorized' };
+  }
+  if (!res.ok) {
+    if (res.status === 409) return { ok: false, error: 'conflict' };
+    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+    const message = Array.isArray(body?.message) ? body.message.join(' ') : body?.message;
+    return { ok: false, error: 'generic', message };
+  }
+  const data = (await res.json()) as CreateOwnerClaimResponse;
+  return { ok: true, status: data.status };
 }
 
 export type CreateReplyResult = { ok: true; data: ReviewReplyDto } | { ok: false; error: string };

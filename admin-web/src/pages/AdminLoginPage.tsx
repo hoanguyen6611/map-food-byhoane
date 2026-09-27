@@ -3,10 +3,11 @@
  *
  * Reuses the shared `/auth/login` endpoint (there is no admin-only login
  * endpoint on the backend) but this page is the gatekeeper: only
- * `admin`/`moderator` roles are allowed to establish an admin-portal
+ * `admin`/`moderator`/`owner` roles are allowed to establish an admin-portal
  * session (see `../auth/AuthContext.tsx`). Any other role gets a distinct,
  * clear "not authorized for admin portal" message instead of the generic
- * credentials error, and is never logged into the admin app.
+ * credentials error, and is never logged into the admin app. `owner` lands
+ * on `/owner` instead of the staff dashboard — see the redirect below.
  */
 import { useState } from 'react'
 import type { FormEvent } from 'react'
@@ -33,8 +34,8 @@ export function AdminLoginPage() {
     setIsSubmitting(true)
 
     try {
-      await login(email, password)
-      navigate('/', { replace: true })
+      const role = await login(email, password)
+      navigate(role === 'owner' ? '/owner' : '/', { replace: true })
     } catch (err) {
       if (err instanceof NotAuthorizedForAdminError) {
         setNotAuthorized(true)
@@ -54,7 +55,7 @@ export function AdminLoginPage() {
   return (
     <div className="page page-login">
       <h1>Đăng nhập Quản trị</h1>
-      <p>Dành cho quản trị viên và moderator.</p>
+      <p>Dành cho quản trị viên, moderator và chủ quán.</p>
       <form className="login-form" onSubmit={handleSubmit} noValidate>
         <label className="login-field">
           <span>Email</span>

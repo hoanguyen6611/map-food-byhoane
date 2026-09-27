@@ -1060,3 +1060,184 @@ body {
   color: var(--color-text-muted);
   flex-shrink: 0;
 }
+
+/* ---------- Owner section (admin-web's /owner/* route tree) ---------- */
+
+.owner-restaurant-picker {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* Single-restaurant owners (the common case) get this instead of the
+   <select> — always rendered (never `null`) so `.admin-header`'s
+   `justify-content: space-between` always has two children to work with;
+   see HeaderRestaurantLabel's doc comment in OwnerLayout.tsx. */
+.owner-restaurant-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* OwnerRestaurantEditPage's "+ Thêm mới" facility proposal (mirrors the
+   web app's AddRestaurantForm chip pattern, in admin-web's own idiom). */
+.owner-new-facility-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.owner-new-facility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.owner-new-facility-chip button {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+.owner-new-facility-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.owner-new-facility-row input {
+  flex: 1;
+  max-width: 260px;
+}
+.owner-new-facility-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.owner-map-link-row {
+  display: flex;
+  gap: 8px;
+}
+.owner-map-link-row input {
+  flex: 1;
+}
+.owner-map-link-resolved {
+  font-size: 13px;
+  color: #106b31;
+}
+
+/* Owner portal has no staff/desktop-only assumption — a real restaurant
+   owner is just as likely to open this on a phone, unlike AppLayout's
+   audience. Collapses the fixed-width side nav into a horizontal top bar
+   so `.admin-main` gets the full viewport width instead of being squeezed
+   into whatever's left over. */
+@media (max-width: 767px) {
+  .owner-shell {
+    flex-direction: column;
+    min-height: auto;
+  }
+  .owner-shell .admin-sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 4px;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .owner-shell .admin-sidebar-brand {
+    padding: 0 12px 0 0;
+    margin: 0;
+    border-bottom: none;
+    border-right: 1px solid var(--color-border);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .owner-shell .admin-nav {
+    flex-direction: row;
+    gap: 4px;
+  }
+  .owner-shell .nav-link {
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-radius: 6px;
+  }
+  .owner-shell .admin-header {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    row-gap: 8px;
+  }
+  .owner-shell .admin-content {
+    padding: 16px;
+  }
+}
+
+/* Guards against the anchor (.notification-bell) sitting close to a narrow
+   viewport's edge — anchor-relative `right: 0` positioning can otherwise
+   push the dropdown's opposite edge past x=0. Below this breakpoint the
+   dropdown is viewport-relative instead of anchor-relative, so it always
+   fits regardless of where the bell itself ends up. */
+@media (max-width: 767px) {
+  .notification-dropdown {
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 70vh;
+  }
+}
+
+.owner-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.owner-review-item p {
+  margin: 8px 0;
+}
+
+.owner-review-replies {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.owner-review-reply {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.owner-review-reply-author {
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.owner-review-reply p {
+  margin: 4px 0 0;
+}
+
+.owner-review-reply-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.owner-review-reply-form textarea {
+  width: 100%;
+  resize: vertical;
+}

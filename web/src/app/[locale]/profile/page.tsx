@@ -6,6 +6,7 @@ import type {
   MeResponse,
   MyPhotoListResponse,
   MyReviewListResponse,
+  PublicProfileDto,
 } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { getCuisines } from '@/lib/api';
@@ -14,6 +15,7 @@ import { Link } from '@/i18n/navigation';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { ProfileHeaderActions } from '@/components/ProfileHeaderActions';
 import { ProfileReviewItem } from '@/components/ProfileReviewItem';
+import { ContributedRestaurantsList } from '@/components/ContributedRestaurantsList';
 import { ProfileTabs, type ProfileTabKey } from '@/components/ProfileTabs';
 import { ProfileSettingsTab } from '@/components/ProfileSettingsTab';
 import { StarIcon, CameraIcon, BookmarkIcon, ThumbsUpIcon, PlusIcon, CoffeeIcon, CheckIcon } from '@/components/icons';
@@ -56,6 +58,17 @@ export default async function ProfilePage({ params }: PageProps) {
   }
   const me = (await meRes.json()) as MeResponse;
 
+  // Reuses the public profile endpoint purely for `contributedRestaurants`
+  // (same data B's public /profile/[id] page shows) — `viewerId === targetId`
+  // bypasses the isPublic gate server-side, so this works even with the
+  // "hiện hồ sơ công khai" toggle off. No dedicated "my contributed
+  // restaurants" endpoint exists, and building one just to avoid this one
+  // reused call isn't worth it for a single capped-at-12 list.
+  const contributedRes = await backendFetchAuthorized(`/users/${me.user.id}`);
+  const contributedRestaurants = contributedRes?.ok
+    ? ((await contributedRes.json()) as PublicProfileDto).contributedRestaurants
+    : [];
+
   const reviews: MyReviewListResponse = reviewsRes?.ok
     ? ((await reviewsRes.json()) as MyReviewListResponse)
     : { items: [], total: 0, page: 1, pageSize: 20 };
@@ -88,6 +101,17 @@ export default async function ProfilePage({ params }: PageProps) {
               <ProfileReviewItem key={review.id} review={review} locale={locale} />
             ))}
           </div>
+        ),
+    },
+    {
+      key: 'contributed',
+      label: t('contributedTab'),
+      count: contributedRestaurants.length,
+      content:
+        contributedRestaurants.length === 0 ? (
+          <p className="empty-state">{t('noContributed')}</p>
+        ) : (
+          <ContributedRestaurantsList restaurants={contributedRestaurants} />
         ),
     },
     {

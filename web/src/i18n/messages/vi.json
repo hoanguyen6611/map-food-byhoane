@@ -160,7 +160,20 @@
     "replySubmit": "Gửi",
     "openUntil": "đến {time}",
     "reviewCountShort": "{count} đánh giá",
-    "viewCount": "{count} lượt xem"
+    "viewCount": "{count} lượt xem",
+    "ownerClaimQuestion": "Bạn là chủ quán này?",
+    "ownerClaimButton": "Yêu cầu quản lý quán",
+    "ownerClaimBody": "Gửi yêu cầu để quản trị viên xác minh — sau khi được duyệt, bạn có thể chỉnh sửa thông tin, quản lý ảnh và trả lời đánh giá cho quán này.",
+    "ownerClaimLoginPrompt": "Đăng nhập để gửi yêu cầu quản lý quán này.",
+    "ownerClaimPhoneLabel": "Số điện thoại liên hệ",
+    "ownerClaimNoteLabel": "Ghi chú xác minh",
+    "ownerClaimNotePlaceholder": "Cho chúng tôi biết bạn là chủ/quản lý quán như thế nào…",
+    "ownerClaimSubmit": "Gửi yêu cầu",
+    "ownerClaimCancel": "Huỷ",
+    "ownerClaimSuccess": "Đã gửi yêu cầu. Quản trị viên sẽ xem xét và phản hồi sớm.",
+    "ownerClaimConflict": "Quán này đã có chủ quán, hoặc bạn đã gửi yêu cầu rồi.",
+    "ownerClaimError": "Không thể gửi yêu cầu. Vui lòng thử lại.",
+    "ownerReplyBadge": "Chủ quán"
   },
   "notFound": {
     "title": "Không tìm thấy trang",
@@ -330,10 +343,12 @@
     "pointsToNextLevel": "Còn {points} điểm nữa để lên cấp {level}",
     "maxLevelReached": "Đã đạt cấp cao nhất",
     "reviewsTab": "Đánh giá",
+    "contributedTab": "Quán đã đóng góp",
     "savedTab": "Đã lưu",
     "photosTab": "Ảnh",
     "settingsTab": "Cài đặt",
     "noReviews": "Bạn chưa viết đánh giá nào.",
+    "noContributed": "Bạn chưa đóng góp quán nào được duyệt.",
     "noSaved": "Bạn chưa lưu quán nào.",
     "noPhotos": "Bạn chưa đăng ảnh nào.",
     "edit": "Sửa",
@@ -354,6 +369,19 @@
       "in_review": "Đang chờ duyệt",
       "edit_requested": "Cần chỉnh sửa"
     }
+  },
+  "publicProfile": {
+    "notFoundTitle": "Không tìm thấy hồ sơ",
+    "followerCountLabel": "Người theo dõi",
+    "followingCountLabel": "Đang theo dõi",
+    "follow": "Theo dõi",
+    "following": "Đang theo dõi",
+    "loginToFollow": "Đăng nhập để theo dõi",
+    "contributedHeading": "Quán đã đóng góp",
+    "contributedCount": "{count} quán",
+    "showMore": "Xem thêm {count} quán khác",
+    "showLess": "Ẩn bớt",
+    "noReviews": "Người này chưa có đánh giá công khai nào."
   },
   "notifications": {
     "title": "Thông báo",

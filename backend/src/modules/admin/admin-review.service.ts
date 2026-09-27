@@ -167,6 +167,9 @@ export class AdminReviewService {
         // Admin moderation queue doesn't render avatars — not worth the
         // extra Photo lookup for a list that's purely text-based today.
         avatarUrl: null,
+        // Staff always sees the real author regardless of isPublic — this
+        // view is never subject to public-facing anonymization.
+        isAnonymized: false,
       },
       overallRating: review.overallRating,
       comment: review.comment,

@@ -4,9 +4,12 @@
  * The backend has no separate "admin login" endpoint — `/auth/login` is
  * shared with the mobile app and returns a token for ANY valid credential
  * pair, regardless of role. It is this admin frontend's job to refuse to
- * establish a session for any role other than `admin`/`moderator`, with a
- * distinct message rather than the generic "wrong credentials" error (per
- * docs/build-prompts/02-auth.md, "Admin web — Admin Login only").
+ * establish a session for any role other than `admin`/`moderator`/`owner`,
+ * with a distinct message rather than the generic "wrong credentials" error
+ * (per docs/build-prompts/02-auth.md, "Admin web — Admin Login only").
+ * `owner` sees an entirely different, restaurant-scoped route tree (see
+ * App.tsx's RoleRoute split) — it shares this same login gate/session
+ * shape, not the staff dashboard.
  */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -15,7 +18,7 @@ import { apiClient } from '../api/client'
 import { clearStoredSession, loadStoredSession, saveStoredSession } from './session'
 import type { AdminSession } from './session'
 
-const ADMIN_PORTAL_ROLES: ReadonlySet<RoleCode> = new Set(['admin', 'moderator'])
+const ADMIN_PORTAL_ROLES: ReadonlySet<RoleCode> = new Set(['admin', 'moderator', 'owner'])
 
 /** Thrown by `login()` when credentials are valid but the role may not use the admin portal. */
 export class NotAuthorizedForAdminError extends Error {
@@ -27,7 +30,10 @@ export class NotAuthorizedForAdminError extends Error {
 
 interface AuthContextValue {
   session: AdminSession | null
-  login: (email: string, password: string) => Promise<void>
+  // Returns the logged-in user's role so the caller (AdminLoginPage) can
+  // redirect owner vs staff to their respective home route — session state
+  // updates asynchronously via re-render, too late for a same-tick redirect.
+  login: (email: string, password: string) => Promise<RoleCode>
   logout: () => void
 }
 
@@ -49,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const nextSession: AdminSession = { accessToken: response.accessToken, user: response.user }
     saveStoredSession(nextSession)
     setSession(nextSession)
+    return response.user.role
   }, [])
 
   const logout = useCallback(() => {

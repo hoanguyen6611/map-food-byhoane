@@ -6,7 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
-import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon } from '@/components/icons';
+import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon } from '@/components/icons';
 import { markAllNotificationsReadAction } from './actions';
 
 interface PageProps {
@@ -34,6 +34,7 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   review_helpful_vote: <ThumbsUpIcon size={17} />,
   review_helpful_milestone: <StarIcon size={17} filled />,
   restaurant_hours_changed: <ClockIcon size={17} />,
+  new_follower: <UserIcon size={17} />,
 };
 
 // Types whose deep-link `screen` is 'Reviews' (see NotificationDeepLink's own
@@ -148,7 +149,9 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
               ? REVIEW_SCREEN_TYPES.includes(notification.type)
                 ? `/restaurant/${slug}?tab=reviews`
                 : `/restaurant/${slug}`
-              : null;
+              : notification.payload.deepLink.userId
+                ? `/profile/${notification.payload.deepLink.userId}`
+                : null;
             const body = (
               <>
                 <span className="notification-title">{notification.payload.title}</span>

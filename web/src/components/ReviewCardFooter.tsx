@@ -139,6 +139,9 @@ export function ReviewCardFooter({
                   <div>
                     <div className="review-card-reply-head">
                       <span className="review-card-reply-author">{reply.author.displayName}</span>
+                      {reply.isOwnerReply && (
+                        <span className="review-card-reply-owner-badge">{tRestaurant('ownerReplyBadge')}</span>
+                      )}
                       <span className="review-card-reply-when">{formatRelativeDate(reply.createdAt, locale)}</span>
                     </div>
                     <p className="review-card-reply-body">{reply.body}</p>

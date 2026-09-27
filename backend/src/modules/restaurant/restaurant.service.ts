@@ -371,6 +371,7 @@ export class RestaurantService {
         : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
       viewCount: (restaurant.status?.viewCount ?? 0) + viewCountDelta,
+      hasOwner: restaurant.ownerId !== null,
       reviews: await (async () => {
         const { avatarUrlByPhotoId, countsByReviewId } =
           await this.batchFetchReviewSocialMeta(reviewRows);
@@ -515,6 +516,7 @@ export class RestaurantService {
         avatarUrl: anonymize
           ? null
           : (avatarUrlByPhotoId.get(review.user.profile?.avatarPhotoId ?? '') ?? null),
+        isAnonymized: anonymize,
       },
       overallRating: review.overallRating,
       ratings: review.ratings.map((r) => ({

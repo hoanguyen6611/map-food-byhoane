@@ -193,7 +193,7 @@ export function AdminFacilityManagementPage() {
                     <span className="status-badge status-badge-pending">Chờ duyệt</span>
                   )}
                 </td>
-                <td>
+                <td className="data-table-actions">
                   {!facility.isPublic && (
                     <button
                       type="button"
@@ -208,23 +208,24 @@ export function AdminFacilityManagementPage() {
                     <>
                       <button
                         type="button"
-                        className="button button-primary"
+                        className="button button-small button-primary"
                         disabled={updateMutation.isPending || !editLabel.trim()}
                         onClick={() => updateMutation.mutate(facility.id)}
                       >
                         Lưu
                       </button>
-                      <button type="button" onClick={() => setEditingId(null)}>
+                      <button type="button" className="button button-small" onClick={() => setEditingId(null)}>
                         Huỷ
                       </button>
                     </>
                   ) : (
                     <>
-                      <button type="button" onClick={() => startEdit(facility)}>
+                      <button type="button" className="button button-small" onClick={() => startEdit(facility)}>
                         Sửa
                       </button>
                       <button
                         type="button"
+                        className="button button-small button-danger"
                         disabled={!isAdmin || deleteMutation.isPending}
                         title={!isAdmin ? 'Chỉ admin mới được xoá' : undefined}
                         onClick={() => {

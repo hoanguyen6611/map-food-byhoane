@@ -56,10 +56,35 @@ const CONTRIBUTION_TYPE_LABELS: Record<string, string> = {
   edit_suggestion: 'Đề xuất chỉnh sửa',
   status_update: 'Cập nhật trạng thái',
   closure_report: 'Báo cáo đóng cửa',
+  owner_claim: 'Yêu cầu làm chủ quán',
 }
 
 export function contributionTypeLabel(type: string): string {
   return CONTRIBUTION_TYPE_LABELS[type] ?? type
+}
+
+// edit_suggestion's `fieldName` is the raw EditableRestaurantField code
+// (e.g. "address.line", "openingHours") — this is what a moderator actually
+// reads, not what the payload happens to be keyed by.
+const FIELD_NAME_LABELS: Record<string, string> = {
+  name: 'Tên quán',
+  description: 'Mô tả',
+  phone: 'Số điện thoại',
+  'address.line': 'Địa chỉ (số nhà, đường)',
+  'address.ward': 'Phường/Xã',
+  'address.district': 'Quận/Huyện',
+  'address.province': 'Tỉnh/Thành phố',
+  location: 'Toạ độ (vĩ độ, kinh độ)',
+  openingHours: 'Giờ mở cửa',
+  facilities: 'Tiện ích',
+  facebookUrl: 'Facebook',
+  instagramUrl: 'Instagram',
+  tiktokUrl: 'TikTok',
+  websiteUrl: 'Website',
+}
+
+export function fieldNameLabel(fieldName: string): string {
+  return FIELD_NAME_LABELS[fieldName] ?? fieldName
 }
 
 export const DAY_LABELS: Record<number, string> = {

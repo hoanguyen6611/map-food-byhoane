@@ -33,6 +33,7 @@ const CONTENT_KIND_LABELS: Record<string, string> = {
   edit_suggestion: 'Chỉnh sửa',
   status_update: 'Cập nhật trạng thái',
   closure_report: 'Báo cáo đóng cửa',
+  owner_claim: 'Yêu cầu làm chủ quán',
   photo: 'Ảnh',
   video: 'Video',
   restaurant: 'Nhà hàng bị báo cáo',
@@ -77,6 +78,13 @@ const CONTRIBUTION_NOTIFICATION_COPY: Record<
     approvedBody: (name) => `Cảm ơn bạn đã báo cáo — ${name} đã được cập nhật trạng thái đóng cửa.`,
     rejectedBody: (name) => `Báo cáo đóng cửa về ${name} không được xác nhận.`,
     editRequestedBody: (name) => `Vui lòng bổ sung thông tin cho báo cáo đóng cửa về ${name} và gửi lại.`,
+  },
+  owner_claim: {
+    subject: (name) => `Yêu cầu làm chủ quán "${name}"`,
+    approvedBody: (name) =>
+      `Yêu cầu làm chủ quán "${name}" đã được duyệt. Vui lòng đăng xuất và đăng nhập lại vào Admin Portal để quản lý quán của bạn.`,
+    rejectedBody: (name) => `Yêu cầu làm chủ quán "${name}" không được chấp nhận.`,
+    editRequestedBody: (name) => `Vui lòng bổ sung thông tin xác minh cho yêu cầu làm chủ quán "${name}" và gửi lại.`,
   },
 };
 
@@ -172,7 +180,14 @@ export class AdminModerationService {
         }
         const payload = (contribution.payload ?? {}) as Record<string, unknown>;
         const photoIds = Array.isArray(payload.photoIds) ? (payload.photoIds as string[]) : [];
-        const photoUrls = Array.isArray(payload.photoUrls) ? (payload.photoUrls as string[]) : [];
+        // owner_claim's proof photos use their own key name (clearer intent
+        // for whoever reviews the claim) rather than reusing `photoUrls` —
+        // both are the same "externally-hosted photo URL" shape, so both
+        // feed the same generic `photos` array below.
+        const photoUrls = [
+          ...(Array.isArray(payload.photoUrls) ? (payload.photoUrls as string[]) : []),
+          ...(Array.isArray(payload.proofPhotoUrls) ? (payload.proofPhotoUrls as string[]) : []),
+        ];
         const attachedPhotos = photoIds.length
           ? await this.prisma.photo.findMany({ where: { id: { in: photoIds } } })
           : [];
@@ -622,6 +637,8 @@ export class AdminModerationService {
         return `Cập nhật (${String(payload.kind ?? '')}) — ${contribution.targetRestaurant?.name ?? ''}`;
       case 'closure_report':
         return `Báo cáo đóng cửa — ${contribution.targetRestaurant?.name ?? ''}`;
+      case 'owner_claim':
+        return `Yêu cầu làm chủ quán — ${contribution.targetRestaurant?.name ?? ''}`;
       default:
         return '';
     }

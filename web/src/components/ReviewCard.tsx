@@ -1,5 +1,6 @@
 import type { ReviewDto } from '@foodmap/shared-types';
 import { formatRelativeDate, initialsOf } from '@/lib/format';
+import { Link } from '@/i18n/navigation';
 import { Stars } from './Stars';
 import { ReviewCardPhotos } from './ReviewCardPhotos';
 import { ReviewCardFooter } from './ReviewCardFooter';
@@ -28,18 +29,34 @@ export function ReviewCard({
   return (
     <div className="review-card">
       <div className="review-card-header">
-        {review.author.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- external ImageKit/S3 URL, not a local asset
-          <img src={review.author.avatarUrl} alt="" className="avatar-mono avatar-mono-img" aria-hidden="true" />
-        ) : (
-          <span className="avatar-mono" aria-hidden="true">
-            {initialsOf(review.author.displayName)}
-          </span>
-        )}
-        <div className="review-card-headtext">
-          <span className="review-card-author">{review.author.displayName}</span>
-          <span className="review-card-when">{formatRelativeDate(review.createdAt, locale)}</span>
-        </div>
+        {(() => {
+          const avatarAndName = (
+            <>
+              {review.author.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- external ImageKit/S3 URL, not a local asset
+                <img src={review.author.avatarUrl} alt="" className="avatar-mono avatar-mono-img" aria-hidden="true" />
+              ) : (
+                <span className="avatar-mono" aria-hidden="true">
+                  {initialsOf(review.author.displayName)}
+                </span>
+              )}
+              <div className="review-card-headtext">
+                <span className="review-card-author">{review.author.displayName}</span>
+                <span className="review-card-when">{formatRelativeDate(review.createdAt, locale)}</span>
+              </div>
+            </>
+          );
+          // An anonymized author (isPublic: false) has no viewable profile —
+          // /profile/[id] 404s for it — so it stays plain, unlinked text
+          // exactly as before, rather than a link that always errors.
+          return review.author.isAnonymized ? (
+            avatarAndName
+          ) : (
+            <Link href={`/profile/${review.author.id}`} className="review-card-author-link">
+              {avatarAndName}
+            </Link>
+          );
+        })()}
         <Stars value={review.overallRating} size={14} />
       </div>
       {review.comment ? <p className="review-card-body">{review.comment}</p> : null}

@@ -5,7 +5,7 @@
 import type { LocationDto } from './restaurant-detail';
 import type { CuisineCode, FacilityType, PriceRangeCode, RestaurantCategoryCode } from './restaurant';
 
-export type ContributionType = 'new_restaurant' | 'edit_suggestion' | 'status_update' | 'closure_report';
+export type ContributionType = 'new_restaurant' | 'edit_suggestion' | 'status_update' | 'closure_report' | 'owner_claim';
 export type ContributionStatus = 'pending' | 'auto_approved' | 'in_review' | 'approved' | 'rejected' | 'edit_requested';
 
 export interface DuplicateCandidateDto {
@@ -24,6 +24,18 @@ export interface DuplicateCheckRequest {
 
 export interface DuplicateCheckResponse {
   candidates: DuplicateCandidateDto[];
+}
+
+export interface ResolveMapLinkRequest {
+  url: string;
+}
+
+// `location: null` means the link couldn't be resolved (not a recognized
+// Google Maps host, or no coordinates found in it) — not an error response,
+// since "user pasted something that isn't a map link" is an expected,
+// non-exceptional outcome the caller just shows as "couldn't read this link".
+export interface ResolveMapLinkResponse {
+  location: LocationDto | null;
 }
 
 export interface MenuItemInputDto {
@@ -113,12 +125,24 @@ export type EditableRestaurantField =
   | 'address.ward'
   | 'address.district'
   | 'address.province'
+  // newValue shape: LocationDto ({ lat, lng }) — see restaurant-detail.ts.
+  | 'location'
   | 'openingHours'
-  | 'facilities';
+  | 'facilities'
+  | 'facebookUrl'
+  | 'instagramUrl'
+  | 'tiktokUrl'
+  | 'websiteUrl';
 
 export interface CreateEditSuggestionRequest {
   fieldName: EditableRestaurantField;
   newValue: unknown;
+  // Only meaningful when fieldName === 'facilities' — same "+ Thêm mới"
+  // convention as CreateRestaurantContributionRequest.newFacilityLabels:
+  // free-text labels for a facility not yet in the catalog, created
+  // isPublic: false until this edit suggestion is approved. Capped at 5
+  // server-side.
+  newFacilityLabels?: string[];
 }
 
 export interface CreateEditSuggestionResponse {
@@ -142,6 +166,24 @@ export type StatusReportRequest =
   | { kind: 'closure'; description?: string };
 
 export interface CreateStatusReportResponse {
+  contributionId: string;
+  status: ContributionStatus;
+}
+
+// The restaurant is always an existing one (never nullable, unlike
+// new_restaurant's targetRestaurantId) — a user requesting to become the
+// verified owner of a place already listed on the platform.
+export interface CreateOwnerClaimRequest {
+  contactPhone: string;
+  note: string;
+  // Reuses the same externally-hosted (ImageKit) upload convention as
+  // CreateRestaurantContributionRequest.photoUrls — proof-of-ownership
+  // photos (business license, storefront with signage, etc.), capped at 5
+  // server-side.
+  proofPhotoUrls?: string[];
+}
+
+export interface CreateOwnerClaimResponse {
   contributionId: string;
   status: ContributionStatus;
 }

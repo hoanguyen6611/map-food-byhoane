@@ -9,6 +9,8 @@ import { RevalidationModule } from '../revalidation/revalidation.module';
 import { MediaModule } from '../media/media.module';
 import { AdminRestaurantController } from './admin-restaurant.controller';
 import { AdminRestaurantService } from './admin-restaurant.service';
+import { OwnerRestaurantController } from './owner-restaurant.controller';
+import { OwnerRestaurantService } from './owner-restaurant.service';
 import { AdminUserController } from './admin-user.controller';
 import { AdminUserService } from './admin-user.service';
 import { AdminModerationController } from './admin-moderation.controller';
@@ -49,6 +51,7 @@ import { PhotoService } from './photo.service';
   ],
   controllers: [
     AdminRestaurantController,
+    OwnerRestaurantController,
     AdminUserController,
     AdminModerationController,
     AdminReviewController,
@@ -60,6 +63,7 @@ import { PhotoService } from './photo.service';
   ],
   providers: [
     AdminRestaurantService,
+    OwnerRestaurantService,
     AdminUserService,
     AdminModerationService,
     AdminReviewService,

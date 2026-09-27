@@ -20,3 +20,5 @@ export * from './admin-dashboard';
 export * from './audit-log';
 export * from './data/vn-address';
 export * from './push';
+export * from './owner';
+export * from './social';

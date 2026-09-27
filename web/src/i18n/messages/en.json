@@ -160,7 +160,20 @@
     "replySubmit": "Send",
     "openUntil": "until {time}",
     "reviewCountShort": "{count, plural, one {# review} other {# reviews}}",
-    "viewCount": "{count, plural, one {# view} other {# views}}"
+    "viewCount": "{count, plural, one {# view} other {# views}}",
+    "ownerClaimQuestion": "Are you the owner of this place?",
+    "ownerClaimButton": "Request to manage this place",
+    "ownerClaimBody": "Submit a request for an admin to verify — once approved, you can edit its info, manage photos, and reply to reviews for this place.",
+    "ownerClaimLoginPrompt": "Log in to request to manage this place.",
+    "ownerClaimPhoneLabel": "Contact phone number",
+    "ownerClaimNoteLabel": "Verification note",
+    "ownerClaimNotePlaceholder": "Tell us how you're the owner/manager of this place…",
+    "ownerClaimSubmit": "Send request",
+    "ownerClaimCancel": "Cancel",
+    "ownerClaimSuccess": "Request sent. An admin will review it soon.",
+    "ownerClaimConflict": "This place already has an owner, or you've already submitted a request.",
+    "ownerClaimError": "Couldn't send the request. Please try again.",
+    "ownerReplyBadge": "Owner"
   },
   "notFound": {
     "title": "Page not found",
@@ -330,10 +343,12 @@
     "pointsToNextLevel": "{points} more points to reach level {level}",
     "maxLevelReached": "Max level reached",
     "reviewsTab": "Reviews",
+    "contributedTab": "Places contributed",
     "savedTab": "Saved",
     "photosTab": "Photos",
     "settingsTab": "Settings",
     "noReviews": "You haven't written any reviews yet.",
+    "noContributed": "None of your submitted places have been approved yet.",
     "noSaved": "You haven't saved any restaurants yet.",
     "noPhotos": "You haven't posted any photos yet.",
     "edit": "Edit",
@@ -354,6 +369,19 @@
       "in_review": "Pending review",
       "edit_requested": "Needs changes"
     }
+  },
+  "publicProfile": {
+    "notFoundTitle": "Profile not found",
+    "followerCountLabel": "Followers",
+    "followingCountLabel": "Following",
+    "follow": "Follow",
+    "following": "Following",
+    "loginToFollow": "Log in to follow",
+    "contributedHeading": "Places contributed",
+    "contributedCount": "{count, plural, one {# place} other {# places}}",
+    "showMore": "Show {count} more",
+    "showLess": "Show less",
+    "noReviews": "This person has no public reviews yet."
   },
   "notifications": {
     "title": "Notifications",

@@ -113,6 +113,9 @@ export interface RestaurantDetailDto {
   /** Raw page-view counter (every detail-page load, no dedup) — see AdminRestaurantService/RestaurantService's `viewCount` schema comment. */
   viewCount: number;
   reviews: ReviewDto[];
+  // Whether Restaurant.ownerId is set — never the raw id itself, which the
+  // public has no reason to see. Gates the "Bạn là chủ quán này?" claim CTA.
+  hasOwner: boolean;
 }
 
 // Admin/moderator view adds lifecycle fields not exposed publicly.

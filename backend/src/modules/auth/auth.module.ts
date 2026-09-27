@@ -8,6 +8,7 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { OwnerRestaurantGuard } from './guards/owner-restaurant.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { PermissionsService } from './permissions.service';
 import { GoogleOAuthService } from './oauth/google-oauth.service';
@@ -41,6 +42,7 @@ import { FacebookOAuthService } from './oauth/facebook-oauth.service';
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    OwnerRestaurantGuard,
     RateLimitGuard,
     PermissionsService,
     GoogleOAuthService,
@@ -58,6 +60,7 @@ import { FacebookOAuthService } from './oauth/facebook-oauth.service';
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    OwnerRestaurantGuard,
     PermissionsService,
   ],
 })

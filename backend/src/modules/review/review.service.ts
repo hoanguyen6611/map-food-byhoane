@@ -11,6 +11,7 @@ import type {
   CreateReviewRequest,
   MyReviewListResponse,
   PhotoDto,
+  PublicProfileReviewListResponse,
   ReviewCriteriaBreakdownDto,
   ReviewCriteriaCode,
   ReviewDto,
@@ -238,6 +239,56 @@ export class ReviewService {
           countsByReviewId.get(r.id) ?? { helpfulCount: 0, replyCount: 0, viewerHasMarkedHelpful: false },
           'owner',
         ),
+        restaurant: {
+          id: r.restaurant.id,
+          name: r.restaurant.name,
+          slug: r.restaurant.slug,
+          thumbnailUrl: thumbnailByRestaurantId.get(r.restaurantId) ?? null,
+          ward: r.restaurant.address?.ward ?? null,
+        },
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  // Public profile's "reviews by this user" (web/src/app/[locale]/profile/[id])
+  // — unlike listMine(), scoped to PUBLISHED reviews only (a visitor has no
+  // business seeing another user's pending/rejected reviews) and with no
+  // author/ratings-breakdown in the response (the viewer already knows whose
+  // profile they're on; per-criteria scores aren't part of this DTO).
+  async listPublishedForUser(
+    userId: string,
+    page = 1,
+    pageSize = DEFAULT_MY_REVIEWS_PAGE_SIZE,
+  ): Promise<PublicProfileReviewListResponse> {
+    const where: Prisma.ReviewWhereInput = { userId, status: 'published', deletedAt: null };
+    const [rows, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        include: { restaurant: { include: { address: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.review.count({ where }),
+    ]);
+
+    const restaurantIds = rows.map((r) => r.restaurantId);
+    const reviewIds = rows.map((r) => r.id);
+    const [thumbnailByRestaurantId, photosByReviewId] = await Promise.all([
+      this.batchFetchRestaurantThumbnails(restaurantIds),
+      this.batchFetchPhotos(reviewIds),
+    ]);
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        overallRating: r.overallRating,
+        comment: r.comment,
+        createdAt: r.createdAt.toISOString(),
+        photos: photosByReviewId.get(r.id) ?? [],
         restaurant: {
           id: r.restaurant.id,
           name: r.restaurant.name,
@@ -704,22 +755,30 @@ export class ReviewService {
   }
 
   async listReplies(reviewId: string): Promise<ReviewReplyListResponse> {
-    const replies = await this.prisma.reviewReply.findMany({
-      where: { reviewId, deletedAt: null },
-      include: { user: { include: { profile: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
+    const [replies, review] = await Promise.all([
+      this.prisma.reviewReply.findMany({
+        where: { reviewId, deletedAt: null },
+        include: { user: { include: { profile: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.review.findUnique({
+        where: { id: reviewId },
+        select: { restaurant: { select: { ownerId: true } } },
+      }),
+    ]);
     const avatarUrlByPhotoId = await this.batchFetchAvatarUrls(
       replies.map((r) => r.user.profile?.avatarPhotoId ?? null),
     );
+    const ownerId = review?.restaurant.ownerId ?? null;
     return {
-      items: replies.map((r) => this.toReplyDto(r, avatarUrlByPhotoId)),
+      items: replies.map((r) => this.toReplyDto(r, avatarUrlByPhotoId, ownerId)),
     };
   }
 
   async createReply(reviewId: string, userId: string, body: string): Promise<ReviewReplyDto> {
     const review = await this.prisma.review.findFirst({
       where: { id: reviewId, deletedAt: null },
+      select: { id: true, restaurant: { select: { ownerId: true } } },
     });
     if (!review) {
       throw new NotFoundException('Không tìm thấy đánh giá');
@@ -731,7 +790,7 @@ export class ReviewService {
     const avatarUrlByPhotoId = await this.batchFetchAvatarUrls([
       created.user.profile?.avatarPhotoId ?? null,
     ]);
-    return this.toReplyDto(created, avatarUrlByPhotoId);
+    return this.toReplyDto(created, avatarUrlByPhotoId, review.restaurant.ownerId);
   }
 
   async removeReply(reviewId: string, replyId: string, userId: string): Promise<void> {
@@ -755,19 +814,32 @@ export class ReviewService {
       id: string;
       body: string;
       createdAt: Date;
-      user: { id: string; profile: { displayName: string; avatarPhotoId: string | null } | null };
+      user: {
+        id: string;
+        profile: { displayName: string; avatarPhotoId: string | null; isPublic: boolean } | null;
+      };
     },
     avatarUrlByPhotoId: Map<string, string>,
+    restaurantOwnerId: string | null,
   ): ReviewReplyDto {
+    // Previously only checked whether `profile` existed at all, not
+    // `isPublic` — inconsistent with toDto()'s review-author anonymization
+    // just below. Aligned here so isAnonymized (and the real name/avatar it
+    // gates) means the same thing everywhere a ReviewAuthorDto appears.
+    const anonymize = reply.user.profile?.isPublic === false;
     return {
       id: reply.id,
       author: {
         id: reply.user.id,
-        displayName: reply.user.profile?.displayName ?? 'Người dùng ẩn danh',
-        avatarUrl: avatarUrlByPhotoId.get(reply.user.profile?.avatarPhotoId ?? '') ?? null,
+        displayName: anonymize
+          ? 'Người dùng ẩn danh'
+          : (reply.user.profile?.displayName ?? 'Người dùng ẩn danh'),
+        avatarUrl: anonymize ? null : (avatarUrlByPhotoId.get(reply.user.profile?.avatarPhotoId ?? '') ?? null),
+        isAnonymized: anonymize,
       },
       body: reply.body,
       createdAt: reply.createdAt.toISOString(),
+      isOwnerReply: restaurantOwnerId !== null && reply.user.id === restaurantOwnerId,
     };
   }
 
@@ -817,6 +889,7 @@ export class ReviewService {
           ? 'Người dùng ẩn danh'
           : (review.user.profile?.displayName ?? 'Người dùng ẩn danh'),
         avatarUrl: anonymize ? null : avatarUrl,
+        isAnonymized: anonymize,
       },
       overallRating: review.overallRating,
       ratings: review.ratings.map((r) => ({

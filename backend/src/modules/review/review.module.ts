@@ -50,6 +50,8 @@ import { CompositeScoreProcessor } from './composite-score.processor';
     CompositeScoreService,
     CompositeScoreProcessor,
   ],
-  exports: [CompositeScoreService],
+  // ReviewService exported for UserModule's UserPublicController (public
+  // profile's "reviews by this user" list — see listPublishedForUser).
+  exports: [CompositeScoreService, ReviewService],
 })
 export class ReviewModule {}

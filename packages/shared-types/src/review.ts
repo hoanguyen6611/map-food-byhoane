@@ -59,6 +59,11 @@ export interface ReviewAuthorDto {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  // True when this author's real name/avatar were swapped for the generic
+  // "Người dùng ẩn danh" placeholder (their UserProfile.isPublic is false)
+  // — lets a reviewer-name/avatar UI element decide whether to link to
+  // /profile/[id] at all, without fragile string-matching on displayName.
+  isAnonymized: boolean;
 }
 
 export interface ReviewDto {
@@ -99,6 +104,10 @@ export interface ReviewReplyDto {
   author: ReviewAuthorDto;
   body: string;
   createdAt: string;
+  // Computed at read time against the review's restaurant's *current*
+  // Restaurant.ownerId — not a stored flag, so it always reflects who owns
+  // the restaurant now, even for a reply posted before an ownership change.
+  isOwnerReply: boolean;
 }
 
 export interface CreateReviewReplyRequest {

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-export type ProfileTabKey = 'reviews' | 'saved' | 'photos' | 'settings';
+export type ProfileTabKey = 'reviews' | 'contributed' | 'saved' | 'photos' | 'settings';
 
 interface Tab {
   key: ProfileTabKey;

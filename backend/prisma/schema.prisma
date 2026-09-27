@@ -122,6 +122,8 @@ model User {
   seatAvailabilityReports SeatAvailability[]   @relation("SeatAvailabilityReportedBy")
   powerOutletReports      PowerOutletStatus[]  @relation("PowerOutletReportedBy")
   parkingInfoUpdates      ParkingInformation[] @relation("ParkingLastUpdatedBy")
+  following               Follow[]             @relation("Following")
+  followers               Follow[]             @relation("Followers")
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
   // treats NULL as distinct per standard unique-index semantics — this is
@@ -317,11 +319,10 @@ model Restaurant {
   priceRangeId      String?            @map("price_range_id")
   priceRange        PriceRange?        @relation(fields: [priceRangeId], references: [id])
   phone             String?
-  // Admin-entered/verified only for now (no self-service owner-claim flow
-  // exists yet — Restaurant.ownerId above is an unused stub). `verified`
-  // only applies to facebook/instagram (the two platforms an admin can
-  // actually confirm ownership of); tiktok/website have no such concept in
-  // the UI, so there's no verified column for them.
+  // Admin-entered/verified only for now. `verified` only applies to
+  // facebook/instagram (the two platforms an admin can actually confirm
+  // ownership of); tiktok/website have no such concept in the UI, so
+  // there's no verified column for them.
   facebookUrl       String?            @map("facebook_url")
   facebookVerified  Boolean            @default(false) @map("facebook_verified")
   instagramUrl      String?            @map("instagram_url")
@@ -334,6 +335,9 @@ model Restaurant {
   location          Location           @relation(fields: [locationId], references: [id])
   submittedBy       String?            @map("submitted_by")
   submitter         User?              @relation("SubmittedRestaurants", fields: [submittedBy], references: [id])
+  // Set only via an approved `owner_claim` Contribution (self-service
+  // claim → admin review), never a direct write — see
+  // ContributionFinalizeService's 'owner_claim' case.
   ownerId           String?            @map("owner_id")
   owner             User?              @relation("OwnedRestaurants", fields: [ownerId], references: [id])
   // User/admin-chosen "ảnh đại diện" — when set (and the photo is still
@@ -710,6 +714,7 @@ enum ContributionType {
   edit_suggestion
   status_update
   closure_report
+  owner_claim
 }
 
 enum ContributionStatus {
@@ -925,6 +930,25 @@ model Favorite {
   @@map("favorites")
 }
 
+// User-to-user relationship backing the public profile "Theo dõi"/Follow
+// feature (web/src/app/[locale]/profile/[id]) — no block/mute concept yet,
+// just the one-directional follow edge. Both indexes exist because the two
+// query directions ("who do I follow" / "who follows me") are equally
+// common (follow/following counts on every profile view).
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String   @map("following_id")
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+  @@map("follows")
+}
+
 enum NotificationType {
   moderation_result
   report_resolved
@@ -943,6 +967,9 @@ enum NotificationType {
   // Fired at AdminRestaurantService.replaceOpeningHours for every user who
   // has this restaurant favorited, when the new hours differ from the old.
   restaurant_hours_changed
+  // Fired at FollowService.follow — someone starts following this user.
+  // deepLink: { screen: 'Profile', userId: <the new follower's id> }.
+  new_follower
 }
 
 // `payload` carries the deep-link target (screen + id) per the ERD note —

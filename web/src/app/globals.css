@@ -1230,6 +1230,80 @@ textarea:focus-visible {
   gap: 14px;
 }
 
+/* Public profile's "Quán đã đóng góp" — a compact list (ContributedRestaurantsList.tsx),
+   deliberately reading as one rhythm with the reviews list right below it
+   rather than a photo-forward search-result-style grid. */
+.contributed-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.contributed-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.contributed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border-hairline);
+}
+.contributed-row:last-child {
+  border-bottom: none;
+}
+.contributed-row-thumb {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.contributed-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.contributed-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.contributed-row-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contributed-row-meta {
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.contributed-show-more-btn {
+  margin-top: 10px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
 /* ---------- Stars ---------- */
 
 .stars {
@@ -2862,6 +2936,15 @@ table.menu-table td.price {
   align-items: center;
   gap: 10px;
 }
+/* Wraps the avatar+name (not the star rating) when the author isn't
+   anonymized — `display: contents` keeps the two children participating in
+   .review-card-header's own flex layout exactly as if this link weren't
+   there, so no gap/alignment duplication is needed here. */
+.review-card-author-link {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
 .avatar-mono {
   width: 36px;
   height: 36px;
@@ -2977,6 +3060,14 @@ table.menu-table td.price {
 .review-card-reply-when {
   font-size: 12px;
   color: var(--color-ink-subtle);
+}
+.review-card-reply-owner-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-cream);
+  color: var(--color-cream-ink);
 }
 .review-card-reply-body {
   font-size: 14px;
@@ -3189,7 +3280,8 @@ table.menu-table td.price {
   font-weight: 600;
   color: var(--color-ink-muted);
 }
-.write-review-field textarea {
+.write-review-field textarea,
+.write-review-field input {
   padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -3254,6 +3346,28 @@ table.menu-table td.price {
 }
 .secondary-btn:hover {
   background: var(--color-canvas);
+}
+
+/* Restaurant detail page's "Bạn là chủ quán này?" claim CTA + inline form —
+   reuses .info-card/.write-review-field/.write-review-error/
+   .write-review-submit/.secondary-btn, just needs its own layout/spacing. */
+.owner-claim-card p {
+  color: var(--color-ink-muted);
+  margin: 0 0 12px;
+}
+.owner-claim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.owner-claim-form-actions {
+  display: flex;
+  gap: 10px;
+}
+.owner-claim-success {
+  color: var(--color-open-dot);
+  font-weight: 600;
+  margin: 0;
 }
 
 /* Add Restaurant's "Toạ độ" field — Google Maps link input + inline Apply
@@ -4481,6 +4595,10 @@ table.menu-table td.price {
   background: #fde8d2;
   color: #b3690a;
 }
+.notification-icon-new_follower {
+  background: #e0f2fe;
+  color: #0369a1;
+}
 .notification-body {
   flex: 1;
   min-width: 0;
@@ -5079,6 +5197,10 @@ table.menu-table td.price {
 :root[data-theme='dark'] .notification-icon-restaurant_hours_changed {
   background: #3a260f;
   color: #e8934a;
+}
+:root[data-theme='dark'] .notification-icon-new_follower {
+  background: #0c2d40;
+  color: #7dd3fc;
 }
 :root[data-theme='dark'] .profile-stat-icon-star {
   background: #3a2e12;

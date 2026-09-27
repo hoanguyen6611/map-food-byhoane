@@ -111,6 +111,48 @@ export async function backendFetchAuthorized(path: string, init: RequestInit = {
   return res;
 }
 
+/**
+ * Server-only: calls the backend WITHOUT requiring a session — attaches the
+ * bearer token when one exists (so an optional-auth backend route, e.g.
+ * `GET /users/:id`, can still compute viewer-specific fields like
+ * `isFollowedByViewer`), but never blocks/401s a logged-out visitor the way
+ * `backendFetchAuthorized` does. No refresh-retry logic (unlike
+ * `backendFetchAuthorized`) — a stale/expired token here just degrades to
+ * "anonymous", which is an acceptable trade for a route that was never
+ * going to require login in the first place.
+ */
+export async function backendFetchOptionalAuth(path: string, init: RequestInit = {}): Promise<Response> {
+  const session = await readSessionCookie();
+  return fetch(`${BACKEND_API_URL}${path}`, {
+    ...init,
+    headers: {
+      ...init.headers,
+      ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+    },
+    cache: 'no-store',
+  });
+}
+
+/**
+ * The signed-in user's own id, decoded straight from the access token's
+ * `sub` claim — no signature verification, since this is only ever used for
+ * a UX decision (e.g. "redirect /profile/[id] to /profile when it's your
+ * own"), never a security check (the backend independently verifies the
+ * token on every real authorization decision). Returns `null` if signed out
+ * or the token is malformed.
+ */
+export async function getSessionUserId(): Promise<string | null> {
+  const session = await readSessionCookie();
+  if (!session) return null;
+  try {
+    const payloadBase64 = session.accessToken.split('.')[1];
+    const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8')) as { sub?: string };
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type LoginResult = { ok: true } | { ok: false; error: string };
 
 /** Calls the backend directly (server-to-server — never from browser JS, so this never touches CORS). */

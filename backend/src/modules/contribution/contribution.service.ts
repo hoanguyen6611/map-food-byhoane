@@ -11,6 +11,7 @@ import type {
   ContributionListResponse,
   ContributionStatus,
   CreateEditSuggestionResponse,
+  CreateOwnerClaimResponse,
   CreateRestaurantContributionResponse,
   CreateStatusReportResponse,
   DuplicateCandidateDto,
@@ -21,9 +22,12 @@ import { MediaService } from '../media/media.service';
 import { ContributionModerationService } from '../moderation/contribution-moderation.service';
 import { ContributionFinalizeService } from './contribution-finalize.service';
 import { slugify } from '../../common/slug.util';
+import { resolveGoogleMapsLink, type LatLng } from '../../common/google-maps-link.util';
+import type { RequestUser } from '../auth/auth.types';
 import type { CreateRestaurantContributionDto } from './dto/create-restaurant-contribution.dto';
 import type { CreateEditSuggestionDto } from './dto/edit-suggestion.dto';
 import type { CreateStatusReportDto } from './dto/status-report.dto';
+import type { CreateOwnerClaimDto } from './dto/owner-claim.dto';
 
 const DUPLICATE_RADIUS_METERS = 50;
 // Stricter than search's 0.2 similarity threshold — this is a
@@ -51,6 +55,10 @@ export class ContributionService {
     private readonly moderationService: ContributionModerationService,
     private readonly finalizeService: ContributionFinalizeService,
   ) {}
+
+  async resolveGoogleMapsLink(url: string): Promise<LatLng | null> {
+    return resolveGoogleMapsLink(url);
+  }
 
   async checkDuplicate(
     lat: number,
@@ -411,12 +419,37 @@ export class ContributionService {
   async createEditSuggestion(
     restaurantId: string,
     dto: CreateEditSuggestionDto,
-    userId: string,
+    user: RequestUser,
   ): Promise<CreateEditSuggestionResponse> {
+    const userId = user.id;
     const oldValue = await this.readCurrentFieldValue(
       restaurantId,
       dto.fieldName,
     );
+
+    // "+ Thêm mới" — same convention as createNewRestaurant's
+    // newCuisineLabels/newFacilityLabels: a proposed facility not yet in
+    // the catalog is created isPublic: false and folded into `newValue`
+    // right away, so the edit_suggestion's facilities array already
+    // includes it. It only becomes selectable by other users once this
+    // edit suggestion is approved (ContributionFinalizeService calls the
+    // same promotePendingCatalogEntries() that new_restaurant approval
+    // does, scoped to whatever's actually linked to this restaurant).
+    let newValue = dto.newValue;
+    if (dto.fieldName === 'facilities' && dto.newFacilityLabels?.length) {
+      const existingCodes = Array.isArray(newValue) ? (newValue as string[]) : [];
+      const newCodes: string[] = [];
+      for (const label of dto.newFacilityLabels) {
+        const code = this.toCatalogCode(label);
+        await this.prisma.facility.upsert({
+          where: { code },
+          create: { code, label, isPublic: false },
+          update: {},
+        });
+        newCodes.push(code);
+      }
+      newValue = [...new Set([...existingCodes, ...newCodes])];
+    }
 
     const contribution = await this.prisma.contribution.create({
       data: {
@@ -425,7 +458,12 @@ export class ContributionService {
         targetRestaurantId: restaurantId,
         payload: {
           fieldName: dto.fieldName,
-          newValue: dto.newValue,
+          newValue,
+          // Kept alongside the already-merged `newValue` purely so the
+          // moderation queue can call out which codes are brand-new
+          // (isPublic: false) vs already-public — same visibility
+          // new_restaurant's own newFacilityLabels gets there.
+          ...(dto.newFacilityLabels?.length ? { newFacilityLabels: dto.newFacilityLabels } : {}),
         } as unknown as Prisma.InputJsonValue,
         status: 'pending',
       },
@@ -435,7 +473,7 @@ export class ContributionService {
         contributionId: contribution.id,
         fieldName: dto.fieldName,
         oldValue: oldValue ?? Prisma.JsonNull,
-        newValue: dto.newValue as Prisma.InputJsonValue,
+        newValue: newValue as Prisma.InputJsonValue,
       },
     });
 
@@ -443,6 +481,15 @@ export class ContributionService {
       userId,
       textContent: typeof dto.newValue === 'string' ? dto.newValue : null,
     });
+    // This is the very first release of self-service edit access to fields
+    // that used to be staff-only (see EDITABLE_FIELDS' owner-facing
+    // additions) — force a human review for every owner-submitted edit,
+    // same override pattern as createNewRestaurant/createOwnerClaim, rather
+    // than trusting the AI risk score alone this early. Staff- and regular
+    // user-submitted edit suggestions keep today's live auto-approve.
+    if (user.role === 'owner' && moderation.recommendedAction === 'auto_approve') {
+      moderation.recommendedAction = 'hold_for_review';
+    }
     const moderationResultId = await this.moderationService.recordResult(
       contribution.id,
       moderation,
@@ -517,6 +564,86 @@ export class ContributionService {
       await this.checkClosureEscalation(restaurantId);
     }
 
+    return { contributionId: contribution.id, status };
+  }
+
+  // Self-service "become the verified owner of this restaurant" request.
+  // Unlike edit_suggestion/status_update, this never auto-approves and the
+  // conflict cases (already owned, already has a pending claim from this
+  // same user) are rejected up front rather than surfaced as something an
+  // admin adjudicates in the queue.
+  async createOwnerClaim(
+    restaurantId: string,
+    dto: CreateOwnerClaimDto,
+    user: RequestUser,
+  ): Promise<CreateOwnerClaimResponse> {
+    if (user.role === 'admin' || user.role === 'moderator') {
+      throw new ForbiddenException(
+        'Nhân viên không thể tự gửi yêu cầu làm chủ quán',
+      );
+    }
+
+    const restaurant = await this.prisma.restaurant.findFirst({
+      where: { id: restaurantId, deletedAt: null },
+      select: { id: true, ownerId: true },
+    });
+    if (!restaurant) {
+      throw new NotFoundException('Không tìm thấy quán ăn');
+    }
+    if (restaurant.ownerId) {
+      throw new ConflictException('Quán này đã có chủ quán được xác nhận');
+    }
+
+    const existingPending = await this.prisma.contribution.findFirst({
+      where: {
+        userId: user.id,
+        type: 'owner_claim',
+        targetRestaurantId: restaurantId,
+        status: { in: ['pending', 'in_review'] },
+      },
+    });
+    if (existingPending) {
+      throw new ConflictException(
+        'Bạn đã gửi yêu cầu làm chủ quán cho quán này rồi',
+      );
+    }
+
+    const contribution = await this.prisma.contribution.create({
+      data: {
+        userId: user.id,
+        type: 'owner_claim',
+        targetRestaurantId: restaurantId,
+        payload: {
+          contactPhone: dto.contactPhone,
+          note: dto.note,
+          proofPhotoUrls: dto.proofPhotoUrls ?? [],
+        } as unknown as Prisma.InputJsonValue,
+        status: 'pending',
+      },
+    });
+
+    const moderation = await this.moderationService.check({
+      userId: user.id,
+      textContent: dto.note,
+    });
+    // Granting ownership must never auto-approve, regardless of AI risk
+    // score — same override as createNewRestaurant.
+    if (moderation.recommendedAction === 'auto_approve') {
+      moderation.recommendedAction = 'hold_for_review';
+    }
+    const moderationResultId = await this.moderationService.recordResult(
+      contribution.id,
+      moderation,
+    );
+    await this.prisma.contribution.update({
+      where: { id: contribution.id },
+      data: { moderationResultId },
+    });
+
+    const status = await this.finalizeService.finalizeAfterModeration(
+      contribution.id,
+      moderation,
+    );
     return { contributionId: contribution.id, status };
   }
 
@@ -662,7 +789,7 @@ export class ContributionService {
   ): Promise<unknown> {
     const restaurant = await this.prisma.restaurant.findFirst({
       where: { id: restaurantId, deletedAt: null },
-      include: { address: true, openingHours: true, facilities: true },
+      include: { address: true, location: true, openingHours: true, facilities: true },
     });
     if (!restaurant) {
       throw new NotFoundException('Không tìm thấy quán ăn');
@@ -683,6 +810,8 @@ export class ContributionService {
         return restaurant.address.district;
       case 'address.province':
         return restaurant.address.province;
+      case 'location':
+        return { lat: Number(restaurant.location.lat), lng: Number(restaurant.location.lng) };
       case 'openingHours':
         return restaurant.openingHours.map((h) => ({
           dayOfWeek: h.dayOfWeek,
@@ -692,6 +821,14 @@ export class ContributionService {
         }));
       case 'facilities':
         return restaurant.facilities.map((f) => f.facilityCode);
+      case 'facebookUrl':
+        return restaurant.facebookUrl;
+      case 'instagramUrl':
+        return restaurant.instagramUrl;
+      case 'tiktokUrl':
+        return restaurant.tiktokUrl;
+      case 'websiteUrl':
+        return restaurant.websiteUrl;
       default:
         throw new BadRequestException('Trường không hợp lệ');
     }
