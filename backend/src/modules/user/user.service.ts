@@ -36,6 +36,9 @@ export class UserService {
     }
 
     const gamification = await this.gamificationService.computeForUser(user.id);
+    const photoCount = await this.prisma.photo.count({
+      where: { uploadedBy: user.id, status: 'approved', deletedAt: null },
+    });
 
     return {
       user: {
@@ -58,6 +61,7 @@ export class UserService {
         favoriteCuisines: user.profile.favoriteCuisines as CuisineCode[],
       },
       gamification,
+      photoCount,
     };
   }
 

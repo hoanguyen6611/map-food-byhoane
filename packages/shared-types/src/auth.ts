@@ -86,6 +86,8 @@ export interface MeResponse {
   user: AuthUserDto;
   profile: UserProfileDto;
   gamification: GamificationDto;
+  /** Count of this user's own approved, non-deleted photo uploads (reviews + contributions). */
+  photoCount: number;
 }
 
 export interface UpdateProfileRequest {

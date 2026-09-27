@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { BadgeCode } from '@foodmap/shared-types';
 import type { MainStackParamList, MainTabParamList } from '../../navigation/types';
 import { authApi } from '../../api/auth';
 import { secureStorage } from '../../lib/secureStorage';
@@ -20,23 +21,21 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<MainStackParamList>
 >;
 
-// Static placeholders — no backend aggregate for photo count or likes
-// received anywhere (see the reskin plan's gap list). Review count in the
-// stats row below is real (`useMyReviews`'s `total`); these two are not.
-const PLACEHOLDER_PHOTO_COUNT = '—';
-const PLACEHOLDER_LIKES_COUNT = '—';
-// Same static goal as HomeScreen's gamification banner — no badge system exists.
-const BADGE_GOAL = 25;
+const BADGE_LABEL_KEYS: Record<BadgeCode, string> = {
+  contributor_10: 'profile.badge.contributor_10',
+  coffee_hunter: 'profile.badge.coffee_hunter',
+  helpful_100: 'profile.badge.helpful_100',
+};
 
 /**
  * Screen 23 (User Profile) per docs/04-screen-list.md. Module 2 scope was the
  * account-management essentials (display identity, Edit Profile, Logout);
  * build-prompts/08 adds the Settings menu link. Notifications is reachable
  * from the navbar bell (NotificationBellButton, shared across every MainTabs
- * screen) rather than from a row here. "Ngon v3" reskin adds a stats row and
- * badge-progress bar — review count is real, photo/likes counts and the
- * badge goal are static placeholders (rendered as "—", never a fabricated
- * number) since no backend exists for either.
+ * screen) rather than from a row here. "Ngon v3" reskin's stats row and
+ * level-progress card are all real data from `GET /me` (`gamification` +
+ * `photoCount`), same live-computed source web's own profile page reads —
+ * see GamificationService.computeForUser.
  */
 export function ProfileScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -54,7 +53,14 @@ export function ProfileScreen({ navigation }: Props) {
   const avatarUrl = meQuery.data?.profile.avatarUrl ?? null;
   const avatarInitial = displayName.trim().charAt(0).toUpperCase();
   const reviewCount = myReviewsQuery.data?.total;
-  const badgeProgressPct = reviewCount !== undefined ? Math.min(100, (reviewCount / BADGE_GOAL) * 100) : 0;
+  const photoCount = meQuery.data?.photoCount;
+  const gamification = meQuery.data?.gamification;
+  const levelProgressPct =
+    gamification === undefined
+      ? 0
+      : gamification.nextLevelThreshold === null
+        ? 100
+        : Math.min(100, (gamification.points / gamification.nextLevelThreshold) * 100);
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -93,6 +99,11 @@ export function ProfileScreen({ navigation }: Props) {
             )}
           </View>
           <Text style={styles.displayName}>{displayName || t('nav.tabProfile')}</Text>
+          {gamification ? (
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelBadgeText}>{t('profile.levelBadge', { level: gamification.level })}</Text>
+            </View>
+          ) : null}
           <Text style={styles.email}>{email}</Text>
         </View>
       )}
@@ -103,24 +114,39 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.statLabel}>{t('profile.statsReviews')}</Text>
         </View>
         <View style={[styles.statCard, styles.statCardCyan]}>
-          <Text style={styles.statValue}>{PLACEHOLDER_PHOTO_COUNT}</Text>
+          <Text style={styles.statValue}>{photoCount ?? '—'}</Text>
           <Text style={styles.statLabel}>{t('profile.statsPhotos')}</Text>
         </View>
         <View style={[styles.statCard, styles.statCardBlue]}>
-          <Text style={styles.statValue}>{PLACEHOLDER_LIKES_COUNT}</Text>
+          <Text style={styles.statValue}>{gamification?.helpfulVotesReceived ?? '—'}</Text>
           <Text style={styles.statLabel}>{t('profile.statsLikes')}</Text>
         </View>
       </View>
 
-      <View style={styles.badgeCard}>
-        <View style={styles.badgeHeaderRow}>
-          <Text style={styles.badgeTitle}>{t('profile.badgeProgressTitle')}</Text>
-          <Text style={styles.badgeCount}>{t('profile.badgeCount', { current: reviewCount ?? 0, goal: BADGE_GOAL })}</Text>
+      {gamification ? (
+        <View style={styles.badgeCard}>
+          <View style={styles.badgeHeaderRow}>
+            <Text style={styles.badgeTitle}>{t('profile.levelProgressTitle')}</Text>
+            <Text style={styles.badgeCount}>
+              {gamification.pointsToNextLevel !== null
+                ? t('profile.pointsToNextLevel', { points: gamification.pointsToNextLevel, level: gamification.level + 1 })
+                : t('profile.maxLevelReached')}
+            </Text>
+          </View>
+          <View style={styles.badgeTrack}>
+            <View style={[styles.badgeFill, { width: `${levelProgressPct}%` }]} />
+          </View>
+          {gamification.badges.length > 0 ? (
+            <View style={styles.badgeChipRow}>
+              {gamification.badges.map((badge) => (
+                <View key={badge} style={styles.badgeChip}>
+                  <Text style={styles.badgeChipText}>{t(BADGE_LABEL_KEYS[badge])}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
-        <View style={styles.badgeTrack}>
-          <View style={[styles.badgeFill, { width: `${badgeProgressPct}%` }]} />
-        </View>
-      </View>
+      ) : null}
 
       <View style={styles.menuCard}>
         <Pressable style={styles.menuItem} onPress={() => navigation.navigate('EditProfile')}>
@@ -175,6 +201,16 @@ const createStyles = (colors: ThemeColors) =>
     avatarImage: { width: '100%', height: '100%' },
     avatarInitial: { fontSize: 28, fontFamily: FONT_FAMILY.heading, color: colors.primary },
     displayName: { fontSize: 22, fontFamily: FONT_FAMILY.heading, color: colors.textPrimary },
+    levelBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: colors.primarySurface,
+    },
+    levelBadgeText: { fontSize: 12, fontFamily: FONT_FAMILY.bodySemiBold, color: colors.primary },
     email: { fontSize: 14, color: colors.textSecondary, marginTop: 4, fontFamily: FONT_FAMILY.meta },
     statsRow: { flexDirection: 'row', gap: 10 },
     statCard: {
@@ -203,6 +239,16 @@ const createStyles = (colors: ThemeColors) =>
     badgeCount: { fontSize: 11, color: colors.textTertiary, fontFamily: FONT_FAMILY.meta },
     badgeTrack: { height: 10, borderRadius: 999, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
     badgeFill: { height: '100%', borderRadius: 999, backgroundColor: colors.accentPink },
+    badgeChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+    badgeChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    badgeChipText: { fontSize: 12, fontFamily: FONT_FAMILY.bodySemiBold, color: colors.textPrimary },
     menuCard: {
       backgroundColor: colors.surface,
       borderRadius: 20,

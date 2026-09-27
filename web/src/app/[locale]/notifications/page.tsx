@@ -6,7 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
-import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon } from '@/components/icons';
+import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon, MessageCircleIcon } from '@/components/icons';
 import { markAllNotificationsReadAction } from './actions';
 
 interface PageProps {
@@ -35,12 +35,13 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   review_helpful_milestone: <StarIcon size={17} filled />,
   restaurant_hours_changed: <ClockIcon size={17} />,
   new_follower: <UserIcon size={17} />,
+  review_reply: <MessageCircleIcon size={17} />,
 };
 
 // Types whose deep-link `screen` is 'Reviews' (see NotificationDeepLink's own
 // comment in shared-types) — these get the review-tab deep link instead of
 // the plain restaurant page.
-const REVIEW_SCREEN_TYPES: NotificationType[] = ['moderation_result', 'review_helpful_vote', 'review_helpful_milestone'];
+const REVIEW_SCREEN_TYPES: NotificationType[] = ['moderation_result', 'review_helpful_vote', 'review_helpful_milestone', 'review_reply'];
 
 // Everything else that's about a place rather than a review — a
 // contribution's own decision (new_restaurant/edit_suggestion/status_update/

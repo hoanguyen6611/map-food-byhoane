@@ -22,3 +22,4 @@ export * from './data/vn-address';
 export * from './push';
 export * from './owner';
 export * from './social';
+export * from './collection';

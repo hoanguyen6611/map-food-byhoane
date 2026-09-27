@@ -21,6 +21,9 @@ import {
   PlusIcon,
   LogOutIcon,
   ChevronRightIcon,
+  StarIcon,
+  ListViewIcon,
+  MenuFolderIcon,
 } from './icons';
 
 /**
@@ -90,6 +93,9 @@ export function TopBarNav() {
         <Link href="/map" className="nav-link">
           {t('mapNavLink')}
         </Link>
+        <Link href="/leaderboard" className="nav-link">
+          {t('leaderboardNavLink')}
+        </Link>
         <span className="topbar-divider" aria-hidden="true" />
         <ThemeToggle />
         <LanguageSwitcher />
@@ -135,6 +141,13 @@ export function TopBarNav() {
               <span className="mobile-nav-row-label">{t('mapNavLink')}</span>
               <ChevronRightIcon size={16} className="mobile-nav-chevron" />
             </Link>
+            <Link href="/leaderboard" className="mobile-nav-row" onClick={() => setOpen(false)}>
+              <span className="mobile-nav-row-icon mobile-nav-row-icon-blue">
+                <StarIcon size={17} filled />
+              </span>
+              <span className="mobile-nav-row-label">{t('leaderboardNavLink')}</span>
+              <ChevronRightIcon size={16} className="mobile-nav-chevron" />
+            </Link>
 
             {session ? (
               <>
@@ -146,6 +159,22 @@ export function TopBarNav() {
                     <BookmarkIcon size={17} />
                   </span>
                   <span className="mobile-nav-row-label">{tAuth('favoritesLink')}</span>
+                  <ChevronRightIcon size={16} className="mobile-nav-chevron" />
+                </Link>
+
+                <Link href="/feed" className="mobile-nav-row" onClick={() => setOpen(false)}>
+                  <span className="mobile-nav-row-icon mobile-nav-row-icon-magenta">
+                    <ListViewIcon size={17} />
+                  </span>
+                  <span className="mobile-nav-row-label">{tAuth('feedLink')}</span>
+                  <ChevronRightIcon size={16} className="mobile-nav-chevron" />
+                </Link>
+
+                <Link href="/collections" className="mobile-nav-row" onClick={() => setOpen(false)}>
+                  <span className="mobile-nav-row-icon mobile-nav-row-icon-magenta">
+                    <MenuFolderIcon size={17} />
+                  </span>
+                  <span className="mobile-nav-row-label">{tAuth('collectionsLink')}</span>
                   <ChevronRightIcon size={16} className="mobile-nav-chevron" />
                 </Link>
 

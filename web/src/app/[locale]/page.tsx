@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { getCategories, searchRestaurants } from '@/lib/api';
+import { getCategories, getTrendingUp, searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { MapCanvas } from '@/components/MapCanvas';
 import { HomeProvinceSelect } from '@/components/HomeProvinceSelect';
@@ -44,11 +44,29 @@ export default async function HomePage({ params }: PageProps) {
   // equivalent breakdown for any other province, so the whole section is
   // skipped (not fetched, not rendered) rather than showing HCMC's district
   // names with a stale/misleading count for a different province.
-  const [featured, categoryCounts, areaCounts] = await Promise.all([
+  const [featured, categoryCounts, areaCounts, topByCategory, trendingUp] = await Promise.all([
     searchRestaurants({ pageSize: 8, province: selectedProvince }),
     Promise.all(categories.map((c) => searchRestaurants({ category: c.code, pageSize: 1, province: selectedProvince }))),
     isHcmc ? Promise.all(DISTRICTS.map((d) => searchRestaurants({ district: d.name, pageSize: 1 }))) : Promise.resolve([]),
+    // "Top 6 [danh mục] nên thử" — one section per category, ranked by
+    // activity (views + reviews, see SearchService's 'trending' sort), only
+    // for a category that actually HAS ≥6 published restaurants (checked via
+    // `.total`, the same one query that already returns the top 6 `.items` —
+    // no separate count call needed). A category under 6 doesn't get a
+    // section at all rather than showing an incomplete/padded-out top list.
+    // 6 (not 5) for a more balanced grid — divides evenly at common
+    // `.card-grid` column counts (2, 3) instead of leaving a dangling
+    // last card in the row.
+    Promise.all(categories.map((c) => searchRestaurants({ category: c.code, sort: 'trending', pageSize: 6, province: selectedProvince }))),
+    // "Quán đang lên" — ranked by week-over-week GROWTH (SearchService.findTrendingUp),
+    // distinct from the lifetime-popularity 'trending' sort above. Empty
+    // during a quiet period is expected, not an error — hidden entirely
+    // rather than showing a misleading "no results" state.
+    getTrendingUp({ province: selectedProvince }),
   ]);
+  const topCategorySections = categories
+    .map((category, i) => ({ category, result: topByCategory[i] }))
+    .filter(({ result }) => result.total >= 6);
 
   // Plain HTML <form action> can't use next-intl's <Link> — resolve the
   // locale-prefixed path (e.g. `/en/search`) by hand instead.
@@ -193,21 +211,35 @@ export default async function HomePage({ params }: PageProps) {
           </section>
         ) : null}
 
-        <section className="section-block">
-          <div className="section-head">
-            <h2 className="section-title">{t('featuredHeading')}</h2>
-            <span className="section-caption">{t('featuredCaption')}</span>
-          </div>
-          {featured.items.length === 0 ? (
-            <p className="empty-state">{t('emptyFeatured')}</p>
-          ) : (
+        {trendingUp.length > 0 ? (
+          <section className="section-block">
+            <div className="section-head">
+              <h2 className="section-title">{t('trendingUpHeading')}</h2>
+              <span className="section-caption">{t('trendingUpCaption')}</span>
+            </div>
             <div className="card-grid">
-              {featured.items.map((restaurant) => (
+              {trendingUp.map((restaurant) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} />
               ))}
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
+
+        {topCategorySections.map(({ category, result }) => (
+          <section key={category.code} className="section-block">
+            <div className="section-head">
+              <h2 className="section-title">{t('topCategoryHeading', { category: category.label })}</h2>
+              <Link href={withProvince(`/search?category=${category.code}`)} className="section-link">
+                {t('seeAllLink')}
+              </Link>
+            </div>
+            <div className="card-grid">
+              {result.items.map((restaurant) => (
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </>
   );

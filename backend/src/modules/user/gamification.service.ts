@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import type { BadgeCode, GamificationDto } from '@foodmap/shared-types';
+import type { BadgeCode, GamificationDto, LeaderboardEntryDto } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 
-const POINTS_PER_REVIEW = 10;
-const POINTS_PER_CONTRIBUTION = 15;
-const POINTS_PER_HELPFUL_VOTE = 2;
+// Exported so GamificationService.getLeaderboard's raw SQL aggregation uses
+// the exact same weights as computeForUser's per-user live computation —
+// the two code paths can never silently drift apart.
+export const POINTS_PER_REVIEW = 10;
+export const POINTS_PER_CONTRIBUTION = 15;
+export const POINTS_PER_HELPFUL_VOTE = 2;
 
 // Level `i+1` starts at LEVEL_THRESHOLDS[i] points. 5 levels; level 5 has no
 // ceiling (pointsToNextLevel/nextLevelThreshold are null once reached).
@@ -30,9 +34,19 @@ interface ActivityCounts {
  * a hot path), and a live computation can never drift out of sync the way a
  * running counter updated from N different call sites inevitably would.
  */
+interface LeaderboardRawRow {
+  user_id: string;
+  display_name: string;
+  storage_key: string | null;
+  points: number;
+}
+
 @Injectable()
 export class GamificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaService: MediaService,
+  ) {}
 
   async computeForUser(userId: string): Promise<GamificationDto> {
     const counts = await this.fetchActivityCounts(userId);
@@ -52,6 +66,60 @@ export class GamificationService {
       helpfulVotesReceived: counts.helpfulVotesReceived,
       badges,
     };
+  }
+
+  /**
+   * Public contributor leaderboard — unlike computeForUser (one user at a
+   * time), this aggregates ALL users' points in a single raw SQL query
+   * (three GROUP BY subqueries, one per scoring input, left-joined onto
+   * users) rather than looping computeForUser per row, which would be one
+   * query per user and doesn't scale. Weights are the same exported
+   * constants computeForUser uses, so ranking here always matches what a
+   * user's own profile page reports. Excludes UserProfile.isPublic === false
+   * users, same visibility rule PublicProfileDto's own gate uses.
+   */
+  async getLeaderboard(limit: number): Promise<LeaderboardEntryDto[]> {
+    const rows = await this.prisma.$queryRaw<LeaderboardRawRow[]>`
+      SELECT
+        u.id AS user_id,
+        up.display_name,
+        p.storage_key,
+        (
+          COALESCE(rev.count, 0) * ${POINTS_PER_REVIEW}
+          + COALESCE(con.count, 0) * ${POINTS_PER_CONTRIBUTION}
+          + COALESCE(hv.count, 0) * ${POINTS_PER_HELPFUL_VOTE}
+        )::int AS points
+      FROM users u
+      JOIN user_profiles up ON up.user_id = u.id
+      LEFT JOIN photos p ON p.id = up.avatar_photo_id AND p.deleted_at IS NULL
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) AS count FROM reviews
+        WHERE status = 'published' AND deleted_at IS NULL
+        GROUP BY user_id
+      ) rev ON rev.user_id = u.id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) AS count FROM contributions
+        WHERE type = 'new_restaurant' AND status IN ('approved', 'auto_approved')
+        GROUP BY user_id
+      ) con ON con.user_id = u.id
+      LEFT JOIN (
+        SELECT r.user_id, COUNT(*) AS count FROM review_helpful_votes rhv
+        JOIN reviews r ON r.id = rhv.review_id
+        GROUP BY r.user_id
+      ) hv ON hv.user_id = u.id
+      WHERE u.status = 'active' AND up.is_public = true
+      ORDER BY points DESC
+      LIMIT ${limit}
+    `;
+
+    return rows.map((row, i) => ({
+      rank: i + 1,
+      userId: row.user_id,
+      displayName: row.display_name,
+      avatarUrl: row.storage_key ? this.mediaService.resolveUrl(row.storage_key) : null,
+      points: row.points,
+      level: this.computeLevel(row.points).level,
+    }));
   }
 
   private async fetchActivityCounts(userId: string): Promise<ActivityCounts> {

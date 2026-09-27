@@ -16,29 +16,14 @@ import { VN_PROVINCES } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useAddRestaurantDraftStore } from '../../store/addRestaurantDraftStore';
 import { useCreateRestaurantContribution } from '../../hooks/useContributions';
+import { useCategories } from '../../hooks/useCategories';
+import { useCuisines } from '../../hooks/useCuisines';
 import { PhotoUploadGrid } from '../../components/media/PhotoUploadGrid';
 import { SearchableSelectModal } from '../../components/SearchableSelectModal';
-import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 import { ApiError } from '../../api/client';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'AddRestaurant'>;
-
-const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as RestaurantCategoryCode[];
-
-// Duplicates FilterScreen's local label-key maps on purpose — same
-// self-contained-per-screen convention already established there rather
-// than reaching into another screen's private module. Maps to translation
-// KEYS (not literal text), same as FilterScreen's CUISINE_LABEL_KEYS.
-const CUISINE_LABEL_KEYS: Record<CuisineCode, string> = {
-  mon_viet: 'filter.cuisineMonViet',
-  mon_han: 'filter.cuisineMonHan',
-  mon_nhat: 'filter.cuisineMonNhat',
-  mon_chay: 'filter.cuisineMonChay',
-  mon_thai: 'filter.cuisineMonThai',
-  mon_au: 'filter.cuisineMonAu',
-};
-const CUISINE_OPTIONS = Object.keys(CUISINE_LABEL_KEYS) as CuisineCode[];
 
 const PRICE_LABELS: Record<PriceRangeCode, string> = {
   under_50k: 'Dưới 50k',
@@ -72,6 +57,8 @@ export function AddRestaurantScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [step, setStep] = useState(0);
+  const categoriesQuery = useCategories();
+  const cuisinesQuery = useCuisines();
 
   const draftLocation = useAddRestaurantDraftStore((s) => s.selectedLocation);
   const clearDraftLocation = useAddRestaurantDraftStore((s) => s.clear);
@@ -238,26 +225,28 @@ export function AddRestaurantScreen({ navigation }: Props) {
 
             <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.categoryLabel')}</Text>
             <View style={styles.chipsRow}>
-              {CATEGORY_OPTIONS.map((code) => (
+              {(categoriesQuery.data ?? []).map((cat) => (
                 <Pressable
-                  key={code}
-                  style={[styles.chip, categoryCode === code ? styles.chipActive : null]}
-                  onPress={() => setCategoryCode(code)}
+                  key={cat.code}
+                  style={[styles.chip, categoryCode === cat.code ? styles.chipActive : null]}
+                  onPress={() => setCategoryCode(cat.code)}
                 >
-                  <Text style={[styles.chipText, categoryCode === code ? styles.chipTextActive : null]}>{CATEGORY_LABELS[code]}</Text>
+                  <Text style={[styles.chipText, categoryCode === cat.code ? styles.chipTextActive : null]}>{cat.label}</Text>
                 </Pressable>
               ))}
             </View>
 
             <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t('addRestaurant.cuisineLabel')}</Text>
             <View style={styles.chipsRow}>
-              {CUISINE_OPTIONS.map((code) => (
+              {(cuisinesQuery.data ?? []).map((cuisine) => (
                 <Pressable
-                  key={code}
-                  style={[styles.chip, cuisineCodes.includes(code) ? styles.chipActive : null]}
-                  onPress={() => toggleCuisine(code)}
+                  key={cuisine.code}
+                  style={[styles.chip, cuisineCodes.includes(cuisine.code) ? styles.chipActive : null]}
+                  onPress={() => toggleCuisine(cuisine.code)}
                 >
-                  <Text style={[styles.chipText, cuisineCodes.includes(code) ? styles.chipTextActive : null]}>{t(CUISINE_LABEL_KEYS[code])}</Text>
+                  <Text style={[styles.chipText, cuisineCodes.includes(cuisine.code) ? styles.chipTextActive : null]}>
+                    {cuisine.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -324,7 +313,9 @@ export function AddRestaurantScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{t('addRestaurant.summaryCategory')}</Text>
-                  <Text style={styles.summaryValue}>{categoryCode ? CATEGORY_LABELS[categoryCode] : '—'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {categoryCode ? (categoriesQuery.data?.find((c) => c.code === categoryCode)?.label ?? categoryCode) : '—'}
+                  </Text>
                 </View>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{t('addRestaurant.summaryAddress')}</Text>

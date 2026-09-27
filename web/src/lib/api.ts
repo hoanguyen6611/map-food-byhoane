@@ -7,12 +7,14 @@ import type {
   CategoryDto,
   CuisineDto,
   FacilityDto,
+  LeaderboardResponse,
   Paginated,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
   RestaurantSlugLookupDto,
   RestaurantSummaryDto,
   ReviewListResponse,
+  SearchSort,
 } from '@foodmap/shared-types';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? 'http://localhost:3000';
@@ -84,6 +86,7 @@ export interface SearchParams {
   priceMax?: number;
   minRating?: number;
   openNow?: boolean;
+  sort?: SearchSort;
   page?: number;
   pageSize?: number;
 }
@@ -148,6 +151,21 @@ export async function getNearbyRestaurants(lat: number, lng: number, radiusKm?: 
 
 export async function listSitemapEntries(): Promise<RestaurantSitemapEntryDto[]> {
   return apiFetch<RestaurantSitemapEntryDto[]>('/restaurants/sitemap-index', SITEMAP_REVALIDATE_SECONDS);
+}
+
+export async function getLeaderboard(limit?: number): Promise<LeaderboardResponse> {
+  return apiFetch<LeaderboardResponse>(
+    `/users/leaderboard${limit ? `?limit=${limit}` : ''}`,
+    LISTING_REVALIDATE_SECONDS,
+    ['leaderboard'],
+  );
+}
+
+export async function getTrendingUp(params: { province?: string; limit?: number }): Promise<RestaurantSummaryDto[]> {
+  const qs = toQueryString(params);
+  return apiFetch<RestaurantSummaryDto[]>(`/restaurants/trending-up${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS, [
+    'restaurants',
+  ]);
 }
 
 export async function getReviewsForRestaurant(

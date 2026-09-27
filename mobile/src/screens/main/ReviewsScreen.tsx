@@ -9,7 +9,6 @@ import { useReviewList } from '../../hooks/useReviews';
 import { useAuthStore } from '../../store/authStore';
 import { ReviewCard } from '../../components/ReviewCard';
 import { AuthGateModal } from '../../components/AuthGateModal';
-import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 import { FONT_FAMILY } from '../../theme/fonts';
 
@@ -109,7 +108,7 @@ export function ReviewsScreen({ route, navigation }: Props) {
               <View style={styles.headerBlock}>
                 <Text style={styles.restaurantName}>{detailQuery.data.name}</Text>
                 <Text style={styles.restaurantCategory}>
-                  {CATEGORY_LABELS[detailQuery.data.categoryCode]}
+                  {detailQuery.data.categoryLabel}
                 </Text>
               </View>
             ) : null}

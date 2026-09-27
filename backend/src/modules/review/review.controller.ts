@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
+  FeedResponse,
   MyReviewListResponse,
   ReviewDto,
   ReviewListResponse,
@@ -140,5 +141,24 @@ export class MyReviewController {
     @Query() query: MyReviewListQueryDto,
   ): Promise<MyReviewListResponse> {
     return this.reviewService.listMine(user.id, query.page, query.pageSize);
+  }
+}
+
+// Separate controller (not nested under `me/reviews`) for the same reason
+// MyReviewController itself isn't nested under `reviews` — `me/feed` is its
+// own profile-scoped resource, not a review-resource route.
+@ApiTags('Feed')
+@ApiBearerAuth('access-token')
+@Controller('me/feed')
+@UseGuards(JwtAuthGuard)
+export class FeedController {
+  constructor(private readonly reviewService: ReviewService) {}
+
+  @Get()
+  listFeed(
+    @CurrentUser() user: RequestUser,
+    @Query() query: MyReviewListQueryDto,
+  ): Promise<FeedResponse> {
+    return this.reviewService.listFeedForUser(user.id, query.page, query.pageSize);
   }
 }

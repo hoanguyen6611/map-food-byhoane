@@ -28,6 +28,7 @@ function toQueryString(filters: SearchFilters): string {
   if (filters.district) params.set('district', filters.district);
   if (filters.province) params.set('province', filters.province);
   if (filters.ward) params.set('ward', filters.ward);
+  if (filters.sort) params.set('sort', filters.sort);
   if (filters.page !== undefined) params.set('page', String(filters.page));
   if (filters.pageSize !== undefined) params.set('pageSize', String(filters.pageSize));
 

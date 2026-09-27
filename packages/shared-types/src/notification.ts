@@ -12,7 +12,8 @@ export type NotificationType =
   | 'review_helpful_vote'
   | 'review_helpful_milestone'
   | 'restaurant_hours_changed'
-  | 'new_follower';
+  | 'new_follower'
+  | 'review_reply';
 
 // Deep-link target — `screen` matches a mobile route name in
 // MainStackParamList; the id fields are populated per notification type.
@@ -25,6 +26,8 @@ export type NotificationType =
 // restaurantId + reviewId (same review-detail target as moderation_result).
 // 'restaurant_hours_changed' -> screen: 'RestaurantDetail', restaurantId.
 // 'new_follower' -> screen: 'Profile', userId (the new follower's id).
+// 'review_reply' -> screen: 'Reviews', restaurantId + reviewId (same target
+// as 'review_helpful_vote' — the review that received the new reply).
 export interface NotificationDeepLink {
   screen: string;
   restaurantId?: string;

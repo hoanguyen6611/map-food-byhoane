@@ -9,6 +9,7 @@ import { FACILITY_ICON_PATH } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { ShareButton } from '@/components/ShareButton';
+import { AddToCollectionButton } from '@/components/AddToCollectionButton';
 import { WriteReviewForm } from '@/components/WriteReviewForm';
 import { Stars } from '@/components/Stars';
 import { OpenBadge } from '@/components/OpenBadge';
@@ -414,13 +415,14 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
         <div className="detail-sidebar">
           <div className="action-card">
+            <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="action-primary action-primary-full">
+              <MapPinIcon size={16} />
+              {t('directions')}
+            </a>
             <div className="action-row">
-              <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="action-primary">
-                <MapPinIcon size={16} />
-                {t('directions')}
-              </a>
               <FavoriteButton restaurantId={restaurant.id} />
               <ShareButton title={restaurant.name} />
+              <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} />
             </div>
             <div className="mini-map">
               <MapCanvas

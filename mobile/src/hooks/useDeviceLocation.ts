@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Location from 'expo-location';
 import { HCMC_CENTER, type LatLng } from '../lib/geo';
 
@@ -33,58 +33,87 @@ export interface DeviceLocationState {
   isResolved: boolean;
   /** True if we fell back to `HCMC_CENTER` (permission denied, or the GPS fix timed out). */
   isFallback: boolean;
+  /** True while a `refresh()` call is in flight. */
+  isRefreshing: boolean;
+  /**
+   * Re-prompts for permission (if not yet granted) and re-fetches a fresh
+   * GPS fix — e.g. MapScreen's "locate me" button, so a denial at boot (or a
+   * timed-out fix) isn't a dead end for the rest of the session. Resolves
+   * with the fresh coordinate directly (not just via the `location` state
+   * field) so a caller can act on it immediately without waiting a render.
+   */
+  refresh: () => Promise<LatLng | null>;
 }
 
 /**
  * Shared "get current device location, or fall back to HCMC center" check.
  * Factored out of `MapScreen`'s original inline implementation
  * (build-prompts/03) so `ListScreen` (build-prompts/04) doesn't need a second
- * independent permission-request flow. Only *checks* the current permission
- * state (mirrors `MapScreen`'s note that `PermissionLocationScreen` already
- * requested it once at boot) — it does not itself prompt the user.
+ * independent permission-request flow. The initial mount-time check only
+ * *checks* the current permission state (mirrors `MapScreen`'s note that
+ * `PermissionLocationScreen` already requested it once at boot) — it does
+ * not itself prompt the user; `refresh()` is the one path that does.
  */
 export function useDeviceLocation(): DeviceLocationState {
   const [location, setLocation] = useState<LatLng | null>(null);
   const [isResolved, setIsResolved] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const resolve = useCallback(async (requestPermission: boolean): Promise<LatLng | null> => {
+    try {
+      const permission = requestPermission
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        throw new Error('permission not granted');
+      }
 
-    async function resolve() {
-      try {
-        const permission = await Location.getForegroundPermissionsAsync();
-        if (permission.status !== Location.PermissionStatus.GRANTED) {
-          throw new Error('permission not granted');
-        }
+      const position = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        LOCATION_TIMEOUT_MS,
+      );
+      const resolved = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      if (!mountedRef.current) return resolved;
 
-        const position = await withTimeout(
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-          LOCATION_TIMEOUT_MS,
-        );
-        if (cancelled) return;
-
-        setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        setIsFallback(false);
-      } catch {
-        if (cancelled) return;
+      setLocation(resolved);
+      setIsFallback(false);
+      return resolved;
+    } catch {
+      if (mountedRef.current) {
         setLocation(null);
         setIsFallback(true);
-      } finally {
-        if (!cancelled) setIsResolved(true);
       }
+      return null;
+    } finally {
+      if (mountedRef.current) setIsResolved(true);
     }
-
-    resolve();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    resolve(false);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [resolve]);
+
+  const refresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      return await resolve(true);
+    } finally {
+      if (mountedRef.current) setIsRefreshing(false);
+    }
+  }, [resolve]);
 
   return {
     location,
     effectiveCenter: location ?? HCMC_CENTER,
     isResolved,
     isFallback,
+    isRefreshing,
+    refresh,
   };
 }

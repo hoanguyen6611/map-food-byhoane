@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsLatitude,
   IsLongitude,
   IsNumber,
@@ -14,7 +15,10 @@ import type {
   CuisineCode,
   FacilityType,
   RestaurantCategoryCode,
+  SearchSort,
 } from '@foodmap/shared-types';
+
+const SORT_VALUES: SearchSort[] = ['trending', 'newest'];
 
 // Shared by GET /search (q optional-but-usually-present) and GET /restaurants
 // (browse, q always absent) per docs/build-prompts/04-search-filter.md — one
@@ -111,6 +115,13 @@ export class SearchQueryDto {
   @IsOptional()
   @IsString()
   ward?: string;
+
+  // 'trending' — home page's per-category "Top 5" sections. 'newest' —
+  // mobile Explore's "Mới mở" segment. See SearchSort's doc comment /
+  // SearchService's ORDER BY branch.
+  @IsOptional()
+  @IsIn(SORT_VALUES)
+  sort?: SearchSort;
 
   @IsOptional()
   @Type(() => Number)

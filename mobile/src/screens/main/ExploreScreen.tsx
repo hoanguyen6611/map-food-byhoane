@@ -6,14 +6,15 @@ import { useShallow } from 'zustand/react/shallow';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RestaurantCategoryCode, RestaurantSummaryDto } from '@foodmap/shared-types';
+import type { RestaurantSummaryDto } from '@foodmap/shared-types';
 import type { MainStackParamList, MainTabParamList } from '../../navigation/types';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
 import { useRestaurantSearch } from '../../hooks/useRestaurantSearch';
+import { useCategories } from '../../hooks/useCategories';
 import { getFilterValues, useFilterStore } from '../../store/filterStore';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 import { FONT_FAMILY } from '../../theme/fonts';
-import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
+import { getCategoryIonicon } from '../../lib/categoryIcons';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../../navigation/tabConfig';
 
 type Props = CompositeScreenProps<
@@ -23,25 +24,19 @@ type Props = CompositeScreenProps<
 
 const LEADERBOARD_SIZE = 5;
 
-// Screen-local icon map, same "duplicate small label/icon maps per screen"
-// convention as FilterScreen's FACILITY_LABEL_KEYS / AddRestaurantScreen's
-// CUISINE_LABEL_KEYS, rather than a new shared module for 6 entries.
-const CATEGORY_ICONS: Record<RestaurantCategoryCode, keyof typeof Ionicons.glyphMap> = {
-  quan_an: 'restaurant-outline',
-  quan_ca_phe: 'cafe-outline',
-  nha_hang: 'wine-outline',
-  xe_day: 'bicycle-outline',
-  quan_via_he: 'storefront-outline',
-  quan_bar: 'beer-outline',
-};
-const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as RestaurantCategoryCode[];
-
-// "Xu hướng"/"Mới mở" have no distinct backend sort (see the reskin plan's
-// gap list) — all 3 segments currently query the exact same real "browse
-// near me" results; only the selected pill changes. Real data throughout,
-// just not yet actually differentiated by segment.
 const SEGMENTS = ['nearMe', 'trending', 'newlyOpened'] as const;
 type Segment = (typeof SEGMENTS)[number];
+
+// Maps each segment to the real `sort` param the backend understands
+// (SearchSort) — `undefined` (nearMe) keeps the default relevance/rating/
+// distance ordering, ranked client-side by compositeScore below for a
+// "top-rated near me" leaderboard; 'trending'/'newest' come back from the
+// backend already in the right order and are shown as-is.
+const SEGMENT_SORT: Record<Segment, 'trending' | 'newest' | undefined> = {
+  nearMe: undefined,
+  trending: 'trending',
+  newlyOpened: 'newest',
+};
 
 /**
  * "Ngon v3" Explore tab (new — folds the old standalone Map tab in as a
@@ -57,6 +52,7 @@ export function ExploreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
+  const categoriesQuery = useCategories();
   const { location } = useDeviceLocation();
   // `getFilterValues` builds a fresh object every call — must be wrapped in
   // `useShallow` or `useSyncExternalStore` sees a "new" snapshot on every
@@ -64,13 +60,17 @@ export function ExploreScreen({ navigation }: Props) {
   // fix as MapScreen.tsx's identical use of this selector.
   const filterValues = useFilterStore(useShallow(getFilterValues));
 
-  const leaderboardQuery = useRestaurantSearch({ filters: filterValues, location });
+  const sort = SEGMENT_SORT[segment];
+  const leaderboardQuery = useRestaurantSearch({ filters: filterValues, location, sort });
   const leaderboard: RestaurantSummaryDto[] = useMemo(() => {
     const items = leaderboardQuery.data?.pages.flatMap((page) => page.items) ?? [];
-    return [...items]
-      .sort((a, b) => (b.compositeScore ?? -1) - (a.compositeScore ?? -1))
-      .slice(0, LEADERBOARD_SIZE);
-  }, [leaderboardQuery.data]);
+    // 'nearMe' has no backend sort (see SEGMENT_SORT) — rank client-side by
+    // compositeScore for a "top-rated nearby" leaderboard. 'trending'/'newest'
+    // already come back from the backend in the right order; re-sorting them
+    // by compositeScore here would undo that ordering.
+    const ranked = sort === undefined ? [...items].sort((a, b) => (b.compositeScore ?? -1) - (a.compositeScore ?? -1)) : items;
+    return ranked.slice(0, LEADERBOARD_SIZE);
+  }, [leaderboardQuery.data, sort]);
 
   return (
     <View style={styles.container}>
@@ -124,17 +124,17 @@ export function ExploreScreen({ navigation }: Props) {
 
             <Text style={styles.sectionTitle}>{t('explore.categoriesHeading')}</Text>
             <View style={styles.categoryGrid}>
-              {CATEGORY_OPTIONS.map((code) => (
+              {(categoriesQuery.data ?? []).map((category) => (
                 <Pressable
-                  key={code}
+                  key={category.code}
                   style={styles.categoryTile}
-                  onPress={() => navigation.navigate('SearchResult', { category: code })}
+                  onPress={() => navigation.navigate('SearchResult', { category: category.code })}
                 >
                   <View style={styles.categoryIconWrap}>
-                    <Ionicons name={CATEGORY_ICONS[code]} size={22} color={colors.textPrimary} />
+                    <Ionicons name={getCategoryIonicon(category.icon)} size={22} color={colors.textPrimary} />
                   </View>
                   <Text style={styles.categoryLabel} numberOfLines={1}>
-                    {CATEGORY_LABELS[code]}
+                    {category.label}
                   </Text>
                 </Pressable>
               ))}

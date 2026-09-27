@@ -18,9 +18,11 @@ import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
 import { useAiSummary } from '../../hooks/useAiSummary';
 import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
+import { useFacilities } from '../../hooks/useFacilities';
 import { useAuthStore } from '../../store/authStore';
 import { formatPriceRange } from '../../lib/format';
-import { CATEGORY_LABELS, DAY_LABELS, FACILITY_META, formatVndFull } from '../../lib/restaurantLabels';
+import { DAY_LABELS, formatVndFull } from '../../lib/restaurantLabels';
+import { getFacilityIonicon } from '../../lib/facilityIcons';
 import { ApiError } from '../../api/client';
 import { ReviewCard } from '../../components/ReviewCard';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
@@ -47,6 +49,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
   const aiSummaryQuery = useAiSummary(restaurantId);
+  const facilitiesQuery = useFacilities();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const favoriteIdsQuery = useFavoriteIds();
@@ -90,7 +93,12 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
   const priceLabel = formatPriceRange(restaurant.priceRange);
   const firstMenu = restaurant.menus[0];
   const previewItems = firstMenu?.items.slice(0, MENU_PREVIEW_COUNT) ?? [];
-  const hasAnyMenuItems = restaurant.menus.some((menu) => menu.items.length > 0);
+  const menuPhotos = firstMenu?.photos ?? [];
+  // A restaurant can have menu PHOTOS with no typed-out items yet (admin
+  // uploaded the physical menu board but hasn't keyed in dishes) — only
+  // showing "Chưa có thực đơn" when items are empty would hide those photos
+  // and claim there's no menu at all when there actually is one.
+  const hasAnyMenu = restaurant.menus.some((menu) => menu.items.length > 0 || menu.photos.length > 0);
 
   function handleCarouselScroll(event: { nativeEvent: { contentOffset: { x: number } } }) {
     const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -161,7 +169,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
         {/* --- Name / category / price --- */}
         <Text style={styles.name}>{restaurant.name}</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.categoryText}>{CATEGORY_LABELS[restaurant.categoryCode]}</Text>
+          <Text style={styles.categoryText}>{restaurant.categoryLabel}</Text>
           {priceLabel ? <Text style={styles.separatorDot}> · </Text> : null}
           {priceLabel ? <Text style={styles.priceText}>{priceLabel}đ</Text> : null}
         </View>
@@ -253,11 +261,11 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
             <Text style={styles.sectionTitle}>{t('restaurantDetail.facilities')}</Text>
             <View style={styles.facilitiesGrid}>
               {restaurant.facilities.map((facility) => {
-                const meta = FACILITY_META[facility];
+                const label = facilitiesQuery.data?.find((f) => f.code === facility)?.label ?? facility;
                 return (
                   <View key={facility} style={styles.facilityItem}>
-                    <Ionicons name={meta.icon} size={18} color={colors.primary} />
-                    <Text style={styles.facilityLabel}>{meta.label}</Text>
+                    <Ionicons name={getFacilityIonicon(facility)} size={18} color={colors.primary} />
+                    <Text style={styles.facilityLabel}>{label}</Text>
                   </View>
                 );
               })}
@@ -268,7 +276,7 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
         {/* --- Menu preview --- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('restaurantDetail.menu')}</Text>
-          {!hasAnyMenuItems ? (
+          {!hasAnyMenu ? (
             <Text style={styles.emptyInlineText}>{t('restaurantDetail.noMenu')}</Text>
           ) : (
             <>
@@ -281,8 +289,19 @@ export function RestaurantDetailScreen({ route, navigation }: Props) {
                   <Text style={styles.menuItemPrice}>{formatVndFull(item.priceVnd)}</Text>
                 </View>
               ))}
+              {menuPhotos.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={[styles.menuPhotosRow, previewItems.length > 0 && styles.menuPhotosRowSpaced]}
+                >
+                  {menuPhotos.map((photo) => (
+                    <Image key={photo.id} source={{ uri: photo.url }} style={styles.menuPhotoThumb} />
+                  ))}
+                </ScrollView>
+              ) : null}
               <Pressable onPress={() => navigation.navigate('Menu', { restaurantId })}>
-                <Text style={styles.linkText}>{t('restaurantDetail.seeFullMenu')}</Text>
+                <Text style={[styles.linkText, styles.linkTextSpaced]}>{t('restaurantDetail.seeFullMenu')}</Text>
               </Pressable>
             </>
           )}
@@ -478,7 +497,11 @@ const createStyles = (colors: ThemeColors) =>
     },
     menuItemName: { fontSize: 14, color: colors.textPrimary, flex: 1, marginRight: 8, fontFamily: FONT_FAMILY.body },
     menuItemPrice: { fontSize: 14, color: colors.primary, fontFamily: FONT_FAMILY.bodyBold },
+    menuPhotosRow: { marginTop: 4 },
+    menuPhotosRowSpaced: { marginTop: 10 },
+    menuPhotoThumb: { width: 96, height: 96, borderRadius: 10, marginRight: 8, backgroundColor: colors.surfaceAlt },
     linkText: { fontSize: 14, color: colors.link, fontFamily: FONT_FAMILY.bodyBold, marginTop: 8 },
+    linkTextSpaced: { marginTop: 10 },
     actionsRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
     actionButton: {
       flex: 1,

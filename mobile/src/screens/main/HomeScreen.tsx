@@ -12,12 +12,13 @@ import { RestaurantCardSkeleton } from '../../components/RestaurantCard';
 import { authApi } from '../../api/auth';
 import { useFilterStore, countActiveFilters, type FilterValues } from '../../store/filterStore';
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
+import { usePlaceName } from '../../hooks/usePlaceName';
 import { useRestaurantSearch } from '../../hooks/useRestaurantSearch';
+import { useCategories } from '../../hooks/useCategories';
 import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
 import { useMyReviews } from '../../hooks/useReviews';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 import { FONT_FAMILY } from '../../theme/fonts';
-import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../../navigation/tabConfig';
 
 type Props = CompositeScreenProps<
@@ -25,7 +26,6 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<MainStackParamList>
 >;
 
-const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as RestaurantCategoryCode[];
 // Only need a couple of rows for the "top rated" grid — Home is a browse
 // entry point, not the full list (that's what Search/Filter are for).
 const GRID_PAGE_SIZE = 8;
@@ -46,6 +46,7 @@ const BADGE_GOAL_REVIEWS = 3;
  */
 export function HomeScreen({ navigation }: Props) {
   const [category, setCategory] = useState<RestaurantCategoryCode | null>(null);
+  const categoriesQuery = useCategories();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = createStyles(colors);
@@ -70,6 +71,7 @@ export function HomeScreen({ navigation }: Props) {
   const activeFilterCount = countActiveFilters(filters);
 
   const { location, isResolved: locationResolved } = useDeviceLocation();
+  const placeName = usePlaceName(location);
 
   const resultsQuery = useRestaurantSearch({
     filters,
@@ -109,7 +111,7 @@ export function HomeScreen({ navigation }: Props) {
               </View>
               <View style={styles.greetingText}>
                 <Text style={styles.greetingLabel}>{t('home.locationLabel')}</Text>
-                <Text style={styles.greetingValue}>{t('home.staticCity')}</Text>
+                <Text style={styles.greetingValue}>{placeName ?? t('home.locationFallback')}</Text>
               </View>
             </View>
 
@@ -157,19 +159,17 @@ export function HomeScreen({ navigation }: Props) {
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={CATEGORY_OPTIONS}
-              keyExtractor={(code) => code}
+              data={categoriesQuery.data ?? []}
+              keyExtractor={(item) => item.code}
               contentContainerStyle={styles.chipRow}
-              renderItem={({ item: code }) => {
-                const selected = category === code;
+              renderItem={({ item }) => {
+                const selected = category === item.code;
                 return (
                   <Pressable
                     style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => setCategory((prev) => (prev === code ? null : code))}
+                    onPress={() => setCategory((prev) => (prev === item.code ? null : item.code))}
                   >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                      {CATEGORY_LABELS[code]}
-                    </Text>
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{item.label}</Text>
                   </Pressable>
                 );
               }}

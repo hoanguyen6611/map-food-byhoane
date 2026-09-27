@@ -51,7 +51,46 @@ export interface PublicProfileReviewListResponse {
   pageSize: number;
 }
 
+// "Feed" (web's /feed) — recent published reviews from users the viewer
+// follows. Same shape as PublicProfileReviewDto plus `author`, since unlike
+// a single user's own review list, the feed mixes reviews from many
+// different people and needs to show who posted each one.
+export interface FeedReviewDto extends PublicProfileReviewDto {
+  author: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+    isAnonymized: boolean;
+  };
+}
+
+export interface FeedResponse {
+  items: FeedReviewDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface FollowActionResponse {
   followerCount: number;
   isFollowedByViewer: boolean;
+}
+
+// Public contributor leaderboard (web's /leaderboard) — `points`/`level` use
+// the exact same weights/thresholds as GamificationDto (GamificationService
+// exports its scoring constants so this can never drift out of sync with a
+// user's own profile page), aggregated across ALL users instead of computed
+// one at a time. Excludes UserProfile.isPublic === false users, same
+// visibility rule PublicProfileDto's own gate uses.
+export interface LeaderboardEntryDto {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  points: number;
+  level: number;
+}
+
+export interface LeaderboardResponse {
+  items: LeaderboardEntryDto[];
 }

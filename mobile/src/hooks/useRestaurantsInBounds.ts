@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { restaurantsApi } from '../api/restaurants';
+import { restaurantsApi, type BoundsFilters } from '../api/restaurants';
 import type { BoundsBox } from '../lib/geo';
 
 /**
@@ -10,12 +10,26 @@ import type { BoundsBox } from '../lib/geo';
  * extra client-side caching logic is needed here.
  *
  * `bounds` is `null` until the initial permission/location check resolves;
- * the query stays disabled until then.
+ * the query stays disabled until then. `filters` is the category/cuisine/
+ * facilities/area subset the Filter modal writes into `filterStore` — see
+ * `BoundsFilters`.
  */
-export function useRestaurantsInBounds(bounds: BoundsBox | null) {
+export function useRestaurantsInBounds(bounds: BoundsBox | null, filters?: BoundsFilters) {
   return useQuery({
-    queryKey: ['restaurants', 'bounds', bounds?.swLat, bounds?.swLng, bounds?.neLat, bounds?.neLng],
-    queryFn: () => restaurantsApi.bounds(bounds as BoundsBox),
+    queryKey: [
+      'restaurants',
+      'bounds',
+      bounds?.swLat,
+      bounds?.swLng,
+      bounds?.neLat,
+      bounds?.neLng,
+      filters?.category ?? null,
+      filters?.facilities ?? [],
+      filters?.cuisine ?? [],
+      filters?.province ?? null,
+      filters?.ward ?? null,
+    ],
+    queryFn: () => restaurantsApi.bounds(bounds as BoundsBox, filters),
     enabled: bounds !== null,
     // Keep showing the previous viewport's markers while the new one loads,
     // instead of flashing to an empty map on every pan/zoom.

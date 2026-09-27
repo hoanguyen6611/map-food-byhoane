@@ -7,7 +7,7 @@ import { routing } from '@/i18n/routing';
 import { logoutAction } from '@/app/[locale]/login/actions';
 import { initialsOf } from '@/lib/format';
 import type { SessionInfo } from '@/app/api/session/route';
-import { BellIcon, UserIcon, BookmarkIcon, PlusIcon, LogOutIcon, ChevronDownIcon } from './icons';
+import { BellIcon, UserIcon, BookmarkIcon, PlusIcon, LogOutIcon, ChevronDownIcon, ListViewIcon, MenuFolderIcon } from './icons';
 
 interface Props {
   /** Fetched once by the shared parent (TopBarNav) via `useSessionInfo` — see its own doc comment for why this is a client fetch rather than a server read. */
@@ -81,6 +81,14 @@ export function AuthStatus({ session }: Props) {
             <Link href="/favorites" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               <BookmarkIcon size={16} />
               {t('favoritesLink')}
+            </Link>
+            <Link href="/feed" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              <ListViewIcon size={16} />
+              {t('feedLink')}
+            </Link>
+            <Link href="/collections" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              <MenuFolderIcon size={16} />
+              {t('collectionsLink')}
             </Link>
             <Link href="/add-restaurant" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               <PlusIcon size={16} />

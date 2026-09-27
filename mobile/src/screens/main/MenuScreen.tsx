@@ -1,7 +1,18 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MenuItemDto } from '@foodmap/shared-types';
+import type { MenuItemDto, PhotoDto } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { useRestaurantDetail } from '../../hooks/useRestaurantDetail';
 import { formatVndFull } from '../../lib/restaurantLabels';
@@ -38,6 +49,7 @@ export function MenuScreen({ route }: Props) {
   const { t } = useTranslation();
   const { restaurantId } = route.params;
   const detailQuery = useRestaurantDetail(restaurantId);
+  const [viewerPhoto, setViewerPhoto] = useState<PhotoDto | null>(null);
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
@@ -64,8 +76,12 @@ export function MenuScreen({ route }: Props) {
   }
 
   const allItems = detailQuery.data?.menus.flatMap((menu) => menu.items) ?? [];
+  // Up to 3 photos of the physical menu board per menu (admin-uploaded, see
+  // MenuDto.photos' doc comment) — distinct from each item's own data, and
+  // from `restaurant.photos` (PhotoGalleryScreen's general photo grid).
+  const allPhotos = detailQuery.data?.menus.flatMap((menu) => menu.photos) ?? [];
 
-  if (allItems.length === 0) {
+  if (allItems.length === 0 && allPhotos.length === 0) {
     return (
       <View style={styles.centeredContainer}>
         <Text style={styles.emptyText}>{t('menu.emptyText')}</Text>
@@ -76,26 +92,57 @@ export function MenuScreen({ route }: Props) {
   const groups = groupByCategory(allItems, t('menu.uncategorized'));
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {groups.map((group) => (
-        <View key={group.category} style={styles.group}>
-          <Text style={styles.groupTitle}>{group.category}</Text>
-          {group.items.map((item) => (
-            <View key={item.id} style={styles.itemRow}>
-              <View style={styles.itemNameRow}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                {item.isPopular ? (
-                  <View style={styles.popularBadge}>
-                    <Text style={styles.popularBadgeText}>{t('menu.popular')}</Text>
-                  </View>
-                ) : null}
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {groups.map((group) => (
+          <View key={group.category} style={styles.group}>
+            <Text style={styles.groupTitle}>{group.category}</Text>
+            {group.items.map((item) => (
+              <View key={item.id} style={styles.itemRow}>
+                <View style={styles.itemNameRow}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  {item.isPopular ? (
+                    <View style={styles.popularBadge}>
+                      <Text style={styles.popularBadgeText}>{t('menu.popular')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.itemPrice}>{formatVndFull(item.priceVnd)}</Text>
               </View>
-              <Text style={styles.itemPrice}>{formatVndFull(item.priceVnd)}</Text>
-            </View>
-          ))}
+            ))}
+          </View>
+        ))}
+
+        {allPhotos.length > 0 ? (
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>{t('menu.photosHeading')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {allPhotos.map((photo) => (
+                <Pressable key={photo.id} onPress={() => setViewerPhoto(photo)}>
+                  <Image source={{ uri: photo.url }} style={styles.photoThumb} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <Modal visible={viewerPhoto !== null} transparent animationType="fade" onRequestClose={() => setViewerPhoto(null)}>
+        <View style={styles.viewerBackdrop}>
+          <Pressable
+            style={styles.viewerCloseButton}
+            onPress={() => setViewerPhoto(null)}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          {viewerPhoto ? (
+            <Image source={{ uri: viewerPhoto.url }} style={styles.viewerImage} resizeMode="contain" />
+          ) : null}
         </View>
-      ))}
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -132,4 +179,19 @@ const createStyles = (colors: ThemeColors) =>
     // WCAG AA's large-text exemption (see ThemeColors.primaryStrong's doc comment).
     popularBadgeText: { fontSize: 10, fontFamily: FONT_FAMILY.bodyBold, color: colors.primaryStrong },
     itemPrice: { fontSize: 14, color: colors.primary, fontFamily: FONT_FAMILY.bodyBold },
+    photoThumb: { width: 140, height: 140, borderRadius: 12, marginRight: 10, backgroundColor: colors.surfaceAlt },
+    viewerBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.92)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    viewerCloseButton: {
+      position: 'absolute',
+      top: 56,
+      right: 20,
+      zIndex: 1,
+      padding: 8,
+    },
+    viewerImage: { width: '100%', height: '80%' },
   });

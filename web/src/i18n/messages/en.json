@@ -42,6 +42,7 @@
     "mapNavLink": "Map",
     "aboutNavLink": "How scoring works",
     "categoriesNavLink": "Categories",
+    "leaderboardNavLink": "Leaderboard",
     "footerBrandDesc": "Find restaurants, cafes, and eateries in Ho Chi Minh City through real reviews.",
     "accountSectionLabel": "Account"
   },
@@ -54,8 +55,9 @@
     "searchButtonShort": "Search",
     "categoriesHeading": "Categories",
     "areasHeading": "Areas",
-    "featuredHeading": "Featured restaurants",
-    "emptyFeatured": "No restaurants have been published yet.",
+    "topCategoryHeading": "Top 6 {category} to try",
+    "trendingUpHeading": "On the rise",
+    "trendingUpCaption": "Fastest-growing views and reviews this week",
     "heroBadge": "{province} · {count} restaurants reviewed",
     "heroArea": "Ho Chi Minh City",
     "heroChipsLabel": "Popular searches:",
@@ -66,8 +68,7 @@
     "statRestaurants": "Restaurants reviewed",
     "statCriteria": "Rating criteria",
     "seeAllLink": "See all restaurants →",
-    "areasCaption": "Tap to view an area page",
-    "featuredCaption": "Sorted by rating"
+    "areasCaption": "Tap to view an area page"
   },
   "search": {
     "titleAll": "Search restaurants",
@@ -197,6 +198,8 @@
     "genericError": "Incorrect email or password.",
     "greeting": "Hi, {email}",
     "favoritesLink": "Favorites",
+    "feedLink": "Feed",
+    "collectionsLink": "Collections",
     "profileLink": "Profile",
     "viewProfileHint": "View your profile",
     "notificationsLink": "Notifications",
@@ -226,6 +229,53 @@
     "subtitle": "{count} restaurants saved for later",
     "empty": "You haven't saved any restaurants yet.",
     "emptyBody": "Tap the heart icon on a restaurant's page to save it here."
+  },
+  "collections": {
+    "title": "My collections",
+    "subtitle": "Create your own restaurant lists and share them with friends",
+    "navLink": "Collections",
+    "notFoundTitle": "Collection not found",
+    "createButton": "Create a collection",
+    "createHeading": "Create collection",
+    "editHeading": "Edit collection",
+    "nameLabel": "Collection name",
+    "descriptionLabel": "Description (optional)",
+    "publicToggleLabel": "Public",
+    "publicToggleSub": "Anyone with the link can view this collection",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "nameRequiredError": "Please enter a collection name.",
+    "saveError": "Couldn't save the collection. Please try again.",
+    "empty": "You don't have any collections yet",
+    "emptyBody": "Create a collection to group restaurants around a theme of your own.",
+    "emptyItems": "This collection has no restaurants yet.",
+    "publicBadge": "Public",
+    "privateBadge": "Private",
+    "editButton": "Edit",
+    "deleteButton": "Delete",
+    "deleteConfirm": "Delete this collection? This can't be undone.",
+    "removeItemButton": "Remove from collection",
+    "addToCollectionButton": "Add to collection",
+    "loading": "Loading...",
+    "noCollectionsYet": "You don't have any collections yet",
+    "newCollectionPlaceholder": "New collection name"
+  },
+  "feed": {
+    "title": "Feed",
+    "subtitle": "Recent review activity from people you follow",
+    "navLink": "Feed",
+    "reviewedLine": "{name} reviewed {restaurant}",
+    "empty": "Your feed is empty",
+    "emptyBody": "Follow more people to see their reviews here."
+  },
+  "leaderboard": {
+    "title": "Contributor leaderboard",
+    "subtitle": "Ranked by contribution points: reviews, submitted places, and helpful votes received",
+    "navLink": "Leaderboard",
+    "pointsLabel": "{points} pts",
+    "levelBadge": "Level {level}",
+    "empty": "No one has made the leaderboard yet."
   },
   "labels": {
     "category": {

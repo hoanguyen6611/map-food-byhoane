@@ -1,11 +1,15 @@
 import { create } from 'zustand';
-import type { CuisineCode, FacilityType } from '@foodmap/shared-types';
+import type { CuisineCode, FacilityType, RestaurantCategoryCode } from '@foodmap/shared-types';
 
 /**
  * The subset of `SearchFilters` (packages/shared-types/src/search.ts) that is
  * genuinely user-controlled filter state — `q` is search-specific (lives on
  * the SearchResult route param, not here) and `lat`/`lng`/`page`/`pageSize`
  * are supplied per-screen at fetch time, not persisted filter criteria.
+ *
+ * Address is province+ward only, matching the live dataset (see
+ * data/vn-address.ts — Vietnam's 2025 restructuring removed the district
+ * tier entirely, so there is deliberately no `district` field here).
  */
 export interface FilterValues {
   distanceKm?: number;
@@ -19,6 +23,13 @@ export interface FilterValues {
   province?: string;
   /** Only meaningful alongside `province`; cleared whenever `province` changes. */
   ward?: string;
+  /**
+   * Live category code (see useCategories()) — a screen-level route param
+   * (Home/Explore's category tiles/chips) still takes priority when set;
+   * this is the fallback for browsing without one, chosen via the Filter
+   * modal itself. See useRestaurantSearch's `category` param.
+   */
+  category?: RestaurantCategoryCode;
 }
 
 const DEFAULT_FILTERS: FilterValues = {
@@ -31,6 +42,7 @@ const DEFAULT_FILTERS: FilterValues = {
   cuisine: [],
   province: undefined,
   ward: undefined,
+  category: undefined,
 };
 
 interface FilterState extends FilterValues {
@@ -67,6 +79,7 @@ export function getFilterValues(state: FilterState): FilterValues {
     cuisine: state.cuisine,
     province: state.province,
     ward: state.ward,
+    category: state.category,
   };
 }
 
@@ -80,5 +93,6 @@ export function countActiveFilters(filters: FilterValues): number {
   if (filters.facilities.length > 0) count += 1;
   if (filters.cuisine.length > 0) count += 1;
   if (filters.province) count += 1;
+  if (filters.category) count += 1;
   return count;
 }

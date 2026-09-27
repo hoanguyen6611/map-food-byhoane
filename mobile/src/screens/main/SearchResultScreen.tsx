@@ -11,9 +11,9 @@ import { useFilterStore, countActiveFilters, type FilterValues } from '../../sto
 import { useDeviceLocation } from '../../hooks/useDeviceLocation';
 import { useRestaurantSearch } from '../../hooks/useRestaurantSearch';
 import { useFavoriteIds, useToggleFavorite } from '../../hooks/useFavorites';
+import { useCategories } from '../../hooks/useCategories';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 import { FONT_FAMILY } from '../../theme/fonts';
-import { CATEGORY_LABELS } from '../../lib/restaurantLabels';
 
 const NEARBY_ALTERNATIVES_COUNT = 5;
 
@@ -35,7 +35,11 @@ export function SearchResultScreen({ route, navigation }: Props) {
   // still active, see SearchScreen.tsx) has no other on-screen indicator that
   // the category filter is applied — the header must name it, or "Tất cả kết
   // quả"/"Kết quả cho ..." reads as if nothing is filtered when it is.
-  const categoryLabel = route.params?.category ? CATEGORY_LABELS[route.params.category] : undefined;
+  const categoryParam = route.params?.category;
+  const categoriesQuery = useCategories();
+  const categoryLabel = categoryParam
+    ? (categoriesQuery.data?.find((c) => c.code === categoryParam)?.label ?? categoryParam)
+    : undefined;
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = createStyles(colors);

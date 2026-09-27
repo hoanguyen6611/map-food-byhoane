@@ -21,6 +21,8 @@ import type { SearchQueryDto } from './dto/search-query.dto';
 const MAX_CANDIDATES = 500;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_TRENDING_UP_LIMIT = 6;
+const TRENDING_UP_WINDOW_DAYS = 7;
 // Matches contribution.service.ts's DUPLICATE_SIMILARITY_THRESHOLD (same
 // "how similar is similar enough" question, same value) — 0.2 produced real
 // false positives on short queries: unaccented "Cơm tấm" ("Com tam") vs an
@@ -164,6 +166,21 @@ export class SearchService {
       ? Prisma.sql`ST_Distance(l.geo_point, ST_SetSRID(ST_MakePoint(${query.lng}, ${query.lat}), 4326)::geography)`
       : Prisma.sql`NULL`;
 
+    // 'trending' (home page's per-category "Top 5 nên thử") ranks on
+    // activity — view count plus review count, reviews weighted 5x since
+    // leaving one is a far stronger signal of genuine interest than a
+    // page view — instead of the default relevance/rating/distance/recency
+    // order. 'newest' (mobile Explore's "Mới mở" segment) simply ranks by
+    // `created_at`. Relevance stays the first tie-break even for these two
+    // (0 for every row in pure-browse mode, a no-op) so a `q` + `sort=...`
+    // combination still behaves sensibly rather than ignoring the search term.
+    const orderByExpr =
+      query.sort === 'trending'
+        ? Prisma.sql`text_rank DESC, (COALESCE(rs.view_count, 0) + COALESCE(rs.review_count, 0) * 5) DESC, r.created_at DESC`
+        : query.sort === 'newest'
+          ? Prisma.sql`text_rank DESC, r.created_at DESC`
+          : Prisma.sql`text_rank DESC, rs.composite_score DESC NULLS LAST, distance_meters ASC NULLS LAST, r.created_at DESC`;
+
     const rows = await this.prisma.$queryRaw<RawRow[]>`
       SELECT
         r.id,
@@ -188,11 +205,7 @@ export class SearchService {
       LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
       LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
       WHERE ${whereClause}
-      -- Relevance first (0 for every row when there's no q, so this tier is
-      -- a no-op in pure-browse mode), then composite score (build-prompts/06)
-      -- so a well-reviewed restaurant outranks a mediocre one for the same
-      -- query, then proximity, then recency as the final tiebreak.
-      ORDER BY text_rank DESC, rs.composite_score DESC NULLS LAST, distance_meters ASC NULLS LAST, r.created_at DESC
+      ORDER BY ${orderByExpr}
       LIMIT ${MAX_CANDIDATES}
     `;
 
@@ -218,6 +231,86 @@ export class SearchService {
     await this.logSearchHistory(query, context, filtered.length);
 
     return { items, total: filtered.length, page, pageSize };
+  }
+
+  /**
+   * "Quán đang lên" (home page) — ranked by week-over-week GROWTH, not
+   * lifetime totals like the 'trending' sort above. Compares two 7-day
+   * windows (this week vs the prior week) using the same
+   * views + reviews*5 activity score; a restaurant only qualifies if that
+   * score is genuinely increasing (`growth > 0`), so a merely popular but
+   * flat/declining restaurant never shows up here. Reviews use `Review.createdAt`
+   * directly (free); views use RestaurantDailyStat (RestaurantService.incrementViewCount),
+   * since RestaurantStatus.viewCount alone has no time dimension.
+   */
+  async findTrendingUp(province: string | undefined, limit = DEFAULT_TRENDING_UP_LIMIT): Promise<RestaurantSummaryDto[]> {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const recentStart = new Date(today);
+    recentStart.setUTCDate(recentStart.getUTCDate() - (TRENDING_UP_WINDOW_DAYS - 1));
+    const prevStart = new Date(today);
+    prevStart.setUTCDate(prevStart.getUTCDate() - (2 * TRENDING_UP_WINDOW_DAYS - 1));
+
+    const provinceCondition = province ? Prisma.sql`AND a.province = ${province}` : Prisma.sql``;
+
+    const rows = await this.prisma.$queryRaw<RawRow[]>`
+      WITH view_stats AS (
+        SELECT restaurant_id,
+          SUM(CASE WHEN date >= ${recentStart} THEN view_count ELSE 0 END) AS views_recent,
+          SUM(CASE WHEN date >= ${prevStart} AND date < ${recentStart} THEN view_count ELSE 0 END) AS views_prev
+        FROM restaurant_daily_stats
+        WHERE date >= ${prevStart}
+        GROUP BY restaurant_id
+      ),
+      review_stats AS (
+        SELECT restaurant_id,
+          COUNT(*) FILTER (WHERE created_at >= ${recentStart}) AS reviews_recent,
+          COUNT(*) FILTER (WHERE created_at >= ${prevStart} AND created_at < ${recentStart}) AS reviews_prev
+        FROM reviews
+        WHERE status = 'published' AND deleted_at IS NULL AND created_at >= ${prevStart}
+        GROUP BY restaurant_id
+      )
+      SELECT
+        r.id,
+        r.slug,
+        r.name,
+        r.cover_photo_id,
+        rc.code AS category_code,
+        rc.label AS category_label,
+        rs.composite_score,
+        COALESCE(rs.review_count, 0) AS review_count,
+        pr.code AS price_code,
+        pr.min_vnd AS price_min_vnd,
+        pr.max_vnd AS price_max_vnd,
+        l.lat,
+        l.lng,
+        NULL::float AS distance_meters,
+        0 AS text_rank
+      FROM restaurants r
+      JOIN locations l ON l.id = r.location_id
+      JOIN restaurant_categories rc ON rc.id = r.category_id
+      JOIN addresses a ON a.id = r.address_id
+      LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
+      LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
+      LEFT JOIN view_stats v ON v.restaurant_id = r.id
+      LEFT JOIN review_stats rv ON rv.restaurant_id = r.id
+      WHERE r.deleted_at IS NULL
+        AND rs.publication_status = 'published'
+        ${provinceCondition}
+        AND (
+          (COALESCE(v.views_recent, 0) + COALESCE(rv.reviews_recent, 0) * 5)
+          - (COALESCE(v.views_prev, 0) + COALESCE(rv.reviews_prev, 0) * 5)
+        ) > 0
+      ORDER BY
+        (
+          (COALESCE(v.views_recent, 0) + COALESCE(rv.reviews_recent, 0) * 5)
+          - (COALESCE(v.views_prev, 0) + COALESCE(rv.reviews_prev, 0) * 5)
+        ) DESC,
+        (COALESCE(v.views_recent, 0) + COALESCE(rv.reviews_recent, 0) * 5) DESC
+      LIMIT ${limit}
+    `;
+
+    return this.hydrate(rows);
   }
 
   private validate(query: SearchQueryDto): void {

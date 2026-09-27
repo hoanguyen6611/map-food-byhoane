@@ -42,6 +42,7 @@
     "mapNavLink": "Bản đồ",
     "aboutNavLink": "Cách chấm điểm",
     "categoriesNavLink": "Danh mục",
+    "leaderboardNavLink": "Xếp hạng",
     "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở khắp Việt Nam qua đánh giá thật.",
     "accountSectionLabel": "Tài khoản"
   },
@@ -54,8 +55,9 @@
     "searchButtonShort": "Tìm",
     "categoriesHeading": "Danh mục",
     "areasHeading": "Khu vực",
-    "featuredHeading": "Quán nổi bật",
-    "emptyFeatured": "Chưa có quán nào được đăng.",
+    "topCategoryHeading": "Top 6 {category} nên thử",
+    "trendingUpHeading": "Quán đang lên",
+    "trendingUpCaption": "Tăng trưởng lượt xem và đánh giá nhanh nhất tuần này",
     "heroBadge": "{province} · {count} quán đã được đánh giá",
     "heroArea": "TP. Hồ Chí Minh",
     "heroChipsLabel": "Đang tìm nhiều:",
@@ -66,8 +68,7 @@
     "statRestaurants": "Quán đã đánh giá",
     "statCriteria": "Tiêu chí chấm điểm",
     "seeAllLink": "Xem tất cả quán →",
-    "areasCaption": "Bấm để xem trang khu vực",
-    "featuredCaption": "Sắp theo điểm đánh giá"
+    "areasCaption": "Bấm để xem trang khu vực"
   },
   "search": {
     "titleAll": "Tìm kiếm quán ăn",
@@ -197,6 +198,8 @@
     "genericError": "Email hoặc mật khẩu không đúng.",
     "greeting": "Xin chào, {email}",
     "favoritesLink": "Yêu thích",
+    "feedLink": "Bảng tin",
+    "collectionsLink": "Bộ sưu tập",
     "profileLink": "Hồ sơ",
     "viewProfileHint": "Xem hồ sơ của bạn",
     "notificationsLink": "Thông báo",
@@ -226,6 +229,53 @@
     "subtitle": "{count} quán bạn đã lưu để ghé sau",
     "empty": "Bạn chưa lưu quán ăn nào.",
     "emptyBody": "Bấm biểu tượng trái tim trên trang chi tiết quán để lưu vào đây."
+  },
+  "collections": {
+    "title": "Bộ sưu tập của tôi",
+    "subtitle": "Tạo danh sách quán riêng và chia sẻ với bạn bè",
+    "navLink": "Bộ sưu tập",
+    "notFoundTitle": "Không tìm thấy bộ sưu tập",
+    "createButton": "Tạo bộ sưu tập mới",
+    "createHeading": "Tạo bộ sưu tập",
+    "editHeading": "Chỉnh sửa bộ sưu tập",
+    "nameLabel": "Tên bộ sưu tập",
+    "descriptionLabel": "Mô tả (không bắt buộc)",
+    "publicToggleLabel": "Công khai",
+    "publicToggleSub": "Bất kỳ ai có liên kết đều xem được bộ sưu tập này",
+    "cancel": "Huỷ",
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "nameRequiredError": "Vui lòng nhập tên bộ sưu tập.",
+    "saveError": "Không thể lưu bộ sưu tập. Vui lòng thử lại.",
+    "empty": "Bạn chưa có bộ sưu tập nào",
+    "emptyBody": "Tạo bộ sưu tập để nhóm các quán ăn theo chủ đề riêng của bạn.",
+    "emptyItems": "Bộ sưu tập này chưa có quán nào.",
+    "publicBadge": "Công khai",
+    "privateBadge": "Riêng tư",
+    "editButton": "Sửa",
+    "deleteButton": "Xoá",
+    "deleteConfirm": "Xoá bộ sưu tập này? Hành động này không thể hoàn tác.",
+    "removeItemButton": "Xoá khỏi bộ sưu tập",
+    "addToCollectionButton": "Thêm vào bộ sưu tập",
+    "loading": "Đang tải...",
+    "noCollectionsYet": "Bạn chưa có bộ sưu tập nào",
+    "newCollectionPlaceholder": "Tên bộ sưu tập mới"
+  },
+  "feed": {
+    "title": "Bảng tin",
+    "subtitle": "Hoạt động đánh giá mới nhất từ những người bạn theo dõi",
+    "navLink": "Bảng tin",
+    "reviewedLine": "{name} đã đánh giá {restaurant}",
+    "empty": "Bảng tin trống",
+    "emptyBody": "Hãy theo dõi thêm người dùng khác để xem đánh giá của họ tại đây."
+  },
+  "leaderboard": {
+    "title": "Bảng xếp hạng người đóng góp",
+    "subtitle": "Xếp hạng theo điểm đóng góp: đánh giá, địa điểm đã thêm, lượt đánh giá hữu ích nhận được",
+    "navLink": "Xếp hạng",
+    "pointsLabel": "{points} điểm",
+    "levelBadge": "Cấp {level}",
+    "empty": "Chưa có ai lọt bảng xếp hạng."
   },
   "labels": {
     "category": {

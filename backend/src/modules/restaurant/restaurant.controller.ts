@@ -9,9 +9,13 @@ import type {
   RestaurantSummaryDto,
 } from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
+import { SearchService } from '../search/search.service';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { BoundsQueryDto } from './dto/bounds-query.dto';
 import { SlugsQueryDto } from './dto/slugs-query.dto';
+
+const DEFAULT_TRENDING_UP_LIMIT = 6;
+const MAX_TRENDING_UP_LIMIT = 20;
 
 // Blunt safety cap on top of SlugsQueryDto's whole-string MaxLength — the
 // one real caller (web's notifications page) never needs more than a page's
@@ -21,7 +25,10 @@ const MAX_SLUG_LOOKUP_IDS = 50;
 @ApiTags('Restaurants')
 @Controller('restaurants')
 export class RestaurantController {
-  constructor(private readonly restaurantService: RestaurantService) {}
+  constructor(
+    private readonly restaurantService: RestaurantService,
+    private readonly searchService: SearchService,
+  ) {}
 
   // Literal routes ('nearby', 'bounds', 'sitemap-index', 'slug') MUST stay
   // declared before the ':id' catch-all below, or NestJS would match e.g.
@@ -44,6 +51,13 @@ export class RestaurantController {
       query.swLng,
       query.neLat,
       query.neLng,
+      {
+        category: query.category,
+        facilities: query.facilities,
+        cuisine: query.cuisine,
+        province: query.province,
+        ward: query.ward,
+      },
     );
   }
 
@@ -66,6 +80,18 @@ export class RestaurantController {
   getSlugsByIds(@Query() query: SlugsQueryDto): Promise<RestaurantSlugLookupDto[]> {
     const ids = [...new Set(query.ids.split(',').map((id) => id.trim()).filter((id) => isUUID(id)))].slice(0, MAX_SLUG_LOOKUP_IDS);
     return this.restaurantService.findSlugsByIds(ids);
+  }
+
+  // Home page's "Quán đang lên" — also a literal route, also must stay
+  // before ':id'. See SearchService.findTrendingUp's doc comment.
+  @Get('trending-up')
+  getTrendingUp(
+    @Query('province') province?: string,
+    @Query('limit') limit?: string,
+  ): Promise<RestaurantSummaryDto[]> {
+    const parsed = limit ? Number(limit) : DEFAULT_TRENDING_UP_LIMIT;
+    const safeLimit = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, MAX_TRENDING_UP_LIMIT) : DEFAULT_TRENDING_UP_LIMIT;
+    return this.searchService.findTrendingUp(province, safeLimit);
   }
 
   @Get(':id')

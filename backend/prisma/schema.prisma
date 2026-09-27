@@ -124,6 +124,7 @@ model User {
   parkingInfoUpdates      ParkingInformation[] @relation("ParkingLastUpdatedBy")
   following               Follow[]             @relation("Following")
   followers               Follow[]             @relation("Followers")
+  collections             Collection[]
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
   // treats NULL as distinct per standard unique-index semantics — this is
@@ -374,6 +375,8 @@ model Restaurant {
   seatAvailabilities  SeatAvailability[]
   powerOutletStatuses PowerOutletStatus[]
   parkingInformation  ParkingInformation?
+  dailyStats          RestaurantDailyStat[]
+  collectionItems     CollectionItem[]
 
   @@index([categoryId])
   @@index([priceRangeId])
@@ -395,6 +398,25 @@ model RestaurantStatus {
   viewCount         Int                         @default(0) @map("view_count")
 
   @@map("restaurant_status")
+}
+
+// One row per restaurant per calendar day, incremented alongside
+// RestaurantStatus.viewCount (RestaurantService.incrementViewCount) — unlike
+// that single lifetime running total, this gives view counts a time
+// dimension, needed for SearchService.findTrendingUp's week-over-week growth
+// ranking ("Quán đang lên"). Review velocity needs no equivalent table —
+// Review.createdAt already lets that be computed with a plain date-range
+// COUNT.
+model RestaurantDailyStat {
+  id           String     @id @default(uuid())
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  date         DateTime   @db.Date
+  viewCount    Int        @default(0) @map("view_count")
+
+  @@unique([restaurantId, date])
+  @@index([date])
+  @@map("restaurant_daily_stats")
 }
 
 model OpeningHour {
@@ -930,6 +952,39 @@ model Favorite {
   @@map("favorites")
 }
 
+// User-created named list of restaurants (e.g. "Quán ăn khuya Q1"), optionally
+// shareable via a public link — unlike Favorite (one flat, unnamed set per
+// user), a user can have many of these. `isPublic` defaults false (private
+// until explicitly shared), same "private by default, explicit opt-in"
+// convention as UserProfile.isPublic.
+model Collection {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isPublic    Boolean          @default(false) @map("is_public")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  items       CollectionItem[]
+
+  @@index([userId])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String     @id @default(uuid())
+  collectionId String     @map("collection_id")
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@unique([collectionId, restaurantId])
+  @@index([restaurantId])
+  @@map("collection_items")
+}
+
 // User-to-user relationship backing the public profile "Theo dõi"/Follow
 // feature (web/src/app/[locale]/profile/[id]) — no block/mute concept yet,
 // just the one-directional follow edge. Both indexes exist because the two
@@ -970,6 +1025,9 @@ enum NotificationType {
   // Fired at FollowService.follow — someone starts following this user.
   // deepLink: { screen: 'Profile', userId: <the new follower's id> }.
   new_follower
+  // Fired at ReviewService.createReply — someone (not the review's own
+  // author) replies to a review, including the restaurant's owner.
+  review_reply
 }
 
 // `payload` carries the deep-link target (screen + id) per the ERD note —

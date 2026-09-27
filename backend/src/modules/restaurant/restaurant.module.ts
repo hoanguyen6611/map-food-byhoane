@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module';
+import { SearchModule } from '../search/search.module';
 import { RestaurantController } from './restaurant.controller';
 import { RestaurantService } from './restaurant.service';
 import { CatalogController } from './catalog.controller';
@@ -13,7 +14,7 @@ import { CatalogService } from './catalog.service';
 // rather than its own module — it's small, restaurant-scoped reference
 // data, same rationale as everything else in this module.
 @Module({
-  imports: [MediaModule],
+  imports: [MediaModule, SearchModule],
   controllers: [RestaurantController, CatalogController],
   providers: [RestaurantService, CatalogService],
   exports: [RestaurantService],

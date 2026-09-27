@@ -27,7 +27,7 @@ import {
 } from '../../lib/geo';
 import { RestaurantPreviewCard } from '../../components/map/RestaurantPreviewCard';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
-import { getFilterValues, useFilterStore } from '../../store/filterStore';
+import { getFilterValues, useFilterStore, countActiveFilters } from '../../store/filterStore';
 import { PRICE_BUCKETS } from '../../lib/priceBuckets';
 import { FONT_FAMILY } from '../../theme/fonts';
 
@@ -93,8 +93,13 @@ export function MapScreen({ navigation }: Props) {
   // instead of a second independent flow; this effect just derives the
   // screen-local `initialRegion`/banner state from the hook's result, same
   // as the original inline implementation did.
-  const { location: deviceLocation, isResolved: locationResolved, isFallback: locationIsFallback } =
-    useDeviceLocation();
+  const {
+    location: deviceLocation,
+    isResolved: locationResolved,
+    isFallback: locationIsFallback,
+    isRefreshing: isLocating,
+    refresh: refreshLocation,
+  } = useDeviceLocation();
 
   useEffect(() => {
     if (!locationResolved) return;
@@ -133,11 +138,6 @@ export function MapScreen({ navigation }: Props) {
     }, REGION_CHANGE_DEBOUNCE_MS);
   }, []);
 
-  const restaurantsQuery = useRestaurantsInBounds(debouncedBounds);
-  const restaurants = restaurantsQuery.data ?? [];
-  const favoriteIdsQuery = useFavoriteIds();
-  const toggleFavorite = useToggleFavorite();
-
   const openNow = useFilterStore((state) => state.openNow);
   const priceMin = useFilterStore((state) => state.priceMin);
   const priceMax = useFilterStore((state) => state.priceMax);
@@ -148,6 +148,21 @@ export function MapScreen({ navigation }: Props) {
   // reference-equal to the last one) and warns/can loop, since Zustand v5's
   // useStore no longer applies shallow-equality to object selectors itself.
   const filterValues = useFilterStore(useShallow(getFilterValues));
+  const activeFilterCount = countActiveFilters(filterValues);
+
+  // Category/cuisine/facilities/area now narrow `/restaurants/bounds`
+  // server-side (RestaurantSummaryDto has no fields for those to filter
+  // client-side, unlike openNow/price/minRating below).
+  const restaurantsQuery = useRestaurantsInBounds(debouncedBounds, {
+    category: filterValues.category,
+    facilities: filterValues.facilities,
+    cuisine: filterValues.cuisine,
+    province: filterValues.province,
+    ward: filterValues.ward,
+  });
+  const restaurants = restaurantsQuery.data ?? [];
+  const favoriteIdsQuery = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
 
   const filteredRestaurants = restaurants.filter((restaurant) => {
     if (openNow && !restaurant.isOpenNow) return false;
@@ -175,9 +190,20 @@ export function MapScreen({ navigation }: Props) {
     !restaurantsQuery.isLoading &&
     (restaurants.length === 0 || filteredRestaurants.length === 0);
 
-  function handleRecenter() {
-    if (!deviceLocation || !mapRef.current) return;
-    mapRef.current.animateToRegion({ ...deviceLocation, ...DEFAULT_REGION_DELTA }, 400);
+  // Always-available "locate me": recenters immediately if we already have a
+  // fix; otherwise re-prompts for permission and fetches a fresh one — a
+  // denial/timeout at app boot (PermissionLocationScreen) is no longer a
+  // dead end for the rest of the session.
+  async function handleLocateMe() {
+    if (deviceLocation) {
+      mapRef.current?.animateToRegion({ ...deviceLocation, ...DEFAULT_REGION_DELTA }, 400);
+      return;
+    }
+    const resolved = await refreshLocation();
+    if (resolved) {
+      setLocationBannerVisible(false);
+      mapRef.current?.animateToRegion({ ...resolved, ...DEFAULT_REGION_DELTA }, 400);
+    }
   }
 
   function handleManualAreaPicked(center: LatLng) {
@@ -315,6 +341,15 @@ export function MapScreen({ navigation }: Props) {
           >
             <Text style={[styles.quickChipText, minRating !== undefined && styles.quickChipTextActive]}>{t('map.chipRating')}</Text>
           </Pressable>
+          <Pressable
+            style={[styles.quickChip, activeFilterCount > 0 && styles.quickChipActive]}
+            onPress={() => navigation.navigate('Filter')}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.quickChipText, activeFilterCount > 0 && styles.quickChipTextActive]}>
+              {activeFilterCount > 0 ? t('list.filterWithCount', { count: activeFilterCount }) : t('list.filter')}
+            </Text>
+          </Pressable>
         </View>
       </View>
 
@@ -358,16 +393,19 @@ export function MapScreen({ navigation }: Props) {
         </View>
       ) : null}
 
-      {deviceLocation ? (
-        <Pressable
-          style={[styles.recenterButton, { bottom: floatingButtonBottom }]}
-          onPress={handleRecenter}
-          accessibilityRole="button"
-          accessibilityLabel={t('map.recenter')}
-        >
+      <Pressable
+        style={[styles.recenterButton, { bottom: floatingButtonBottom }]}
+        onPress={handleLocateMe}
+        disabled={isLocating}
+        accessibilityRole="button"
+        accessibilityLabel={t('map.recenter')}
+      >
+        {isLocating ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : (
           <Text style={styles.recenterButtonText}>◎</Text>
-        </Pressable>
-      ) : null}
+        )}
+      </Pressable>
 
       <Pressable
         style={[styles.fab, { bottom: floatingButtonBottom }]}

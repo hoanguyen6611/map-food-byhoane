@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import type { CuisineCode, FacilityType } from '@foodmap/shared-types';
 import { VN_PROVINCES, findVnProvinceByName } from '@foodmap/shared-types';
 import type { MainStackParamList } from '../../navigation/types';
 import { PRICE_BUCKETS, type PriceBucket } from '../../lib/priceBuckets';
 import { getFilterValues, useFilterStore, type FilterValues } from '../../store/filterStore';
+import { useCategories } from '../../hooks/useCategories';
+import { useFacilities } from '../../hooks/useFacilities';
+import { useCuisines } from '../../hooks/useCuisines';
 import { SearchableSelectModal } from '../../components/SearchableSelectModal';
 import { useTheme, type ThemeColors } from '../../theme/ThemeContext';
 import { FONT_FAMILY } from '../../theme/fonts';
@@ -19,29 +21,6 @@ const DISTANCE_STEP_KM = 0.5;
 const DEFAULT_DISTANCE_KM = 3;
 
 const RATING_OPTIONS = [1, 2, 3, 4, 5];
-
-const FACILITY_LABEL_KEYS: Record<FacilityType, string> = {
-  wifi: 'filter.facilityWifi',
-  parking_car: 'filter.facilityParkingCar',
-  parking_motorbike: 'filter.facilityParkingMotorbike',
-  air_conditioner: 'filter.facilityAirConditioner',
-  outdoor_seating: 'filter.facilityOutdoorSeating',
-  kid_friendly: 'filter.facilityKidFriendly',
-  pet_friendly: 'filter.facilityPetFriendly',
-  card_payment: 'filter.facilityCardPayment',
-  private_room: 'filter.facilityPrivateRoom',
-};
-const FACILITY_OPTIONS = Object.keys(FACILITY_LABEL_KEYS) as FacilityType[];
-
-const CUISINE_LABEL_KEYS: Record<CuisineCode, string> = {
-  mon_viet: 'filter.cuisineMonViet',
-  mon_han: 'filter.cuisineMonHan',
-  mon_nhat: 'filter.cuisineMonNhat',
-  mon_chay: 'filter.cuisineMonChay',
-  mon_thai: 'filter.cuisineMonThai',
-  mon_au: 'filter.cuisineMonAu',
-};
-const CUISINE_OPTIONS = Object.keys(CUISINE_LABEL_KEYS) as CuisineCode[];
 
 function toggleInArray<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
@@ -65,6 +44,9 @@ function toggleInArray<T>(list: T[], value: T): T[] {
  */
 export function FilterScreen({ navigation }: Props) {
   const [local, setLocal] = useState<FilterValues>(() => getFilterValues(useFilterStore.getState()));
+  const categoriesQuery = useCategories();
+  const facilitiesQuery = useFacilities();
+  const cuisinesQuery = useCuisines();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = createStyles(colors);
@@ -92,6 +74,11 @@ export function FilterScreen({ navigation }: Props) {
 
   function clearArea() {
     setLocal((prev) => ({ ...prev, province: undefined, ward: undefined }));
+  }
+
+  // Single-select pill toggle — tapping the active category clears it.
+  function selectCategory(code: string) {
+    setLocal((prev) => ({ ...prev, category: prev.category === code ? undefined : code }));
   }
 
   const selectedBucket = PRICE_BUCKETS.find(
@@ -124,11 +111,11 @@ export function FilterScreen({ navigation }: Props) {
     setLocal((prev) => ({ ...prev, minRating: prev.minRating === rating ? undefined : rating }));
   }
 
-  function toggleFacility(facility: FacilityType) {
+  function toggleFacility(facility: string) {
     setLocal((prev) => ({ ...prev, facilities: toggleInArray(prev.facilities, facility) }));
   }
 
-  function toggleCuisine(cuisine: CuisineCode) {
+  function toggleCuisine(cuisine: string) {
     setLocal((prev) => ({ ...prev, cuisine: toggleInArray(prev.cuisine, cuisine) }));
   }
 
@@ -145,6 +132,22 @@ export function FilterScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.sectionTitle}>{t('filter.category')}</Text>
+        <View style={styles.chipRow}>
+          {(categoriesQuery.data ?? []).map((cat) => {
+            const selected = local.category === cat.code;
+            return (
+              <Pressable
+                key={cat.code}
+                style={[styles.chip, selected && styles.chipSelected]}
+                onPress={() => selectCategory(cat.code)}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{cat.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Text style={styles.sectionTitle}>{t('filter.distance')}</Text>
         <View style={styles.rowBetween}>
           <Text style={styles.rowLabel}>{t('filter.limitDistance')}</Text>
@@ -259,17 +262,15 @@ export function FilterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>{t('filter.facilities')}</Text>
         <View style={styles.chipRow}>
-          {FACILITY_OPTIONS.map((facility) => {
-            const selected = local.facilities.includes(facility);
+          {(facilitiesQuery.data ?? []).map((facility) => {
+            const selected = local.facilities.includes(facility.code);
             return (
               <Pressable
-                key={facility}
+                key={facility.code}
                 style={[styles.chip, selected && styles.chipSelected]}
-                onPress={() => toggleFacility(facility)}
+                onPress={() => toggleFacility(facility.code)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                  {t(FACILITY_LABEL_KEYS[facility])}
-                </Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{facility.label}</Text>
               </Pressable>
             );
           })}
@@ -277,15 +278,15 @@ export function FilterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>{t('filter.cuisine')}</Text>
         <View style={styles.chipRow}>
-          {CUISINE_OPTIONS.map((cuisine) => {
-            const selected = local.cuisine.includes(cuisine);
+          {(cuisinesQuery.data ?? []).map((cuisine) => {
+            const selected = local.cuisine.includes(cuisine.code);
             return (
               <Pressable
-                key={cuisine}
+                key={cuisine.code}
                 style={[styles.chip, selected && styles.chipSelected]}
-                onPress={() => toggleCuisine(cuisine)}
+                onPress={() => toggleCuisine(cuisine.code)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{t(CUISINE_LABEL_KEYS[cuisine])}</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{cuisine.label}</Text>
               </Pressable>
             );
           })}

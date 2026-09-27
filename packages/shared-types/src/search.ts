@@ -2,6 +2,14 @@
 import type { Paginated } from './common';
 import type { CuisineCode, FacilityType, RestaurantCategoryCode, RestaurantSummaryDto } from './restaurant';
 
+// Default ordering (see SearchService) is relevance -> composite score ->
+// distance -> recency. 'trending' overrides that with a popularity ranking
+// (view count + review count, weighted — see SearchService's doc comment
+// for the exact formula) — added for the home page's per-category "Top 5
+// nên thử" sections, which rank on activity rather than review quality.
+// 'newest' orders by `Restaurant.createdAt` — mobile Explore's "Mới mở" segment.
+export type SearchSort = 'trending' | 'newest';
+
 // Shared by `GET /search` (with `q`) and `GET /restaurants` (browse, no `q`) —
 // both endpoints accept the same filter surface per the build-prompt.
 export interface SearchFilters {
@@ -30,6 +38,8 @@ export interface SearchFilters {
   province?: string;
   /** Exact match — only meaningful alongside `province` (ward names aren't globally unique). */
   ward?: string;
+  /** Omitted = default relevance/rating ordering. See `SearchSort`. */
+  sort?: SearchSort;
   page?: number;
   pageSize?: number;
 }

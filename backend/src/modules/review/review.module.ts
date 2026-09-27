@@ -7,6 +7,7 @@ import {
   ReviewController,
   RestaurantReviewController,
   MyReviewController,
+  FeedController,
 } from './review.controller';
 import { ReviewService } from './review.service';
 import { ReviewModerationService } from './review-moderation.service';
@@ -43,6 +44,7 @@ import { CompositeScoreProcessor } from './composite-score.processor';
     ReviewController,
     RestaurantReviewController,
     MyReviewController,
+    FeedController,
   ],
   providers: [
     ReviewService,

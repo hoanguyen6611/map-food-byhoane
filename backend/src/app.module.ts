@@ -15,6 +15,7 @@ import { SearchModule } from './modules/search/search.module';
 import { ReviewModule } from './modules/review/review.module';
 import { FavoriteModule } from './modules/favorite/favorite.module';
 import { FollowModule } from './modules/follow/follow.module';
+import { CollectionModule } from './modules/collection/collection.module';
 import { MediaModule } from './modules/media/media.module';
 import { ContributionModule } from './modules/contribution/contribution.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
@@ -68,6 +69,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ReviewModule,
     FavoriteModule,
     FollowModule,
+    CollectionModule,
     MediaModule,
     ContributionModule,
     ModerationModule,

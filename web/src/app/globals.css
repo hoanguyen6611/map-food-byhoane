@@ -1304,6 +1304,112 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+/* ---------- Leaderboard ---------- */
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border-hairline);
+}
+.leaderboard-row:last-child {
+  border-bottom: none;
+}
+.leaderboard-rank {
+  width: 24px;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-ink-subtle);
+}
+.leaderboard-avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-cream);
+  border: 1px solid var(--color-cream-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+}
+.leaderboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.leaderboard-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.leaderboard-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leaderboard-points {
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
+.leaderboard-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
+.leaderboard-comment {
+  display: block;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Feed row — like .leaderboard-row, but column layout so a photo strip can
+   sit below the header line without nesting an interactive photo button
+   inside the header's own <Link>. */
+.feed-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border-hairline);
+}
+.feed-row:last-child {
+  border-bottom: none;
+}
+.feed-row-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
 /* ---------- Stars ---------- */
 
 .stars {
@@ -3115,6 +3221,14 @@ table.menu-table td.price {
   display: flex;
   gap: 8px;
 }
+/* On its own row now (see restaurant/[slug]/page.tsx), not sharing .action-row
+   with the icon buttons — full width so it reads as the one clear primary
+   action instead of being squeezed thin next to three fixed-width icons. */
+.action-primary-full {
+  width: 100%;
+  height: 50px;
+  font-size: 16.5px;
+}
 .action-primary {
   flex: 1;
   height: 42px;
@@ -3130,6 +3244,12 @@ table.menu-table td.price {
   font-weight: 500;
   border: none;
   cursor: pointer;
+}
+/* Overrides the global `a:hover` color swap (globals.css's base `a`/`a:hover`
+   rule) — this is a solid-background button, not a text link, so its label
+   must stay white on hover instead of picking up the link hover color. */
+.action-primary:hover {
+  color: #fff;
 }
 .action-primary:active {
   transform: translateY(0.5px);
@@ -4382,6 +4502,17 @@ table.menu-table td.price {
   font-family: var(--font-figtree), sans-serif;
   font-size: 15px;
   color: var(--color-ink-subtle);
+}
+
+/* Title block on the left, one primary action on the right — for a list
+   page whose main action is "create new" (e.g. collections), instead of
+   a full-width button sitting awkwardly above the list. */
+.page-header-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .favorites-page-header {

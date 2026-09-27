@@ -9,6 +9,7 @@ import {
 import { Prisma, type Review } from '@prisma/client';
 import type {
   CreateReviewRequest,
+  FeedResponse,
   MyReviewListResponse,
   PhotoDto,
   PublicProfileReviewListResponse,
@@ -297,6 +298,79 @@ export class ReviewService {
           ward: r.restaurant.address?.ward ?? null,
         },
       })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  // Feed (web's /feed) — recent published reviews from users the viewer
+  // follows. Same query shape as listPublishedForUser, scoped to a set of
+  // author ids instead of one, and additionally including each row's author
+  // (with the same isPublic-driven anonymization toDto/toReplyDto already
+  // apply elsewhere) since the feed mixes reviews from many different people.
+  async listFeedForUser(
+    viewerId: string,
+    page = 1,
+    pageSize = DEFAULT_MY_REVIEWS_PAGE_SIZE,
+  ): Promise<FeedResponse> {
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: viewerId },
+      select: { followingId: true },
+    });
+    const followingIds = following.map((f) => f.followingId);
+    if (followingIds.length === 0) {
+      return { items: [], total: 0, page, pageSize };
+    }
+
+    const where: Prisma.ReviewWhereInput = {
+      userId: { in: followingIds },
+      status: 'published',
+      deletedAt: null,
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        include: { restaurant: { include: { address: true } }, user: { include: { profile: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.review.count({ where }),
+    ]);
+
+    const restaurantIds = rows.map((r) => r.restaurantId);
+    const reviewIds = rows.map((r) => r.id);
+    const [thumbnailByRestaurantId, photosByReviewId, avatarUrlByPhotoId] = await Promise.all([
+      this.batchFetchRestaurantThumbnails(restaurantIds),
+      this.batchFetchPhotos(reviewIds),
+      this.batchFetchAvatarUrls(rows.map((r) => r.user.profile?.avatarPhotoId ?? null)),
+    ]);
+
+    return {
+      items: rows.map((r) => {
+        const anonymize = r.user.profile?.isPublic === false;
+        return {
+          id: r.id,
+          overallRating: r.overallRating,
+          comment: r.comment,
+          createdAt: r.createdAt.toISOString(),
+          photos: photosByReviewId.get(r.id) ?? [],
+          restaurant: {
+            id: r.restaurant.id,
+            name: r.restaurant.name,
+            slug: r.restaurant.slug,
+            thumbnailUrl: thumbnailByRestaurantId.get(r.restaurantId) ?? null,
+            ward: r.restaurant.address?.ward ?? null,
+          },
+          author: {
+            id: r.user.id,
+            displayName: anonymize ? 'Người dùng ẩn danh' : (r.user.profile?.displayName ?? 'Người dùng ẩn danh'),
+            avatarUrl: anonymize ? null : (avatarUrlByPhotoId.get(r.user.profile?.avatarPhotoId ?? '') ?? null),
+            isAnonymized: anonymize,
+          },
+        };
+      }),
       total,
       page,
       pageSize,
@@ -778,7 +852,12 @@ export class ReviewService {
   async createReply(reviewId: string, userId: string, body: string): Promise<ReviewReplyDto> {
     const review = await this.prisma.review.findFirst({
       where: { id: reviewId, deletedAt: null },
-      select: { id: true, restaurant: { select: { ownerId: true } } },
+      select: {
+        id: true,
+        userId: true,
+        restaurantId: true,
+        restaurant: { select: { ownerId: true, name: true } },
+      },
     });
     if (!review) {
       throw new NotFoundException('Không tìm thấy đánh giá');
@@ -790,7 +869,42 @@ export class ReviewService {
     const avatarUrlByPhotoId = await this.batchFetchAvatarUrls([
       created.user.profile?.avatarPhotoId ?? null,
     ]);
-    return this.toReplyDto(created, avatarUrlByPhotoId, review.restaurant.ownerId);
+    const dto = this.toReplyDto(created, avatarUrlByPhotoId, review.restaurant.ownerId);
+
+    this.notifyReply(review, dto.isOwnerReply, created.user.id).catch((error) =>
+      this.logger.error('Failed to send reply notification', error instanceof Error ? error.stack : error),
+    );
+
+    return dto;
+  }
+
+  private async notifyReply(
+    review: { id: string; userId: string; restaurantId: string; restaurant: { name: string } },
+    isOwnerReply: boolean,
+    replierId: string,
+  ): Promise<void> {
+    // Never notify yourself that you replied to your own review.
+    if (review.userId === replierId) return;
+
+    const deepLink = { screen: 'Reviews', restaurantId: review.restaurantId, reviewId: review.id };
+
+    let title: string;
+    if (isOwnerReply) {
+      title = 'Chủ quán đã phản hồi đánh giá của bạn';
+    } else {
+      const replierProfile = await this.prisma.userProfile.findUnique({
+        where: { userId: replierId },
+        select: { displayName: true },
+      });
+      const replierName = replierProfile?.displayName ?? 'Một người dùng';
+      title = `${replierName} đã phản hồi đánh giá của bạn`;
+    }
+
+    await this.notificationService.create(review.userId, 'review_reply', {
+      title,
+      body: review.restaurant.name,
+      deepLink,
+    });
   }
 
   async removeReply(reviewId: string, replyId: string, userId: string): Promise<void> {

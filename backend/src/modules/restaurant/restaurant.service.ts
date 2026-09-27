@@ -31,6 +31,15 @@ const REVIEW_PREVIEW_COUNT = 5;
 const VIEWPORT_CACHE_TTL_SECONDS = 45;
 const CACHE_VERSION_KEY = 'viewport:cache:version';
 
+/** Optional narrowing criteria for `findInBounds` — see its doc comment. */
+export interface BoundsFilters {
+  category?: string;
+  facilities?: string[];
+  cuisine?: string[];
+  province?: string;
+  ward?: string;
+}
+
 interface RawRestaurantRow {
   id: string;
   slug: string;
@@ -398,13 +407,25 @@ export class RestaurantService {
    */
   private async incrementViewCount(restaurantId: string): Promise<void> {
     try {
-      await this.prisma.restaurantStatus.update({
-        where: { restaurantId },
-        data: { viewCount: { increment: 1 } },
-      });
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      await Promise.all([
+        this.prisma.restaurantStatus.update({
+          where: { restaurantId },
+          data: { viewCount: { increment: 1 } },
+        }),
+        // Feeds SearchService.findTrendingUp's week-over-week growth ranking
+        // ("Quán đang lên") — the lifetime `viewCount` above has no time
+        // dimension, so a per-day breakdown is tracked separately here.
+        this.prisma.restaurantDailyStat.upsert({
+          where: { restaurantId_date: { restaurantId, date: today } },
+          create: { restaurantId, date: today, viewCount: 1 },
+          update: { viewCount: { increment: 1 } },
+        }),
+      ]);
     } catch {
-      // Status row missing (shouldn't happen — created alongside every
-      // restaurant) or a transient DB error; not worth failing the request.
+      // Status/daily-stat row write failing (transient DB error) is a
+      // secondary side effect; not worth failing the request over.
     }
   }
 
@@ -648,6 +669,7 @@ export class RestaurantService {
     swLng: number,
     neLat: number,
     neLng: number,
+    filters: BoundsFilters = {},
   ): Promise<RestaurantSummaryDto[]> {
     const cacheKey = await this.buildCacheKey(
       'bounds',
@@ -655,9 +677,52 @@ export class RestaurantService {
       this.roundCoord(swLng),
       this.roundCoord(neLat),
       this.roundCoord(neLng),
+      filters.category ?? '',
+      (filters.facilities ?? []).slice().sort().join(','),
+      (filters.cuisine ?? []).slice().sort().join(','),
+      filters.province ?? '',
+      filters.ward ?? '',
     );
     const cached = await this.readCache(cacheKey);
     if (cached) return cached;
+
+    // Same optional-filter conditions as SearchService.search — category/
+    // cuisine/facilities/province/ward, added so the Filter modal (opened
+    // from the Map screen too) actually narrows the map's markers instead of
+    // only affecting Search/List. minRating/openNow/price stay client-side
+    // in MapScreen (RestaurantSummaryDto already carries those fields), same
+    // as before.
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`r.deleted_at IS NULL`,
+      Prisma.sql`rs.publication_status = 'published'`,
+      Prisma.sql`l.geo_point && ST_MakeEnvelope(${swLng}, ${swLat}, ${neLng}, ${neLat}, 4326)::geography`,
+    ];
+
+    if (filters.category) {
+      conditions.push(Prisma.sql`rc.code = ${filters.category}`);
+    }
+    if (filters.province) {
+      conditions.push(Prisma.sql`a.province = ${filters.province}`);
+    }
+    if (filters.ward) {
+      conditions.push(Prisma.sql`a.ward = ${filters.ward}`);
+    }
+    if (filters.cuisine && filters.cuisine.length > 0) {
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM restaurant_cuisines rcu
+        JOIN cuisines c ON c.id = rcu.cuisine_id
+        WHERE rcu.restaurant_id = r.id AND c.code = ANY(${filters.cuisine})
+      )`);
+    }
+    if (filters.facilities && filters.facilities.length > 0) {
+      conditions.push(Prisma.sql`(
+        SELECT COUNT(DISTINCT facility_type)
+        FROM restaurant_facilities
+        WHERE restaurant_id = r.id AND facility_type::text = ANY(${filters.facilities})
+      ) = ${filters.facilities.length}`);
+    }
+
+    const whereClause = Prisma.join(conditions, ' AND ');
 
     const rows = await this.prisma.$queryRaw<RawRestaurantRow[]>`
       SELECT
@@ -677,11 +742,10 @@ export class RestaurantService {
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
+      JOIN addresses a ON a.id = r.address_id
       LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
       LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
-      WHERE r.deleted_at IS NULL
-        AND rs.publication_status = 'published'
-        AND l.geo_point && ST_MakeEnvelope(${swLng}, ${swLat}, ${neLng}, ${neLat}, 4326)::geography
+      WHERE ${whereClause}
       -- Composite score (build-prompts/06) is now real — rank well-reviewed
       -- places first, falling back to recency when scores are equal/absent.
       ORDER BY rs.composite_score DESC NULLS LAST, r.created_at DESC
@@ -794,7 +858,7 @@ export class RestaurantService {
 
   private async buildCacheKey(
     kind: 'nearby' | 'bounds',
-    ...parts: number[]
+    ...parts: (number | string)[]
   ): Promise<string> {
     const version =
       (await this.redis.getClient().get(CACHE_VERSION_KEY)) ?? '0';
