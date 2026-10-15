@@ -15,11 +15,13 @@ import type {
   ModerationDecision,
   ModerationTargetType,
   ReportDto,
+  ReviewCriteriaCode,
 } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminModerationApi } from '../api/admin-moderation'
 import { pushToast } from '../lib/toastStore'
 import {
+  CRITERIA_LABEL,
   DAY_LABELS,
   DECISION_OPTIONS,
   TARGET_TYPE_TABS,
@@ -249,7 +251,15 @@ export function AdminModerationQueuePage() {
                           {expandedId === item.id ? 'Đóng' : 'Xử lý'}
                         </button>
                       ) : (
-                        <span className="moderation-labels">Đã xử lý</span>
+                        // Was `.moderation-labels` (an 11px muted CAPTION
+                        // style meant to sit under something else, not to be
+                        // the cell's only content) — next to the colored
+                        // pill badge in the Trạng thái column, that looked
+                        // like plain text floating over empty cell padding.
+                        // `.status-badge` gives it the same pill weight,
+                        // neutral grey (no color variant — this isn't a
+                        // state needing semantic color, just "handled").
+                        <span className="status-badge">Đã xử lý</span>
                       )}
                     </td>
                   </tr>
@@ -633,13 +643,25 @@ function ReviewDetail({ detail }: { detail: Extract<AdminModerationDetailDto, { 
           <span>Bình luận</span>
           <span>{detail.comment ?? '—'}</span>
         </div>
-        {detail.ratings.length > 0 && (
-          <div className="form-field form-field-wide">
-            <span>Tiêu chí</span>
-            <span>{detail.ratings.map((r) => `${r.criteriaCode}: ${r.score}`).join(', ')}</span>
-          </div>
-        )}
       </div>
+      {detail.ratings.length > 0 && (
+        <table className="hours-table">
+          <thead>
+            <tr>
+              <th>Tiêu chí</th>
+              <th>Điểm</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detail.ratings.map((r) => (
+              <tr key={r.criteriaCode}>
+                <td>{CRITERIA_LABEL[r.criteriaCode as ReviewCriteriaCode] ?? r.criteriaCode}</td>
+                <td>{r.score} / 5</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       {detail.photos.length > 0 && (
         <div className="photo-grid" style={{ marginTop: 12 }}>
           {detail.photos.map((photo) => (

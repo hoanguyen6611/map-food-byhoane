@@ -500,7 +500,14 @@ body {
   text-align: left;
   padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
+  /* `top`, not `middle` — a cell that wraps to a second line (e.g. Rủi ro's
+     `.moderation-labels` line, a report badge, multiple status chips) makes
+     the whole row taller; `middle` then centers every OTHER cell's content
+     in that extra height, making a short action button look like it's
+     floating inside an oversized empty box. Shared across every admin list
+     page (AdminRestaurantManagementPage, AdminReviewManagementPage, etc. —
+     see `.data-table-actions` usage), so this one rule fixes all of them. */
+  vertical-align: top;
 }
 
 .data-table th {

@@ -3,7 +3,7 @@
  * `@foodmap/shared-types` (`moderation.ts`) — kept here only for
  * Vietnamese-language display, not as a source of truth for validation.
  */
-import type { ModerationDecision, ModerationTargetType, ReportReason } from '@foodmap/shared-types'
+import type { ModerationDecision, ModerationTargetType, ReportReason, ReviewCriteriaCode } from '@foodmap/shared-types'
 
 export const TARGET_TYPE_TABS: { value: ModerationTargetType | ''; label: string }[] = [
   { value: '', label: 'Tất cả' },
@@ -85,6 +85,18 @@ const FIELD_NAME_LABELS: Record<string, string> = {
 
 export function fieldNameLabel(fieldName: string): string {
   return FIELD_NAME_LABELS[fieldName] ?? fieldName
+}
+
+// Mirrors web's `criteria.*` i18n strings (web/src/i18n/messages/vi.json) —
+// same 7 codes a review's per-criteria ratings are always scored on.
+export const CRITERIA_LABEL: Record<ReviewCriteriaCode, string> = {
+  food_quality: 'Chất lượng món ăn',
+  space: 'Không gian',
+  price: 'Giá cả',
+  service: 'Phục vụ',
+  hygiene: 'Vệ sinh',
+  wifi: 'Wifi',
+  parking: 'Chỗ để xe',
 }
 
 export const DAY_LABELS: Record<number, string> = {
