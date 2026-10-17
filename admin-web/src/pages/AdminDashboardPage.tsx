@@ -9,9 +9,6 @@ import { ApiError } from '../api/client'
 import { adminDashboardApi } from '../api/admin-dashboard'
 import { ActivityChart } from './dashboard-admin/ActivityChart'
 import { RatingDistributionChart } from './dashboard-admin/RatingDistributionChart'
-import { RecentActivityFeed } from './dashboard-admin/RecentActivityFeed'
-
-const RECENT_ACTIVITY_PAGE_SIZE = 8
 
 const KPI_DEFS: { key: keyof AdminDashboardStatsDto['kpis']; label: string; to: string }[] = [
   { key: 'pendingRestaurants', label: 'Quán chờ duyệt', to: '/moderation?targetType=restaurant&decision=pending' },
@@ -35,11 +32,6 @@ export function AdminDashboardPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: adminDashboardApi.getStats,
-  })
-
-  const auditLogQuery = useQuery({
-    queryKey: ['admin-audit-log', RECENT_ACTIVITY_PAGE_SIZE],
-    queryFn: () => adminDashboardApi.getAuditLog({ page: 1, pageSize: RECENT_ACTIVITY_PAGE_SIZE }),
   })
 
   const isEmpty = data && Object.values(data.kpis).every((value) => value === 0)
@@ -99,19 +91,6 @@ export function AdminDashboardPage() {
           <RatingDistributionChart buckets={data.ratingDistribution} />
         </div>
       )}
-
-      <div className="detail-section">
-        <h2>Hoạt động gần đây</h2>
-        {auditLogQuery.isLoading && <p>Đang tải…</p>}
-        {auditLogQuery.isError && (
-          <p className="form-error" role="alert">
-            {auditLogQuery.error instanceof ApiError
-              ? auditLogQuery.error.message
-              : 'Không thể tải hoạt động gần đây.'}
-          </p>
-        )}
-        {auditLogQuery.data && <RecentActivityFeed entries={auditLogQuery.data.items} />}
-      </div>
 
       <h2>Truy cập nhanh</h2>
       <div className="shortcut-grid">

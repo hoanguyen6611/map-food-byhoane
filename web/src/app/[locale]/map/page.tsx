@@ -108,7 +108,6 @@ export default async function MapPage({ params, searchParams }: PageProps) {
             categoryCounts={categories.map((c, i) => ({ code: c.code, label: c.label, count: categoryCounts[i].total }))}
             cuisineOptions={cuisineOptions}
             totalCount={totalCountResult.total}
-            locale={locale}
             isHcmc={effectiveProvince === HCMC_PROVINCE_NAME}
             basePath="/map"
           />

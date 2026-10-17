@@ -35,6 +35,9 @@ interface HourRow {
   openTime: string
   closeTime: string
   isClosed: boolean
+  isOpen24h: boolean
+  openTime2: string
+  closeTime2: string
 }
 
 interface FormState {
@@ -88,6 +91,9 @@ function toFormState(detail: OwnerRestaurantDetailDto): FormState {
         openTime: existing?.openTime ?? '',
         closeTime: existing?.closeTime ?? '',
         isClosed: existing?.isClosed ?? true,
+        isOpen24h: existing?.isOpen24h ?? false,
+        openTime2: existing?.openTime2 ?? '',
+        closeTime2: existing?.closeTime2 ?? '',
       }
     }),
   }
@@ -143,12 +149,18 @@ const FIELD_DEFS: {
     fieldName: 'openingHours',
     changed: (a, b) => JSON.stringify(a.hours) !== JSON.stringify(b.hours),
     newValue: (f) =>
-      f.hours.map((h) => ({
-        dayOfWeek: h.dayOfWeek,
-        isClosed: h.isClosed,
-        openTime: h.isClosed ? undefined : h.openTime || undefined,
-        closeTime: h.isClosed ? undefined : h.closeTime || undefined,
-      })),
+      f.hours.map((h) => {
+        const rangesDisabled = h.isClosed || h.isOpen24h
+        return {
+          dayOfWeek: h.dayOfWeek,
+          isClosed: h.isClosed,
+          isOpen24h: h.isOpen24h,
+          openTime: rangesDisabled ? undefined : h.openTime || undefined,
+          closeTime: rangesDisabled ? undefined : h.closeTime || undefined,
+          openTime2: rangesDisabled ? undefined : h.openTime2 || undefined,
+          closeTime2: rangesDisabled ? undefined : h.closeTime2 || undefined,
+        }
+      }),
   },
 ]
 
@@ -231,6 +243,42 @@ export function OwnerRestaurantEditPage() {
         : current,
     )
   }
+  // Closed and 24h are mutually exclusive — same reasoning as the admin
+  // editor (restaurant-admin/OpeningHoursSection.tsx's setClosed/setOpen24h):
+  // checking one clears the other rather than leaving both checked with the
+  // backend silently deciding which wins.
+  function setClosed(dayOfWeek: number, isClosed: boolean) {
+    updateHour(dayOfWeek, isClosed ? { isClosed: true, isOpen24h: false } : { isClosed: false })
+  }
+  function setOpen24h(dayOfWeek: number, isOpen24h: boolean) {
+    updateHour(dayOfWeek, isOpen24h ? { isOpen24h: true, isClosed: false } : { isOpen24h: false })
+  }
+  // Copies one day's full schedule (closed/24h/both time ranges) onto every
+  // OTHER day — same "same hours every day" convenience as the admin
+  // version (restaurant-admin/OpeningHoursSection.tsx's applyToAllDays).
+  function applyHourToAllDays(sourceDay: number) {
+    setForm((current) => {
+      if (!current) return current
+      const source = current.hours.find((h) => h.dayOfWeek === sourceDay)
+      if (!source) return current
+      return {
+        ...current,
+        hours: current.hours.map((h) =>
+          h.dayOfWeek === sourceDay
+            ? h
+            : {
+                ...h,
+                isClosed: source.isClosed,
+                isOpen24h: source.isOpen24h,
+                openTime: source.openTime,
+                closeTime: source.closeTime,
+                openTime2: source.openTime2,
+                closeTime2: source.closeTime2,
+              },
+        ),
+      }
+    })
+  }
   function toggleFacility(code: string) {
     setForm((current) =>
       current
@@ -277,9 +325,17 @@ export function OwnerRestaurantEditPage() {
 
     const fieldErrors: Record<number, string> = {}
     for (const row of form.hours) {
-      if (row.isClosed) continue
+      if (row.isClosed || row.isOpen24h) continue
       if (!TIME_PATTERN.test(row.openTime) || !TIME_PATTERN.test(row.closeTime)) {
         fieldErrors[row.dayOfWeek] = 'Định dạng giờ phải là HH:mm (ví dụ 08:00).'
+        continue
+      }
+      const open2 = row.openTime2.trim()
+      const close2 = row.closeTime2.trim()
+      if (open2 || close2) {
+        if (!TIME_PATTERN.test(open2) || !TIME_PATTERN.test(close2)) {
+          fieldErrors[row.dayOfWeek] = 'Khung giờ thứ 2: định dạng phải là HH:mm, hoặc để trống cả hai.'
+        }
       }
     }
     setHourErrors(fieldErrors)
@@ -578,42 +634,84 @@ export function OwnerRestaurantEditPage() {
             <tr>
               <th>Ngày</th>
               <th>Đóng cửa cả ngày</th>
+              <th>Mở cửa 24h</th>
               <th>Giờ mở</th>
               <th>Giờ đóng</th>
+              <th>Giờ mở 2 (tuỳ chọn)</th>
+              <th>Giờ đóng 2 (tuỳ chọn)</th>
+              <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
-            {form.hours.map((row) => (
-              <tr key={row.dayOfWeek}>
-                <td>{DAY_LABELS[row.dayOfWeek]}</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={row.isClosed}
-                    onChange={(e) => updateHour(row.dayOfWeek, { isClosed: e.target.checked })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    placeholder="08:00"
-                    disabled={row.isClosed}
-                    value={row.openTime}
-                    onChange={(e) => updateHour(row.dayOfWeek, { openTime: e.target.value })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    placeholder="22:00"
-                    disabled={row.isClosed}
-                    value={row.closeTime}
-                    onChange={(e) => updateHour(row.dayOfWeek, { closeTime: e.target.value })}
-                  />
-                </td>
-                <td>{hourErrors[row.dayOfWeek] && <span className="field-error">{hourErrors[row.dayOfWeek]}</span>}</td>
-              </tr>
-            ))}
+            {form.hours.map((row) => {
+              const rangesDisabled = row.isClosed || row.isOpen24h
+              return (
+                <tr key={row.dayOfWeek}>
+                  <td>{DAY_LABELS[row.dayOfWeek]}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={row.isClosed}
+                      onChange={(e) => setClosed(row.dayOfWeek, e.target.checked)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={row.isOpen24h}
+                      onChange={(e) => setOpen24h(row.dayOfWeek, e.target.checked)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      placeholder="08:00"
+                      disabled={rangesDisabled}
+                      value={row.openTime}
+                      onChange={(e) => updateHour(row.dayOfWeek, { openTime: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      placeholder="22:00"
+                      disabled={rangesDisabled}
+                      value={row.closeTime}
+                      onChange={(e) => updateHour(row.dayOfWeek, { closeTime: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      placeholder="17:00"
+                      disabled={rangesDisabled}
+                      value={row.openTime2}
+                      onChange={(e) => updateHour(row.dayOfWeek, { openTime2: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      placeholder="22:00"
+                      disabled={rangesDisabled}
+                      value={row.closeTime2}
+                      onChange={(e) => updateHour(row.dayOfWeek, { closeTime2: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="button button-small"
+                      onClick={() => applyHourToAllDays(row.dayOfWeek)}
+                      title={`Áp dụng khung giờ của ${DAY_LABELS[row.dayOfWeek]} cho tất cả các ngày còn lại`}
+                    >
+                      Áp dụng cho tất cả
+                    </button>
+                    {hourErrors[row.dayOfWeek] && <span className="field-error">{hourErrors[row.dayOfWeek]}</span>}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>

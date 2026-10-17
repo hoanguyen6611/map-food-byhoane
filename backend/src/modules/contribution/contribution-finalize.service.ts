@@ -426,23 +426,32 @@ export class ContributionFinalizeService {
           openTime: string | null;
           closeTime: string | null;
           isClosed: boolean;
+          isOpen24h?: boolean;
+          openTime2?: string | null;
+          closeTime2?: string | null;
         }[];
+        // Same closed/24h/second-range rules as AdminRestaurantService's own
+        // direct PUT — kept identical so a day looks the same regardless of
+        // which path (admin staff vs. an approved owner edit suggestion)
+        // actually wrote it.
         await this.prisma.$transaction([
           this.prisma.openingHour.deleteMany({ where: { restaurantId } }),
           this.prisma.openingHour.createMany({
-            data: days.map((day) => ({
-              restaurantId,
-              dayOfWeek: day.dayOfWeek,
-              openTime:
-                day.isClosed || !day.openTime
-                  ? null
-                  : this.parseTime(day.openTime),
-              closeTime:
-                day.isClosed || !day.closeTime
-                  ? null
-                  : this.parseTime(day.closeTime),
-              isClosed: day.isClosed,
-            })),
+            data: days.map((day) => {
+              const isOpen24h = !day.isClosed && Boolean(day.isOpen24h);
+              const skipRanges = day.isClosed || isOpen24h;
+              const hasSecondRange = Boolean(day.openTime2 && day.closeTime2);
+              return {
+                restaurantId,
+                dayOfWeek: day.dayOfWeek,
+                openTime: skipRanges || !day.openTime ? null : this.parseTime(day.openTime),
+                closeTime: skipRanges || !day.closeTime ? null : this.parseTime(day.closeTime),
+                isClosed: day.isClosed,
+                isOpen24h,
+                openTime2: skipRanges || !hasSecondRange ? null : this.parseTime(day.openTime2!),
+                closeTime2: skipRanges || !hasSecondRange ? null : this.parseTime(day.closeTime2!),
+              };
+            }),
           }),
         ]);
         return;

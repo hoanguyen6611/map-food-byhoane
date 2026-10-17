@@ -818,6 +818,9 @@ export class ContributionService {
           openTime: h.openTime,
           closeTime: h.closeTime,
           isClosed: h.isClosed,
+          isOpen24h: h.isOpen24h,
+          openTime2: h.openTime2,
+          closeTime2: h.closeTime2,
         }));
       case 'facilities':
         return restaurant.facilities.map((f) => f.facilityCode);

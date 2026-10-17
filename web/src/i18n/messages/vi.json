@@ -83,9 +83,7 @@
     "shownAllLine": "Đã hiển thị hết {count} quán khớp bộ lọc"
   },
   "filterForm": {
-    "ariaLabel": "Bộ lọc tìm kiếm quán ăn",
-    "searchPlaceholder": "Tìm theo tên quán, món ăn...",
-    "searchAriaLabel": "Từ khoá tìm kiếm",
+    "filterToggleLabel": "Bộ lọc",
     "category": "Danh mục",
     "all": "Tất cả",
     "areaLabel": "Khu vực",
@@ -550,6 +548,10 @@
     "priceRangeLabel": "Khoảng giá (tùy chọn)",
     "cuisineLabel": "Ẩm thực (tùy chọn)",
     "facilitiesLabel": "Tiện ích (tùy chọn)",
+    "searchChipsPlaceholder": "Tìm kiếm...",
+    "noChipResults": "Không tìm thấy kết quả phù hợp.",
+    "showAllChips": "Hiển thị tất cả (+{count})",
+    "showFewerChips": "Thu gọn",
     "addCustomOption": "Thêm mới",
     "addCustomOptionPlaceholder": "Nhập tên...",
     "addCustomOptionConfirm": "Thêm",

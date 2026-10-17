@@ -87,6 +87,30 @@ export function OpeningHoursSection({ restaurantId, openingHours }: OpeningHours
     updateRow(dayOfWeek, isOpen24h ? { isOpen24h: true, isClosed: false } : { isOpen24h: false })
   }
 
+  // Copies one day's full schedule (closed/24h/both time ranges) onto
+  // every OTHER day — the common case is "same hours every day", so
+  // filling in one row and applying it avoids re-typing all 7.
+  function applyToAllDays(sourceDay: number) {
+    setSaved(false)
+    setRows((current) => {
+      const source = current.find((row) => row.dayOfWeek === sourceDay)
+      if (!source) return current
+      return current.map((row) =>
+        row.dayOfWeek === sourceDay
+          ? row
+          : {
+              ...row,
+              isClosed: source.isClosed,
+              isOpen24h: source.isOpen24h,
+              openTime: source.openTime,
+              closeTime: source.closeTime,
+              openTime2: source.openTime2,
+              closeTime2: source.closeTime2,
+            },
+      )
+    })
+  }
+
   function handleSubmit() {
     const fieldErrors: Record<number, string> = {}
     for (const row of rows) {
@@ -123,6 +147,7 @@ export function OpeningHoursSection({ restaurantId, openingHours }: OpeningHours
             <th>Giờ đóng</th>
             <th>Giờ mở 2 (tuỳ chọn)</th>
             <th>Giờ đóng 2 (tuỳ chọn)</th>
+            <th>Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -181,7 +206,17 @@ export function OpeningHoursSection({ restaurantId, openingHours }: OpeningHours
                     onChange={(event) => updateRow(row.dayOfWeek, { closeTime2: event.target.value })}
                   />
                 </td>
-                <td>{errors[row.dayOfWeek] && <span className="field-error">{errors[row.dayOfWeek]}</span>}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="button button-small"
+                    onClick={() => applyToAllDays(row.dayOfWeek)}
+                    title={`Áp dụng khung giờ của ${DAY_LABELS[row.dayOfWeek]} cho tất cả các ngày còn lại`}
+                  >
+                    Áp dụng cho tất cả
+                  </button>
+                  {errors[row.dayOfWeek] && <span className="field-error">{errors[row.dayOfWeek]}</span>}
+                </td>
               </tr>
             )
           })}

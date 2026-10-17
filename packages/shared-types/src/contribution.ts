@@ -56,16 +56,23 @@ export interface CreateRestaurantAddressInput {
   province: string;
 }
 
-// Deliberately narrower than the admin/detail `OpeningHourDto` (no
-// isOpen24h/openTime2/closeTime2) — matches exactly what
-// ContributionOpeningHourDto validates server-side. A community submission
-// only ever needs "open X–Y" or "closed" per day; the richer per-day admin
-// shape is a power-tool for AdminRestaurantService, not this form.
+// A brand-new-restaurant submission (AddRestaurantForm/mobile) only ever
+// sets `openTime`/`closeTime`/`isClosed` — "open X–Y" or "closed" per day —
+// matching exactly what `ContributionOpeningHourDto` validates server-side
+// for that flow. `isOpen24h`/`openTime2`/`closeTime2` were added later so
+// this same type could also carry the richer admin/detail `OpeningHourDto`
+// shape for the owner-portal edit-suggestion flow (OwnerRestaurantEditPage),
+// where an owner's restaurant may already use 24h hours or a second shift
+// (e.g. lunch + dinner) and needs to see/edit that — the plain new-restaurant
+// form never sets these 3 fields, and leaving them unset there is a no-op.
 export interface ContributionOpeningHourInput {
   dayOfWeek: number;
   openTime?: string;
   closeTime?: string;
   isClosed: boolean;
+  isOpen24h?: boolean;
+  openTime2?: string;
+  closeTime2?: string;
 }
 
 export interface CreateRestaurantContributionRequest {

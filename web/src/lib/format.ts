@@ -89,3 +89,18 @@ export function initialsOf(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+/**
+ * Accent-insensitive, case-insensitive text match key — "cà phê" and
+ * "ca phe" both normalize the same way, so a Vietnamese search box can
+ * match without the user typing diacritics. `đ`/`Đ` need their own
+ * replace pass: unlike other diacritics, `đ` isn't decomposable via NFD
+ * (it's its own code point, not base+combining mark).
+ */
+export function normalizeForSearch(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase();
+}

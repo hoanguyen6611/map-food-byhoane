@@ -85,15 +85,23 @@ export class OwnerRestaurantService {
         province: restaurant.address.province,
       },
       location: { lat: Number(restaurant.location.lat), lng: Number(restaurant.location.lng) },
-      // Narrowed to the same shape edit_suggestion's 'openingHours' payload
-      // requires (see OwnerRestaurantDetailDto's doc comment) — a day with
-      // isOpen24h or a second time range displays as its first range only.
-      openingHours: restaurant.openingHours.map((h) => ({
-        dayOfWeek: h.dayOfWeek,
-        openTime: h.openTime?.toISOString().slice(11, 16),
-        closeTime: h.closeTime?.toISOString().slice(11, 16),
-        isClosed: h.isClosed,
-      })),
+      // Same per-day richness as the admin editor (RestaurantService's own
+      // read-side OpeningHourDto builder) — a 24h or split-shift day used to
+      // display collapsed down to its first range only; see
+      // OwnerRestaurantDetailDto's doc comment for why that's no longer the
+      // case.
+      openingHours: restaurant.openingHours.map((h) => {
+        const skipRanges = h.isClosed || h.isOpen24h;
+        return {
+          dayOfWeek: h.dayOfWeek,
+          openTime: skipRanges ? undefined : h.openTime?.toISOString().slice(11, 16),
+          closeTime: skipRanges ? undefined : h.closeTime?.toISOString().slice(11, 16),
+          isClosed: h.isClosed,
+          isOpen24h: h.isOpen24h,
+          openTime2: skipRanges ? undefined : h.openTime2?.toISOString().slice(11, 16),
+          closeTime2: skipRanges ? undefined : h.closeTime2?.toISOString().slice(11, 16),
+        };
+      }),
       facilities: restaurant.facilities.map((f) => f.facilityCode),
       facebookUrl: restaurant.facebookUrl,
       instagramUrl: restaurant.instagramUrl,

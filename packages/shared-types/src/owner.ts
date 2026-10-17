@@ -24,11 +24,12 @@ export interface OwnerRestaurantAddressDto {
 // All fields here are exactly OwnerRestaurantEditPage.tsx's editable set
 // (see EDITABLE_FIELDS) plus the read-only bits its photos tab needs —
 // deliberately not the full admin AdminRestaurantDetailDto shape. Opening
-// hours use the same narrower shape edit_suggestion's payload already
-// requires (dayOfWeek/openTime/closeTime/isClosed) rather than the richer
-// admin editor's isOpen24h/second-range fields — editing a 24h or
-// split-shift day through this form isn't supported yet; it still displays
-// correctly, just simplified down when read (see OwnerRestaurantService).
+// hours reuse `ContributionOpeningHourInput` (now including
+// isOpen24h/openTime2/closeTime2, same per-day richness as the admin
+// editor) rather than inventing a parallel type — an owner's restaurant can
+// already use 24h or split-shift hours, so this needs to read/write them
+// too, not just the plain "open X–Y or closed" case a new-restaurant
+// submission ever sets.
 export interface OwnerRestaurantDetailDto {
   id: string;
   name: string;

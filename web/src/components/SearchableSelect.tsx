@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { normalizeForSearch } from '@/lib/format';
 
 export interface SearchableSelectOption {
   value: string;
@@ -17,18 +18,6 @@ interface Props {
   /** Renders a hidden `<input>` too, so a plain (no-JS) form submit still sends this field. */
   name?: string;
   required?: boolean;
-}
-
-// Strips diacritics so typing "vung tau" (no dấu — how most Vietnamese
-// speakers actually type when searching) still matches "Vũng Tàu". `Đ/đ`
-// isn't decomposable via NFD (it's its own code point, not base+combining
-// mark), so it needs its own replace pass.
-function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/gi, 'd')
-    .toLowerCase();
 }
 
 /**
@@ -50,8 +39,8 @@ export function SearchableSelect({ value, onChange, options, placeholder, noResu
 
   const filtered = useMemo(() => {
     if (!query) return options;
-    const q = normalize(query);
-    return options.filter((o) => normalize(o.label).includes(q));
+    const q = normalizeForSearch(query);
+    return options.filter((o) => normalizeForSearch(o.label).includes(q));
   }, [options, query]);
 
   useEffect(() => {

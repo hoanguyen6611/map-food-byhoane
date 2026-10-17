@@ -83,9 +83,7 @@
     "shownAllLine": "Showing all {count} matching restaurants"
   },
   "filterForm": {
-    "ariaLabel": "Restaurant search filters",
-    "searchPlaceholder": "Search by restaurant name, dish...",
-    "searchAriaLabel": "Search keyword",
+    "filterToggleLabel": "Filters",
     "category": "Category",
     "all": "All",
     "areaLabel": "Area",
@@ -550,6 +548,10 @@
     "priceRangeLabel": "Price range (optional)",
     "cuisineLabel": "Cuisine (optional)",
     "facilitiesLabel": "Facilities (optional)",
+    "searchChipsPlaceholder": "Search...",
+    "noChipResults": "No matching options found.",
+    "showAllChips": "Show all (+{count})",
+    "showFewerChips": "Show less",
     "addCustomOption": "Add new",
     "addCustomOptionPlaceholder": "Enter a name...",
     "addCustomOptionConfirm": "Add",

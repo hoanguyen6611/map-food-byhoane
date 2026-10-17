@@ -5,8 +5,9 @@ import { useTranslations } from 'next-intl';
 import { resolveGoogleMapsLinkAction, submitContributionAction } from '@/app/[locale]/add-restaurant/actions';
 import { PhotoUploadField, type UploadedPhoto } from '@/components/PhotoUploadField';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { CloseIcon, FacilityIcon, LocateIcon } from '@/components/icons';
+import { CloseIcon, FacilityIcon, LocateIcon, ChevronDownIcon } from '@/components/icons';
 import { DEFAULT_FACILITY_ICON_PATH, FACILITY_ICON_PATH, PRICE_BUCKETS } from '@/lib/labels';
+import { normalizeForSearch } from '@/lib/format';
 import { VN_PROVINCES, type CategoryDto, type CuisineCode, type CuisineDto, type DuplicateCandidateDto, type FacilityDto, type FacilityType } from '@foodmap/shared-types';
 
 // A contributor's own "+ Thêm mới" cuisine/facility isn't in the catalog yet
@@ -14,6 +15,43 @@ import { VN_PROVINCES, type CategoryDto, type CuisineCode, type CuisineDto, type
 // tracked as free-text labels instead, alongside the existing code-based
 // selections, and submitted as `newCuisineLabels`/`newFacilityLabels`.
 const MAX_NEW_OPTIONS = 5;
+
+// Cuisine/facility catalogs are admin-editable and only grow over time — a
+// flat wall of every chip gets unwieldy fast, so only this many show by
+// default (plus anything already selected, so toggling one off-screen never
+// makes a selection silently disappear) until either "Hiển thị tất cả" is
+// clicked or the search box narrows the list itself.
+const INITIAL_VISIBLE_CHIPS = 12;
+
+/**
+ * Shared by the cuisine and facility pickers: full list visible while
+ * searching (search already narrows it), otherwise capped at
+ * `INITIAL_VISIBLE_CHIPS` — with every already-selected option kept visible
+ * regardless, so expanding/collapsing never hides a current selection.
+ * Generic over `T` (rather than a fixed `{code, label}` shape) so callers
+ * keep `CuisineDto`/`FacilityDto`'s own literal-typed `code` field instead
+ * of it widening to plain `string`.
+ */
+function useVisibleChips<T extends { code: string; label: string }>(
+  options: T[],
+  selectedCodes: string[],
+  search: string,
+  expanded: boolean,
+) {
+  return useMemo(() => {
+    const query = normalizeForSearch(search.trim());
+    if (query) {
+      return { visible: options.filter((o) => normalizeForSearch(o.label).includes(query)), hiddenCount: 0 };
+    }
+    if (expanded) {
+      return { visible: options, hiddenCount: 0 };
+    }
+    const head = options.slice(0, INITIAL_VISIBLE_CHIPS);
+    const headCodes = new Set(head.map((o) => o.code));
+    const selectedBeyondHead = options.filter((o) => !headCodes.has(o.code) && selectedCodes.includes(o.code));
+    return { visible: [...head, ...selectedBeyondHead], hiddenCount: options.length - head.length - selectedBeyondHead.length };
+  }, [options, selectedCodes, search, expanded]);
+}
 
 type Phase =
   | { kind: 'form' }
@@ -50,6 +88,10 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [isAddingCuisine, setIsAddingCuisine] = useState(false);
   const [isAddingFacility, setIsAddingFacility] = useState(false);
+  const [cuisineSearch, setCuisineSearch] = useState('');
+  const [facilitySearch, setFacilitySearch] = useState('');
+  const [cuisineExpanded, setCuisineExpanded] = useState(false);
+  const [facilityExpanded, setFacilityExpanded] = useState(false);
   const [line, setLine] = useState('');
   const [provinceCode, setProvinceCode] = useState('');
   const [wardCode, setWardCode] = useState('');
@@ -171,6 +213,18 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
   const wardOptions = useMemo(
     () => (selectedProvince?.wards ?? []).map((w) => ({ value: w.code, label: w.shortName })),
     [selectedProvince],
+  );
+  const { visible: visibleCuisines, hiddenCount: hiddenCuisineCount } = useVisibleChips(
+    cuisines,
+    cuisineCodes,
+    cuisineSearch,
+    cuisineExpanded,
+  );
+  const { visible: visibleFacilities, hiddenCount: hiddenFacilityCount } = useVisibleChips(
+    facilities,
+    facilityCodes,
+    facilitySearch,
+    facilityExpanded,
   );
 
   function handleProvinceChange(code: string) {
@@ -304,32 +358,50 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
 
       <label className="login-field">
         <span>{t('categoryLabel')}</span>
-        <select value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} required>
-          <option value="">{t('selectPlaceholder')}</option>
-          {categories.map((category) => (
-            <option key={category.code} value={category.code}>
-              {category.label}
-            </option>
-          ))}
-        </select>
+        <span className="select-wrap">
+          <select value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} required>
+            <option value="">{t('selectPlaceholder')}</option>
+            {categories.map((category) => (
+              <option key={category.code} value={category.code}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon size={16} className="select-wrap-chevron" />
+        </span>
       </label>
 
       <label className="login-field">
         <span>{t('priceRangeLabel')}</span>
-        <select value={priceRangeCode} onChange={(e) => setPriceRangeCode(e.target.value)}>
-          <option value="">{t('selectPlaceholder')}</option>
-          {PRICE_BUCKETS.map((bucket) => (
-            <option key={bucket.code} value={bucket.code}>
-              {tLabels(`priceBucket.${bucket.code}`)}
-            </option>
-          ))}
-        </select>
+        <span className="select-wrap">
+          <select value={priceRangeCode} onChange={(e) => setPriceRangeCode(e.target.value)}>
+            <option value="">{t('selectPlaceholder')}</option>
+            {PRICE_BUCKETS.map((bucket) => (
+              <option key={bucket.code} value={bucket.code}>
+                {tLabels(`priceBucket.${bucket.code}`)}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon size={16} className="select-wrap-chevron" />
+        </span>
       </label>
 
       <div className="login-field">
         <span>{t('cuisineLabel')}</span>
+        {cuisines.length > INITIAL_VISIBLE_CHIPS ? (
+          <input
+            type="text"
+            className="chip-search-input"
+            value={cuisineSearch}
+            placeholder={t('searchChipsPlaceholder')}
+            onChange={(e) => setCuisineSearch(e.target.value)}
+          />
+        ) : null}
         <div className="chip-row">
-          {cuisines.map((cuisine) => (
+          {visibleCuisines.length === 0 && cuisineSearch.trim() ? (
+            <p className="chip-no-results">{t('noChipResults')}</p>
+          ) : null}
+          {visibleCuisines.map((cuisine) => (
             <button
               key={cuisine.code}
               type="button"
@@ -339,6 +411,16 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
               {cuisine.label}
             </button>
           ))}
+          {!cuisineSearch.trim() && hiddenCuisineCount > 0 ? (
+            <button type="button" className="chip chip-show-more" onClick={() => setCuisineExpanded(true)}>
+              {t('showAllChips', { count: hiddenCuisineCount })}
+            </button>
+          ) : null}
+          {!cuisineSearch.trim() && cuisineExpanded && cuisines.length > INITIAL_VISIBLE_CHIPS ? (
+            <button type="button" className="chip chip-show-more" onClick={() => setCuisineExpanded(false)}>
+              {t('showFewerChips')}
+            </button>
+          ) : null}
           {newCuisineLabels.map((label) => (
             <span key={label} className="chip chip-selected chip-new">
               {label}
@@ -393,8 +475,20 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
 
       <div className="login-field">
         <span>{t('facilitiesLabel')}</span>
+        {facilities.length > INITIAL_VISIBLE_CHIPS ? (
+          <input
+            type="text"
+            className="chip-search-input"
+            value={facilitySearch}
+            placeholder={t('searchChipsPlaceholder')}
+            onChange={(e) => setFacilitySearch(e.target.value)}
+          />
+        ) : null}
         <div className="chip-row">
-          {facilities.map((facility) => (
+          {visibleFacilities.length === 0 && facilitySearch.trim() ? (
+            <p className="chip-no-results">{t('noChipResults')}</p>
+          ) : null}
+          {visibleFacilities.map((facility) => (
             <button
               key={facility.code}
               type="button"
@@ -405,6 +499,16 @@ export function AddRestaurantForm({ categories, cuisines, facilities }: Props) {
               {facility.label}
             </button>
           ))}
+          {!facilitySearch.trim() && hiddenFacilityCount > 0 ? (
+            <button type="button" className="chip chip-show-more" onClick={() => setFacilityExpanded(true)}>
+              {t('showAllChips', { count: hiddenFacilityCount })}
+            </button>
+          ) : null}
+          {!facilitySearch.trim() && facilityExpanded && facilities.length > INITIAL_VISIBLE_CHIPS ? (
+            <button type="button" className="chip chip-show-more" onClick={() => setFacilityExpanded(false)}>
+              {t('showFewerChips')}
+            </button>
+          ) : null}
           {newFacilityLabels.map((label) => (
             <span key={label} className="chip chip-selected chip-new">
               {label}

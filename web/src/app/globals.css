@@ -715,6 +715,17 @@ textarea:focus-visible {
   gap: 24px;
   padding: clamp(24px, 4vw, 40px) clamp(16px, 4vw, 40px);
 }
+@media (max-width: 767px) {
+  /* `auto-fit` at this width lands on an inconsistent 1-or-2-column split
+     depending on exact viewport width — forcing one full-width column per
+     row reads much better for a column that's now a tap-to-expand
+     accordion (a narrow half-width accordion row is an awkward tap target
+     and its chevron doesn't line up cleanly against the other column). */
+  .footer-main {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
 .footer-brand {
   display: flex;
   flex-direction: column;
@@ -727,13 +738,33 @@ textarea:focus-visible {
   color: var(--color-ink-subtle);
   max-width: 240px;
 }
+/* Each link column's heading is a real <button> now (FooterColumn, plain
+   React state) — desktop never shows the toggle at all and always shows
+   the list below it, no browser-native show/hide semantics involved (see
+   FilterCollapse's doc comment for why a `<details>`-based version of this
+   didn't hold up — it ended up hidden on desktop too). A stacked column of
+   category/district/about links used to always render fully expanded on
+   mobile, making the footer very tall before reaching the copyright line —
+   same reasoning as SearchFilterForm's mobile-only filter collapse. */
 .footer-col-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: default;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-ink-faint);
   margin: 0 0 10px;
+}
+.footer-col-chevron {
+  display: none;
 }
 .footer-col ul {
   list-style: none;
@@ -742,6 +773,32 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+@media (max-width: 767px) {
+  .footer-col-title {
+    cursor: pointer;
+    margin-bottom: 0;
+    padding: 12px 0;
+  }
+  .footer-col-chevron {
+    display: inline-block;
+    flex: none;
+    color: var(--color-ink-faint);
+    transition: transform 0.15s ease;
+  }
+  .footer-col-chevron-open {
+    transform: rotate(180deg);
+  }
+  .footer-col ul {
+    display: none;
+    padding-bottom: 12px;
+  }
+  .footer-col ul.footer-col-list-open {
+    display: flex;
+  }
+  .footer-col {
+    border-bottom: 1px solid var(--color-border-hairline);
+  }
 }
 .footer-col a {
   font-size: 15px;
@@ -1951,6 +2008,24 @@ textarea:focus-visible {
   font-size: 12px;
   color: var(--color-ink-subtle);
 }
+/* AddRestaurantForm.tsx's cuisine/facility pickers — search box sits above
+   .chip-row (picks up .login-field input's shared styling automatically,
+   just needs its own spacing), "Hiển thị tất cả"/"Thu gọn" is a chip like
+   any other toggle so it wraps inline with them instead of breaking the
+   flex-wrap flow onto its own row. */
+.chip-search-input {
+  margin-bottom: 8px;
+}
+.chip-show-more {
+  background: none;
+  border-style: dashed;
+  color: var(--color-primary-hover);
+}
+.chip-no-results {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
 .toggle-switch {
   width: 44px;
   height: 26px;
@@ -2097,6 +2172,19 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+@media (max-width: 767px) {
+  /* /search only (`.filter-card-search` — see SearchFilterForm's basePath
+     branch): the FilterCollapse toggle right below already shows its own
+     "Bộ lọc" label + "Xoá tất cả" (see FilterCollapse's `clearAllHref`
+     prop) — this head would just repeat both. Scoped to /search
+     specifically (not the bare `.filter-card-head`) because /map's filter
+     card lives inside MapFilterDrawer's own modal regardless of viewport,
+     and that one still needs its "Xoá tất cả" link visible on a mobile
+     screen. */
+  .filter-card-search .filter-card-head {
+    display: none;
+  }
+}
 .filter-card-title {
   font-size: 17px;
   font-weight: 700;
@@ -2128,6 +2216,82 @@ textarea:focus-visible {
   background: var(--color-border-hairline);
   border: none;
   margin: 0;
+}
+/* /search's filter card, mobile only — collapsed by default (FilterCollapse,
+   plain React state) instead of rendering fully expanded above the results
+   on a narrow viewport. No browser-native show/hide semantics involved
+   here (that's the whole point — see FilterCollapse's own doc comment on
+   why a plain client component replaced an earlier <details>-based
+   attempt), so desktop just never renders the toggle button at all and
+   always shows .filter-collapse-content — no cascade fight, no
+   `!important` needed. /map never uses this (its filters already live
+   inside MapFilterDrawer's own modal — see SearchFilterForm's `basePath`
+   branch). */
+.filter-collapse-toggle-row {
+  display: none;
+}
+.filter-collapse-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+@media (max-width: 767px) {
+  .filter-collapse-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .filter-collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 2px 0;
+    font-family: inherit;
+    color: inherit;
+  }
+  .filter-collapse-clear-link {
+    flex: none;
+  }
+  .filter-details-summary-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .filter-details-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-ink);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .filter-details-chevron {
+    color: var(--color-ink-faint);
+    transition: transform 0.15s ease;
+  }
+  .filter-details-chevron-open {
+    transform: rotate(180deg);
+  }
+  .filter-collapse-content {
+    display: none;
+    margin-top: 14px;
+  }
+  .filter-collapse-content-open {
+    display: flex;
+  }
 }
 .radio-row {
   display: flex;
@@ -3707,6 +3871,29 @@ table.menu-table td.price {
   background: var(--color-surface);
   resize: vertical;
   box-sizing: border-box;
+}
+/* Opt-in wrapper for a plain native <select> that should look like the
+   rest of the form (custom chevron, no OS-native arrow/chrome) instead of
+   the browser's default select rendering — the double-chevron, larger
+   system-font look .login-field select otherwise inherits as-is. Wrap the
+   <select> in a <span className="select-wrap"> and put the chevron icon
+   as its next sibling. */
+.select-wrap {
+  display: block;
+  position: relative;
+}
+.select-wrap select {
+  appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+}
+.select-wrap-chevron {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--color-ink-faint);
 }
 .searchable-select {
   position: relative;

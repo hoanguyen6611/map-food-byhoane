@@ -6,8 +6,9 @@ import {
   PRICE_BUCKETS,
 } from "@/lib/labels";
 import { DISTRICTS } from "@/lib/districts";
-import { Link, getPathname } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { FacilityIcon } from "./icons";
+import { FilterCollapse } from "./FilterCollapse";
 
 export type SearchParamsRecord = Record<string, string | undefined>;
 
@@ -60,7 +61,6 @@ interface Props {
   categoryCounts: { code: string; label: string; count: number }[];
   cuisineOptions: CuisineDto[];
   totalCount: number;
-  locale: string;
   // "Khu vực" (Quận 1/3/Bình Thạnh/Phú Nhuận) only exists for HCMC — see
   // Home page's identical scoping decision (page.tsx's `isHcmc`).
   isHcmc: boolean;
@@ -73,7 +73,6 @@ export async function SearchFilterForm({
   categoryCounts,
   cuisineOptions,
   totalCount,
-  locale,
   isHcmc,
   basePath,
 }: Props) {
@@ -87,57 +86,26 @@ export async function SearchFilterForm({
       String(b.min) === search.priceMin &&
       (b.max ? String(b.max) : "") === (search.priceMax ?? ""),
   );
-  const searchActionPath = getPathname({ href: basePath, locale });
+  // Shown on the mobile-only collapse toggle below — lets a visitor tell at
+  // a glance whether filters are already applied without opening the panel.
+  const activeFilterCount =
+    (search.category ? 1 : 0) +
+    (search.district ? 1 : 0) +
+    (priceBucket ? 1 : 0) +
+    (search.cuisine ? search.cuisine.split(",").filter(Boolean).length : 0) +
+    (search.facilities ? search.facilities.split(",").filter(Boolean).length : 0) +
+    (search.openNow === "true" ? 1 : 0);
 
-  return (
-    <div className="filter-card">
-      <div className="filter-card-head">
-        {/* On /map this title would just repeat MapFilterDrawer's own modal
-            header right above it — kept on /search, where this card has no
-            such wrapping header of its own. The empty span preserves the
-            head's space-between layout so "Xoá tất cả" stays pinned right. */}
-        {basePath === "/search" ? (
-          <span className="filter-card-title">{t("title")}</span>
-        ) : (
-          <span />
-        )}
-        <Link href={basePath} className="filter-clear-link">
-          {t("clearAll")}
-        </Link>
-      </div>
-
-      {basePath === "/search" ? (
-        <form
-          action={searchActionPath}
-          className="filter-section"
-          role="search"
-          aria-label={t("ariaLabel")}
-        >
-          {/* Hidden fields preserve every other active filter when the text query is submitted. */}
-          {Object.entries(search)
-            .filter(([key]) => key !== "q" && key !== "page")
-            .map(([key, value]) =>
-              value ? (
-                <input key={key} type="hidden" name={key} value={value} />
-              ) : null,
-            )}
-          <div className="search-input-wrap" style={{ height: 42 }}>
-            <input
-              type="text"
-              name="q"
-              defaultValue={search.q ?? ""}
-              placeholder={t("searchPlaceholder")}
-              aria-label={t("searchAriaLabel")}
-            />
-          </div>
-        </form>
-      ) : null}
-      {/* /map has no `q` in its own filter set (MapPageClient's own search
-          box above already does an instant client-side name filter over the
-          currently-loaded list) — this `q`-submitting field would silently
-          do nothing there, so it only renders for /search, which does wire
-          `q` into its server-side query. */}
-
+  // Everything below the card's head — identical on /search and /map, only
+  // the wrapper around it differs (see the `basePath` branch in the return
+  // below): /map's filters already live inside MapFilterDrawer's own
+  // open/close modal, so wrapping them in a second collapsible here would
+  // just be a redundant extra tap. /search has no such wrapper of its own,
+  // so THIS is where a narrow-viewport visitor needs a collapse — the
+  // filter card used to render fully expanded above the results on mobile,
+  // pushing them far down the page.
+  const filterSections = (
+    <>
       <div className="filter-section">
         <span className="filter-section-title">{t("category")}</span>
         <Link
@@ -315,6 +283,38 @@ export async function SearchFilterForm({
           <span className="toggle-knob" />
         </Link>
       </div>
+    </>
+  );
+
+  return (
+    <div className={`filter-card ${basePath === "/search" ? "filter-card-search" : ""}`}>
+      <div className="filter-card-head">
+        {/* On /map this title would just repeat MapFilterDrawer's own modal
+            header right above it — kept on /search, where this card has no
+            such wrapping header of its own. The empty span preserves the
+            head's space-between layout so "Xoá tất cả" stays pinned right. */}
+        {basePath === "/search" ? (
+          <span className="filter-card-title">{t("title")}</span>
+        ) : (
+          <span />
+        )}
+        <Link href={basePath} className="filter-clear-link">
+          {t("clearAll")}
+        </Link>
+      </div>
+
+      {basePath === "/search" ? (
+        <FilterCollapse
+          label={t("filterToggleLabel")}
+          activeCount={activeFilterCount}
+          clearAllHref={basePath}
+          clearAllLabel={t("clearAll")}
+        >
+          {filterSections}
+        </FilterCollapse>
+      ) : (
+        filterSections
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { DISTRICTS } from '@/lib/districts';
 import { SITE_NAME } from '@/lib/constants';
 import { MapLogoIcon } from './icons';
+import { FooterColumn } from './FooterColumn';
 
 const ABOUT_SECTIONS = ['cach-cham-diem', 'tieu-chi', 'kiem-duyet', 'du-lieu'] as const;
 
@@ -33,40 +34,31 @@ export async function SiteFooter() {
           <p className="footer-brand-desc">{t('footerBrandDesc')}</p>
         </div>
 
-        <div className="footer-col">
-          <p className="footer-col-title">{t('footerExploreHeading')}</p>
-          <ul>
-            {FOOTER_CATEGORIES.map((code) => (
-              <li key={code}>
-                <Link href={`/search?category=${code}`}>{tLabels(`category.${code}`)}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <FooterColumn title={t('footerExploreHeading')}>
+          {FOOTER_CATEGORIES.map((code) => (
+            <li key={code}>
+              <Link href={`/search?category=${code}`}>{tLabels(`category.${code}`)}</Link>
+            </li>
+          ))}
+        </FooterColumn>
 
-        <div className="footer-col">
-          <p className="footer-col-title">{t('footerAreasHeading')}</p>
-          <ul>
-            {DISTRICTS.map((district) => (
-              <li key={district.slug}>
-                <Link href={`/district/${district.slug}`}>{district.name}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <FooterColumn title={t('footerAreasHeading')}>
+          {DISTRICTS.map((district) => (
+            <li key={district.slug}>
+              <Link href={`/district/${district.slug}`}>{district.name}</Link>
+            </li>
+          ))}
+        </FooterColumn>
 
-        <div className="footer-col">
-          <p className="footer-col-title">{tAbout('footerHeading')}</p>
-          <ul>
-            {ABOUT_SECTIONS.map((section) => (
-              <li key={section}>
-                <Link href={section === 'cach-cham-diem' ? '/about' : `/about?section=${section}`}>
-                  {tAbout(`nav.${section}`)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <FooterColumn title={tAbout('footerHeading')}>
+          {ABOUT_SECTIONS.map((section) => (
+            <li key={section}>
+              <Link href={section === 'cach-cham-diem' ? '/about' : `/about?section=${section}`}>
+                {tAbout(`nav.${section}`)}
+              </Link>
+            </li>
+          ))}
+        </FooterColumn>
       </div>
       <div className="footer-bottom">
         © {new Date().getFullYear()} {SITE_NAME}

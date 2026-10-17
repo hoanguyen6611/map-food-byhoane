@@ -19,7 +19,11 @@ import type {
 } from '@foodmap/shared-types'
 import { ApiError } from '../api/client'
 import { adminModerationApi } from '../api/admin-moderation'
+import { adminCategoriesApi } from '../api/admin-categories'
+import { adminCuisinesApi } from '../api/admin-cuisines'
+import { adminFacilitiesApi } from '../api/admin-facilities'
 import { pushToast } from '../lib/toastStore'
+import { PRICE_RANGE_OPTIONS } from './restaurant-admin/constants'
 import {
   CRITERIA_LABEL,
   DAY_LABELS,
@@ -494,6 +498,18 @@ function ContributionDetail({ detail }: { detail: Extract<AdminModerationDetailD
 }
 
 function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> }) {
+  // Same catalog lists the management pages fetch (identical queryKey, so
+  // React Query shares the cache instead of double-fetching) — used here
+  // purely to translate this contribution's stored codes into the labels a
+  // moderator actually reads, never to edit the catalog itself.
+  const categoriesQuery = useQuery({ queryKey: ['admin-categories'], queryFn: () => adminCategoriesApi.list() })
+  const cuisinesQuery = useQuery({ queryKey: ['admin-cuisines'], queryFn: () => adminCuisinesApi.list() })
+  const facilitiesQuery = useQuery({ queryKey: ['admin-facilities'], queryFn: () => adminFacilitiesApi.list() })
+  const categoryLabelByCode = new Map((categoriesQuery.data ?? []).map((c) => [c.code, c.label]))
+  const cuisineLabelByCode = new Map((cuisinesQuery.data ?? []).map((c) => [c.code, c.label]))
+  const facilityLabelByCode = new Map((facilitiesQuery.data ?? []).map((f) => [f.code, f.label]))
+  const priceRangeLabelByCode = new Map<string, string>(PRICE_RANGE_OPTIONS.map((p) => [p.value, p.label]))
+
   const address = payload.address as { line?: string; ward?: string; province?: string } | undefined
   const location = payload.location as { lat?: number; lng?: number } | undefined
   const openingHours = Array.isArray(payload.openingHours)
@@ -520,11 +536,15 @@ function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> })
         </div>
         <div className="form-field">
           <span>Danh mục</span>
-          <span>{String(payload.categoryCode ?? '')}</span>
+          <span>{categoryLabelByCode.get(String(payload.categoryCode ?? '')) ?? String(payload.categoryCode ?? '—')}</span>
         </div>
         <div className="form-field">
           <span>Khoảng giá</span>
-          <span>{String(payload.priceRangeCode ?? '—')}</span>
+          <span>
+            {payload.priceRangeCode
+              ? (priceRangeLabelByCode.get(String(payload.priceRangeCode)) ?? String(payload.priceRangeCode))
+              : '—'}
+          </span>
         </div>
         <div className="form-field">
           <span>Điện thoại</span>
@@ -555,13 +575,13 @@ function NewRestaurantPayload({ payload }: { payload: Record<string, unknown> })
         {cuisineCodes.length > 0 && (
           <div className="form-field form-field-wide">
             <span>Ẩm thực</span>
-            <span>{cuisineCodes.join(', ')}</span>
+            <span>{cuisineCodes.map((code) => cuisineLabelByCode.get(code) ?? code).join(', ')}</span>
           </div>
         )}
         {facilities.length > 0 && (
           <div className="form-field form-field-wide">
             <span>Tiện ích</span>
-            <span>{facilities.join(', ')}</span>
+            <span>{facilities.map((code) => facilityLabelByCode.get(code) ?? code).join(', ')}</span>
           </div>
         )}
         {newCuisineLabels.length > 0 && (
@@ -713,6 +733,9 @@ interface OpeningHourEntry {
   openTime?: string | null
   closeTime?: string | null
   isClosed: boolean
+  isOpen24h?: boolean
+  openTime2?: string | null
+  closeTime2?: string | null
 }
 
 function parseOpeningHours(value: unknown): OpeningHourEntry[] {
@@ -734,9 +757,13 @@ function normalizeHourTime(raw: unknown): string | null {
 function describeOpeningHourEntry(entry: OpeningHourEntry | undefined): string {
   if (!entry) return '—'
   if (entry.isClosed) return 'Đóng cửa'
+  if (entry.isOpen24h) return 'Mở cả ngày (24h)'
   const open = normalizeHourTime(entry.openTime)
   const close = normalizeHourTime(entry.closeTime)
-  return open && close ? `${open} - ${close}` : '—'
+  const firstRange = open && close ? `${open} - ${close}` : '—'
+  const open2 = normalizeHourTime(entry.openTime2)
+  const close2 = normalizeHourTime(entry.closeTime2)
+  return open2 && close2 ? `${firstRange}, ${open2} - ${close2}` : firstRange
 }
 
 /** A per-day before/after table for the one edit_suggestion field a flat 2-column diff can't represent well. */

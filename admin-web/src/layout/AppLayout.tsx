@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/categories', label: 'Quản lý Danh mục' },
   { to: '/facilities', label: 'Quản lý Tiện ích' },
   { to: '/cuisines', label: 'Quản lý Ẩm thực' },
+  { to: '/activity', label: 'Hoạt động gần đây' },
 ]
 
 function navLinkClassName({ isActive }: { isActive: boolean }): string {
