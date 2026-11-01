@@ -19,15 +19,24 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json(null);
 
-  // Best-effort enrichment — the cookie's email alone is enough to render
-  // "signed in", so a failure here (network hiccup, dead refresh token)
-  // falls back to email-only display rather than treating the user as
-  // signed out; pages that actually gate on auth already redirect via
-  // `backendFetchAuthorized` returning null on their own.
+  // `backendFetchAuthorized` now shares one in-flight refresh across both
+  // of these calls (see auth.ts's `cache()`-wrapped `refreshSession`), so a
+  // 401 here means the refresh token itself is genuinely dead (not a race
+  // with the sibling call below) — that's a truly-over session, not a
+  // transient hiccup, so it's treated as signed out instead of silently
+  // degrading to email-only forever (the previous behavior: the cookie
+  // itself was never invalidated by this check, so every subsequent page
+  // load kept showing the signed-in email with no real session behind it).
+  // Any OTHER failure (network blip, backend 5xx) still degrades
+  // gracefully — it isn't evidence the session is actually dead.
   const [meRes, notificationsRes] = await Promise.all([
     backendFetchAuthorized('/me'),
     backendFetchAuthorized('/me/notifications?page=1&pageSize=1'),
   ]);
+  if (meRes?.status === 401) {
+    return NextResponse.json(null);
+  }
+
   const displayName = meRes?.ok ? ((await meRes.json()) as MeResponse).profile.displayName : null;
   const unreadCount = notificationsRes?.ok ? ((await notificationsRes.json()) as NotificationListResponse).unreadCount : 0;
 

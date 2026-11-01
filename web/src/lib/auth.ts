@@ -9,6 +9,7 @@
 // makes authenticated backend calls — no middleware-level route protection,
 // there is still no protected *page* for that to matter for.
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import type { AuthResponse } from '@foodmap/shared-types';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? 'http://localhost:3000';
@@ -59,8 +60,26 @@ async function writeSessionCookie(payload: SessionCookiePayload): Promise<void> 
  * Returns the new access token, or `null` if the refresh token itself is
  * invalid/expired/revoked — in which case the session is truly over and the
  * cookie is cleared rather than left pointing at dead tokens.
+ *
+ * Wrapped in `cache()` (React's per-request memoization — reset between
+ * separate incoming requests, never shared across different users/tabs) so
+ * that every `backendFetchAuthorized` call within the SAME request shares
+ * one in-flight refresh instead of each independently racing to rotate the
+ * refresh token. Real bug this fixes: refresh tokens are single-use on the
+ * backend (AuthService.refresh revokes the old one the instant it issues a
+ * new pair) — a page that fires several authenticated calls in parallel
+ * (e.g. profile/page.tsx's 4-way Promise.all, or /api/session's 2-way one)
+ * used to have every call independently call this function the moment the
+ * access token was found stale. Whichever one reached the backend first
+ * rotated the token and succeeded; every other concurrent call was still
+ * holding the now-already-revoked refresh token, so the backend correctly
+ * rejected it — and this function's old behavior on that rejection was to
+ * delete the session cookie, silently logging out a user who had, in the
+ * very same request, just successfully refreshed. That's the concrete
+ * mechanism behind "session randomly dies" despite the user never actually
+ * being idle long enough for the refresh token itself to expire.
  */
-async function refreshSession(): Promise<string | null> {
+const refreshSession = cache(async (): Promise<string | null> => {
   const current = await readSessionCookie();
   if (!current) return null;
 
@@ -79,7 +98,7 @@ async function refreshSession(): Promise<string | null> {
   const body = (await res.json()) as AuthResponse;
   await writeSessionCookie({ accessToken: body.accessToken, refreshToken: body.refreshToken, email: body.user.email });
   return body.accessToken;
-}
+});
 
 /**
  * Server-only: calls the backend on the signed-in user's behalf, attaching
