@@ -22,7 +22,19 @@ function entry(href: string, extra: Partial<MetadataRoute.Sitemap[number]> = {})
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries = await listSitemapEntries();
+  // This route is statically generated at build time, which means a single
+  // backend hiccup at the exact moment Vercel/CI builds would otherwise fail
+  // the ENTIRE site build (sitemap.xml has no partial-success mode). The
+  // static/district entries below don't depend on the backend at all, so
+  // it's strictly better to ship a sitemap briefly missing restaurant pages
+  // than to fail the whole deploy over a transient 502 — ISR re-runs this on
+  // the next revalidation window regardless.
+  let entries: Awaited<ReturnType<typeof listSitemapEntries>> = [];
+  try {
+    entries = await listSitemapEntries();
+  } catch (err) {
+    console.error('[sitemap] listSitemapEntries failed, shipping sitemap without restaurant entries:', err);
+  }
 
   return [
     entry('/', { changeFrequency: 'weekly', priority: 1 }),
