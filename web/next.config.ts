@@ -4,6 +4,23 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+// `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT` is a build-arg on self-hosted targets
+// (Fly.io) rather than Vercel's own env var UI — an unset/placeholder value
+// left in CI config (e.g. "REPLACE_ME") used to throw `new URL(...)`
+// uncaught, crashing the ENTIRE build over one optional image host instead
+// of just leaving ImageKit-hosted photos unoptimized. Mirrors sitemap.ts's
+// "degrade, don't fail the build" approach to the same class of problem.
+function tryParseImageKitUrl(value: string | undefined): URL | null {
+  if (!value) return null;
+  try {
+    return new URL(value);
+  } catch {
+    console.error(`[next.config] NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT is not a valid URL ("${value}") — skipping it as a next/image remote pattern.`);
+    return null;
+  }
+}
+const imageKitUrl = tryParseImageKitUrl(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT);
+
 const nextConfig: NextConfig = {
   // Self-hosted deploy targets (Fly.io's Dockerfile, previously nothing —
   // Vercel/Netlify never needed this since they trace/bundle server output
@@ -56,11 +73,11 @@ const nextConfig: NextConfig = {
       // this doesn't need editing per-account; next/image still throws
       // "hostname not configured" for any contributed photo if that env
       // var is unset when the app builds.
-      ...(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT
+      ...(imageKitUrl
         ? [
             {
-              protocol: new URL(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT).protocol.replace(':', '') as 'http' | 'https',
-              hostname: new URL(process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT).hostname,
+              protocol: imageKitUrl.protocol.replace(':', '') as 'http' | 'https',
+              hostname: imageKitUrl.hostname,
             },
           ]
         : []),
