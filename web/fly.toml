@@ -1,55 +1,39 @@
-# Deploy from the REPO ROOT (build context must include packages/shared-types
-# and the root lockfile): `fly deploy --config web/fly.toml`
-# See docs/deploy-flyio.md for the full runbook and required --build-arg flags.
+# fly.toml app configuration file generated for map-food-byhoane-18pp9g on 2026-11-07T14:55:00Z
 #
-# `dockerfile` below is relative to THIS file's own directory (web/), not to
-# the build context — Fly resolves it that way regardless of Working
-# Directory/--config, so it must stay a bare filename, not "web/Dockerfile"
-# (that doubles into web/web/Dockerfile and fails to build). The actual build
-# context (where the Dockerfile's COPY paths run from) is still the repo
-# root, set by leaving "Working directory" empty in the dashboard.
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "foodmap-web"          # must be globally unique on Fly — change if taken
-primary_region = "sin"       # Singapore — closest Fly region to Vietnam
+app = 'map-food-byhoane-18pp9g'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
-  # Fly's GitHub-integration dashboard deploy has no field to pass
-  # --build-arg (CLI-only otherwise) — [build.args] works for BOTH the CLI
-  # and dashboard-triggered builds, so this is the one place that reliably
-  # reaches every deploy path. These are all NEXT_PUBLIC_* values (OAuth
-  # client IDs, ImageKit's PUBLIC key) — safe to commit, they ship in the
-  # browser bundle by design regardless of where they're set. Fill in the
-  # real values from your current web/.env before the first deploy; a
-  # missing one silently bakes in an empty string (e.g. breaks the Google/
-  # Apple login buttons or next/image's ImageKit hostname allowlist), not a
-  # build failure, so there's no error to notice if you skip this.
   [build.args]
-    NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = "REPLACE_ME"
-    NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY = "REPLACE_ME"
-    NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME"
-    NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID = "REPLACE_ME"
-    NEXT_PUBLIC_APPLE_REDIRECT_URI = "REPLACE_ME"
+    NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID = 'REPLACE_ME'
+    NEXT_PUBLIC_APPLE_REDIRECT_URI = 'REPLACE_ME'
+    NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID = 'REPLACE_ME'
+    NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY = 'REPLACE_ME'
+    NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = 'REPLACE_ME'
 
 [env]
-  NODE_ENV = "production"
-  PORT = "8080"
+  NODE_ENV = 'production'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [[http_service.checks]]
-    grace_period = "15s"
-    interval = "30s"
-    method = "GET"
-    path = "/"
-    timeout = "5s"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '15s'
+    method = 'GET'
+    path = '/'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = 'shared-cpu-1x'
+  memory = '512mb'
