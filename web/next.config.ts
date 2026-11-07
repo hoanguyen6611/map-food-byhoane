@@ -1,9 +1,24 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // Self-hosted deploy targets (Fly.io's Dockerfile, previously nothing —
+  // Vercel/Netlify never needed this since they trace/bundle server output
+  // themselves) run `node server.js` from a pruned `.next/standalone`
+  // output instead of `next start` against the full `node_modules` — far
+  // smaller runtime image, no need to ship the whole monorepo's
+  // node_modules into the container.
+  output: 'standalone',
+  // This is an npm workspaces monorepo with TWO lockfiles at the root
+  // (`package-lock.json` and a stray, unused `yarn.lock`) — Next's
+  // automatic workspace-root detection for `output: 'standalone'` file
+  // tracing can't disambiguate which one is authoritative and warns/guesses
+  // wrong. Pinning it explicitly to the repo root (one level up from this
+  // app) avoids that ambiguity regardless of which lockfile Next notices.
+  outputFileTracingRoot: path.join(__dirname, '..'),
   // Runs middleware.ts in the Node.js runtime (paired with `runtime: 'nodejs'`
   // in middleware.ts's config) instead of the sandboxed Edge runtime — see
   // that file's comment for why.
