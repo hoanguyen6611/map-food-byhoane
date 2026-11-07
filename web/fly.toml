@@ -1,12 +1,19 @@
 # Deploy from the REPO ROOT (build context must include packages/shared-types
-# and the root lockfile): `fly deploy --config web/fly.toml --dockerfile web/Dockerfile`
+# and the root lockfile): `fly deploy --config web/fly.toml`
 # See docs/deploy-flyio.md for the full runbook and required --build-arg flags.
+#
+# `dockerfile` below is relative to THIS file's own directory (web/), not to
+# the build context — Fly resolves it that way regardless of Working
+# Directory/--config, so it must stay a bare filename, not "web/Dockerfile"
+# (that doubles into web/web/Dockerfile and fails to build). The actual build
+# context (where the Dockerfile's COPY paths run from) is still the repo
+# root, set by leaving "Working directory" empty in the dashboard.
 
 app = "foodmap-web"          # must be globally unique on Fly — change if taken
 primary_region = "sin"       # Singapore — closest Fly region to Vietnam
 
 [build]
-  dockerfile = "web/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"

@@ -58,14 +58,14 @@ current `web/.env` / `admin-web/.env`:
 
 ```
 # from the repo root
-fly deploy --config web/fly.toml --dockerfile web/Dockerfile \
+fly deploy --config web/fly.toml \
   --build-arg NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT=<value> \
   --build-arg NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=<value> \
   --build-arg NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=<value> \
   --build-arg NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID=<value> \
   --build-arg NEXT_PUBLIC_APPLE_REDIRECT_URI=<value>
 
-fly deploy --config admin-web/fly.toml --dockerfile admin-web/Dockerfile \
+fly deploy --config admin-web/fly.toml \
   --build-arg VITE_API_URL=https://<your-railway-domain>
 ```
 
