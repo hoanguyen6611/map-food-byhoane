@@ -50,24 +50,32 @@ fly secrets set -a foodmap-web \
 `admin-web` has no runtime secrets — it's a static SPA; its only env var
 (`VITE_API_URL`) is baked in at build time (next step).
 
-## 3. Deploy [CLI]
+## 3. Fill in build-time args, then deploy
 
-Build-time args become the actual baked-in values for every
-`NEXT_PUBLIC_*`/`VITE_*` variable the code reads — copy these from your
-current `web/.env` / `admin-web/.env`:
+Every `NEXT_PUBLIC_*`/`VITE_*` value the code reads gets baked into the
+build — **before deploying `web` for the first time**, edit
+`web/fly.toml`'s `[build.args]` section and replace the `"REPLACE_ME"`
+placeholders with the real (non-secret) values from your current
+`web/.env`. `admin-web/fly.toml`'s `[build.args]` already has the real
+Railway URL — only update it if that domain changes. `[build.args]` is used
+over CLI `--build-arg` flags specifically because **Fly's GitHub-integration
+dashboard deploy has no field for build args** — a value left unset/empty
+doesn't fail the build, it just silently bakes in `""` (breaks the Google/
+Apple login buttons, ImageKit image loading, or — for admin-web — makes
+every API call go to admin-web's own origin instead of the backend, e.g. a
+`405` on `POST /auth/login`).
+
+**[CLI]**:
 
 ```
 # from the repo root
-fly deploy --config web/fly.toml \
-  --build-arg NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT=<value> \
-  --build-arg NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=<value> \
-  --build-arg NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=<value> \
-  --build-arg NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID=<value> \
-  --build-arg NEXT_PUBLIC_APPLE_REDIRECT_URI=<value>
-
-fly deploy --config admin-web/fly.toml \
-  --build-arg VITE_API_URL=https://<your-railway-domain>
+fly deploy --config web/fly.toml
+fly deploy --config admin-web/fly.toml
 ```
+
+**[Console]**: trigger a deploy from the Fly dashboard the same way you
+already do (GitHub Repository Settings → Working directory empty, Config
+path = `web/fly.toml` or `admin-web/fly.toml`).
 
 If `fly deploy` ever complains it can't find `web/Dockerfile` or includes
 the wrong files, double check you ran it from the repo root — the

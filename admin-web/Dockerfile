@@ -2,8 +2,8 @@
 # (not admin-web/) — same npm workspaces reasoning as backend/Dockerfile and
 # web/Dockerfile: `npm ci` needs every workspace's package.json present.
 #
-# Deploy with: `fly deploy --config admin-web/fly.toml --dockerfile admin-web/Dockerfile`
-# run from the REPO ROOT — see docs/deploy-flyio.md.
+# Deploy with: `fly deploy --config admin-web/fly.toml` run from the REPO
+# ROOT — see docs/deploy-flyio.md.
 
 FROM node:20-alpine AS build
 WORKDIR /app
@@ -17,8 +17,14 @@ RUN npm ci
 COPY . .
 # Vite inlines `import.meta.env.VITE_*` into the built JS at compile time —
 # there's no "runtime env" for a static SPA, so this must be a build arg,
-# not a container env var set at deploy/run time.
-ARG VITE_API_URL
+# not a container env var set at deploy/run time. Defaulted to the current
+# Railway backend domain (client.ts has no fallback — an unset/empty value
+# silently bakes in "", which makes every request relative to admin-web's
+# OWN origin instead of the backend, e.g. a 405 from admin-web's own nginx
+# on POST /auth/login) because Fly's GitHub-integration dashboard deploy has
+# no field to pass --build-arg; override on the CLI with
+# `--build-arg VITE_API_URL=...` if the backend domain ever changes.
+ARG VITE_API_URL=https://foodmapbyhoa.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build --workspace=admin-web
 

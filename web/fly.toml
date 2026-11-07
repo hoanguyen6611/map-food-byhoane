@@ -15,6 +15,23 @@ primary_region = "sin"       # Singapore — closest Fly region to Vietnam
 [build]
   dockerfile = "Dockerfile"
 
+  # Fly's GitHub-integration dashboard deploy has no field to pass
+  # --build-arg (CLI-only otherwise) — [build.args] works for BOTH the CLI
+  # and dashboard-triggered builds, so this is the one place that reliably
+  # reaches every deploy path. These are all NEXT_PUBLIC_* values (OAuth
+  # client IDs, ImageKit's PUBLIC key) — safe to commit, they ship in the
+  # browser bundle by design regardless of where they're set. Fill in the
+  # real values from your current web/.env before the first deploy; a
+  # missing one silently bakes in an empty string (e.g. breaks the Google/
+  # Apple login buttons or next/image's ImageKit hostname allowlist), not a
+  # build failure, so there's no error to notice if you skip this.
+  [build.args]
+    NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = "REPLACE_ME"
+    NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY = "REPLACE_ME"
+    NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID = "REPLACE_ME"
+    NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID = "REPLACE_ME"
+    NEXT_PUBLIC_APPLE_REDIRECT_URI = "REPLACE_ME"
+
 [env]
   NODE_ENV = "production"
   PORT = "8080"
