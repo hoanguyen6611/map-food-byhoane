@@ -4,8 +4,8 @@
 # root node_modules, so `npm ci` needs every workspace's package.json
 # present. Same reasoning as backend/Dockerfile's top comment.
 #
-# Deploy with: `fly deploy --config web/fly.toml --dockerfile web/Dockerfile`
-# run from the REPO ROOT, not from inside web/ — see docs/deploy-flyio.md.
+# Deploy with: `fly deploy --config web/fly.toml` run from the REPO ROOT,
+# not from inside web/ — see docs/deploy-flyio.md.
 
 FROM node:20-alpine AS deps
 WORKDIR /app
@@ -39,6 +39,10 @@ ENV NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID
 ENV NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID=$NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID
 ENV NEXT_PUBLIC_APPLE_REDIRECT_URI=$NEXT_PUBLIC_APPLE_REDIRECT_URI
 RUN npm run build --workspace=web
+# This app has no web/public directory today (every icon/robots.txt is
+# generated from src/app/ file-based metadata instead) — COPY below needs
+# the source path to exist regardless, so ensure it does even if empty.
+RUN mkdir -p web/public
 
 # Slim runtime image. `output: 'standalone'` (next.config.ts) produces a
 # pruned `.next/standalone` tree with only the node_modules this app's
