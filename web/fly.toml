@@ -10,9 +10,9 @@ primary_region = 'ams'
   dockerfile = 'Dockerfile'
 
   [build.args]
-    NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID = 'REPLACE_ME'
-    NEXT_PUBLIC_APPLE_REDIRECT_URI = 'REPLACE_ME'
-    NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID = 'REPLACE_ME'
+    NEXT_PUBLIC_APPLE_OAUTH_CLIENT_ID = ''
+    NEXT_PUBLIC_APPLE_REDIRECT_URI = ''
+    NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID = '16394867202-788n33i0p8ulrkd72rotcqaopbaaf9gm.apps.googleusercontent.com'
     NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY = 'public_WYltmmJOZFWTLK9IloWulX5d22Q='
     NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = 'https://ik.imagekit.io/cjx1zgaos'
 
