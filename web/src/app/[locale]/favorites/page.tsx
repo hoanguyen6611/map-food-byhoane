@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import type { FavoriteListResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { RestaurantCard } from '@/components/RestaurantCard';
+import { PlaceRow } from '@/components/PlaceRow';
 import { Link } from '@/i18n/navigation';
 import { BookmarkIcon } from '@/components/icons';
 
@@ -65,9 +66,18 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <>
-          <div className="card-grid">
+          {/* Desktop keeps the photo-forward grid; mobile switches to the
+              redesign's compact list rows (`.favorites-list` — see
+              globals.css's 768px breakpoint) instead of a second,
+              narrower copy of the same grid. */}
+          <div className="card-grid favorites-grid">
             {result.items.map((favorite) => (
               <RestaurantCard key={favorite.id} restaurant={favorite.restaurant} />
+            ))}
+          </div>
+          <div className="favorites-list">
+            {result.items.map((favorite) => (
+              <PlaceRow key={favorite.id} restaurant={favorite.restaurant} thumb={68} />
             ))}
           </div>
 

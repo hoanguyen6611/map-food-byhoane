@@ -69,6 +69,40 @@
   --max-width-wide: 1280px;
 }
 
+/* Mobile-only theme shift toward the redesign's app mockup ("Ngon — App
+   đánh giá món ăn v3.dc.html"): warm cream canvas, bigger card radii, fully
+   pill-shaped controls — layout/data stays exactly as-is (restaurant-scoped,
+   not the mockup's dish-scoped review model), only these tokens move.
+   `:not([data-theme='dark'])` because the mockup's palette is a light-theme
+   one — dark mode keeps its own existing canvas/radii untouched. */
+@media (max-width: 767px) {
+  :root:not([data-theme='dark']) {
+    --color-canvas: var(--color-cream);
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+  }
+  /* `--radius-md` itself stays untouched — it's shared by 30+ unrelated
+     selectors (photo thumbnails, the mini-map, login page fields, category
+     tiles) where a full pill would look wrong, not just buttons. Each
+     control the mockup actually draws as a pill is listed explicitly
+     instead, scoped to this same breakpoint. */
+  .search-input-wrap,
+  .search-field,
+  .search-submit,
+  .action-primary,
+  .btn-dark,
+  .sort-btn,
+  .view-switch,
+  .view-switch-btn,
+  .action-icon-btn,
+  .map-filter-trigger-btn,
+  .map-page-search,
+  .favorites-header-icon {
+    border-radius: var(--radius-pill);
+  }
+}
+
 /* Dark theme — same token set, applied by next-themes via `data-theme` on
    `<html>` (ThemeToggle.tsx / [locale]/layout.tsx). Every rule elsewhere in
    this file that already reads a `var(--color-*)` token repaints for free;
@@ -253,6 +287,53 @@ textarea:focus-visible {
   color: var(--color-ink);
   cursor: pointer;
 }
+/* Mirrors AuthStatus's desktop `.notification-bell-btn` — hidden here by
+   default since `.topbar-right` (which has the desktop one) is what's
+   visible above 768px; the mobile media query below reveals this one
+   instead of relying on the hamburger overlay for notifications, so
+   there's no unread-badge visibility gap on phones. */
+.topbar-mobile-bell {
+  display: none;
+  position: relative;
+}
+/* Floating pill bottom nav from the redesign (home/search/write/saved/
+   profile) — hidden by default, shown only below 768px (see that media
+   query's own `.mobile-tab-bar` override) since desktop keeps
+   `.topbar-right`'s nav row and has no room/need for app-style tab
+   navigation. Icon-only (no visible labels — see MobileTabBar.tsx's own
+   doc comment), floating clear of both edges rather than a flush
+   full-width bar, dark pill matching the mockup's `tabItems` bar exactly. */
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  bottom: 16px;
+  z-index: 20;
+  height: 64px;
+  background: var(--gradient-ink);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.18);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+.mobile-tab-item {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 180ms var(--ease-standard);
+}
+.mobile-tab-item-active {
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
 .topbar-menu-btn:hover {
   background: var(--color-border-hairline);
 }
@@ -314,6 +395,18 @@ textarea:focus-visible {
 @media (max-width: 767px) {
   .topbar-menu-btn {
     display: flex;
+    margin-left: 4px;
+  }
+  .topbar-mobile-bell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    margin-left: auto;
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-muted);
   }
   /* The open mobile menu is `.mobile-nav-overlay` below, a separate
      full-screen panel — not this row reflowed. Nothing here ever shows on
@@ -479,6 +572,22 @@ textarea:focus-visible {
   }
   .mobile-nav-login {
     text-decoration: none;
+  }
+
+  /* Bottom tab bar replaces SiteFooter's nav role on phones (the redesign's
+     native-app pattern has no footer) — footer content (links/copyright)
+     would otherwise sit directly behind the fixed tab bar. */
+  .site-footer {
+    display: none;
+  }
+  .mobile-tab-bar {
+    display: flex;
+  }
+  /* Keeps the last bit of real content from being hidden behind the fixed
+     tab bar — `.mobile-tab-bar`'s top edge sits 16px (its own `bottom`) +
+     64px (its own height) = 80px above the viewport's bottom edge. */
+  #main-content {
+    padding-bottom: 96px;
   }
 }
 .account-pill {
@@ -1191,6 +1300,42 @@ textarea:focus-visible {
   font-size: 13px;
   color: var(--color-ink-subtle);
 }
+/* Redesign's category grid is 4 icon-over-label tiles per row, not this
+   row-layout icon+text+count card — the tile colors already match it
+   exactly (`.cat-tile-0..5` above are its literal hex values), only the
+   shape differs. No count shown there either (it's a glance-level nav
+   grid, not a filtered list preview). */
+@media (max-width: 767px) {
+  .cat-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .cat-card {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    text-align: center;
+  }
+  .cat-icon-tile {
+    width: 100%;
+    aspect-ratio: 1;
+    height: auto;
+    border-radius: 18px;
+  }
+  .cat-card-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+  }
+  .cat-card-count {
+    display: none;
+  }
+}
 
 .area-grid {
   display: grid;
@@ -1285,6 +1430,20 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(228px, 320px));
   gap: 14px;
+}
+/* The existing sizing hint on RestaurantCard's photo
+   (`sizes="(max-width: 640px) 45vw, 260px"`) already assumes 2 columns on
+   mobile — the grid above never actually gave it those 2 columns (228px's
+   floor leaves room for only 1 at this width). Matches the redesign's
+   2-column "Món được chấm cao" grid for free. Placed after the base rule,
+   not just inside a `max-width` query above it — same class, so an
+   earlier media-scoped copy would lose the cascade to this unconditional
+   one regardless of which one's condition matches. */
+@media (max-width: 767px) {
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 }
 
 /* Public profile's "Quán đã đóng góp" — a compact list (ContributedRestaurantsList.tsx),
@@ -2450,6 +2609,38 @@ textarea:focus-visible {
   color: var(--color-ink);
 }
 
+/* /search's mobile-only filter entry point (MapFilterDrawer reused from
+   /map — see SearchFilterForm's `bare` prop) — hidden on desktop, where
+   `.search-sidebar` already shows every filter inline with no extra tap. */
+.search-mobile-filter-trigger {
+  display: none;
+}
+@media (max-width: 767px) {
+  .search-sidebar {
+    display: none;
+  }
+  .search-mobile-filter-trigger {
+    display: flex;
+  }
+  /* `.map-filter-trigger-btn`'s own base styling (light outlined pill,
+     icon + "Bộ lọc" label + inline badge) already matches the redesign's
+     reference ("Khám phá" screen's filter pill) as-is — no override needed
+     here beyond the bottom-sheet panel below. */
+  /* Bottom sheet instead of /map's centered modal — slides up from the
+     tab bar instead of floating mid-screen, matching the redesign's filter
+     drawer. */
+  .search-mobile-filter-trigger .profile-edit-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .search-mobile-filter-trigger .profile-edit-modal-panel {
+    max-width: none;
+    width: 100%;
+    max-height: 86vh;
+    border-radius: 28px 28px 0 0;
+  }
+}
+
 .active-filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -2802,6 +2993,89 @@ textarea:focus-visible {
     position: static;
     max-width: none;
     width: 100%;
+  }
+}
+.detail-hero-wrap {
+  position: relative;
+}
+.detail-hero-back-btn {
+  display: none;
+}
+.detail-hero-fav-overlay {
+  display: none;
+}
+/* `.action-card.detail-mobile-actions` (two classes) beats plain
+   `.action-card`'s own `display: flex` at equal specificity regardless of
+   which rule's source order wins — this must stay hidden on desktop. */
+.action-card.detail-mobile-actions {
+  display: none;
+}
+.detail-write-review-fab {
+  display: none;
+}
+@media (max-width: 767px) {
+  /* Floating back/favorite controls over the photo hero — desktop relies
+     on the breadcrumb above for "back" and the sidebar's action row for
+     favoriting instead (see detail-hero-wrap's own doc comment). */
+  .detail-hero-back-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    color: var(--color-ink-subtle);
+    cursor: pointer;
+  }
+  /* `.favorite-button`'s own default CSS already floats itself top-right
+     (absolute, translucent, blurred) relative to the nearest positioned
+     ancestor — `.detail-hero-wrap` — so this wrapper only needs to exist
+     to be the thing this media query shows/hides; no positioning of its
+     own to add. */
+  .detail-hero-fav-overlay {
+    display: block;
+  }
+  .action-card.detail-mobile-actions {
+    display: flex;
+  }
+  /* This same row already shows above (`.detail-mobile-actions`) right
+     under the header — see restaurant/[slug]/page.tsx's doc comment on
+     why it's duplicated rather than moved, so hide the sidebar's copy to
+     avoid showing "Chỉ đường" twice. The sidebar's mini-map stays. */
+  .detail-sidebar .action-primary-full,
+  .detail-sidebar .action-row {
+    display: none;
+  }
+  .detail-write-review-fab {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    bottom: 92px;
+    z-index: 15;
+    height: 56px;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #fff;
+    font-family: var(--font-inter-tight), sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px 0 rgba(6, 56, 205, 0.28);
+  }
+  .detail-write-review-fab:hover {
+    color: #fff;
   }
 }
 .detail-title {
@@ -4728,6 +5002,23 @@ table.menu-table td.price {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+/* Desktop: the photo-forward `.card-grid` (RestaurantCard). Mobile: the
+   redesign's compact list rows instead (PlaceRow, same source data) —
+   see favorites/page.tsx's doc comment on why both render and only CSS
+   picks between them. */
+.favorites-list {
+  display: none;
+}
+@media (max-width: 767px) {
+  .favorites-grid {
+    display: none;
+  }
+  .favorites-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
 .profile-avatar {

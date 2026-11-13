@@ -4,6 +4,7 @@ import { getCategories, getCuisines, searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { PlaceRow } from '@/components/PlaceRow';
 import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/components/SearchFilterForm';
+import { MapFilterDrawer } from '@/components/MapFilterDrawer';
 import { FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
@@ -46,10 +47,11 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
 
   const effectiveProvince = await resolveEffectiveProvince(search.province);
 
-  const [t, tCommon, tLabels, title, categories, cuisineOptions] = await Promise.all([
+  const [t, tCommon, tLabels, tFilter, title, categories, cuisineOptions] = await Promise.all([
     getTranslations('search'),
     getTranslations('common'),
     getTranslations('labels'),
+    getTranslations('filterForm'),
     buildTitle(search.q, search.district, effectiveProvince),
     getCategories(),
     getCuisines(),
@@ -165,6 +167,20 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
               </Link>
             ) : null}
           </form>
+
+          <div className="search-mobile-filter-trigger">
+            <MapFilterDrawer label={tFilter('title')} closeLabel={tCommon('closeMenuAriaLabel')} activeCount={activeChips.length}>
+              <SearchFilterForm
+                search={search}
+                categoryCounts={categories.map((c, i) => ({ code: c.code, label: c.label, count: categoryCounts[i].total }))}
+                cuisineOptions={cuisineOptions}
+                totalCount={totalCountResult.total}
+                isHcmc={effectiveProvince === HCMC_PROVINCE_NAME}
+                basePath="/search"
+                bare
+              />
+            </MapFilterDrawer>
+          </div>
 
           <div className="view-switch">
             <Link

@@ -8,6 +8,7 @@ import { getDayHoursLines, getActiveRangeCloseTime } from '@/lib/opening-hours-d
 import { FACILITY_ICON_PATH } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { BackButton } from '@/components/BackButton';
 import { ShareButton } from '@/components/ShareButton';
 import { AddToCollectionButton } from '@/components/AddToCollectionButton';
 import { WriteReviewForm } from '@/components/WriteReviewForm';
@@ -20,7 +21,7 @@ import { MapCanvas } from '@/components/MapCanvas';
 import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
 import { SocialLinksCard } from '@/components/SocialLinksCard';
 import { OwnerClaimForm } from '@/components/OwnerClaimForm';
-import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon } from '@/components/icons';
+import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, PencilIcon } from '@/components/icons';
 import type { SocialPlatform } from '@foodmap/shared-types';
 import { getSession } from '@/lib/auth';
 
@@ -204,13 +205,23 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
         <span aria-current="page">{restaurant.name}</span>
       </nav>
 
-      <PhotoGalleryHero
-        photos={restaurant.photos}
-        photoAlts={restaurant.photos.map((_, index) => t('photoAlt', { index: index + 1, name: restaurant.name }))}
-        emptyText={t('noPhotos')}
-        seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
-        moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
-      />
+      <div className="detail-hero-wrap">
+        <PhotoGalleryHero
+          photos={restaurant.photos}
+          photoAlts={restaurant.photos.map((_, index) => t('photoAlt', { index: index + 1, name: restaurant.name }))}
+          emptyText={t('noPhotos')}
+          seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
+          moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
+        />
+        {/* Mobile-only floating controls over the hero (see globals.css's
+            `.detail-hero-back-btn`/`.detail-hero-fav-overlay`) — on desktop
+            the breadcrumb above already covers "back", and favoriting lives
+            in `.detail-mobile-actions`/the sidebar's action row instead. */}
+        <BackButton label={t('backAriaLabel')} fallbackHref="/search" />
+        <div className="detail-hero-fav-overlay">
+          <FavoriteButton restaurantId={restaurant.id} />
+        </div>
+      </div>
 
       <div className="detail-layout" style={{ marginTop: 20 }}>
         <div className="detail-main">
@@ -233,6 +244,23 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             <span className="detail-divider" aria-hidden="true" />
             <span className="detail-meta-text">{t('viewCount', { count: restaurant.viewCount })}</span>
             <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
+          </div>
+
+          {/* Mobile-only — the redesign's app-style layout puts these right
+              under the header, not buried in the sidebar's stacked position
+              below hours/similar (see globals.css's `.detail-mobile-actions`,
+              which also hides the sidebar's own copy of this same row on
+              mobile so it isn't shown twice). */}
+          <div className="action-card detail-mobile-actions">
+            <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="action-primary action-primary-full">
+              <MapPinIcon size={16} />
+              {t('directions')}
+            </a>
+            <div className="action-row">
+              <FavoriteButton restaurantId={restaurant.id} />
+              <ShareButton title={restaurant.name} />
+              <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} />
+            </div>
           </div>
 
           <div className="tab-segment">
@@ -398,17 +426,19 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                 </>
               )}
 
-              {session ? (
-                <WriteReviewForm
-                  restaurantId={restaurant.id}
-                  slug={restaurant.slug}
-                  criteria={reviewsResponse.ratingBreakdown.map((c) => ({ code: c.code, label: c.label }))}
-                />
-              ) : (
-                <p className="write-review-login-prompt">
-                  <Link href="/login">{tWriteReview('loginToReview')}</Link>
-                </p>
-              )}
+              <div id="write-review">
+                {session ? (
+                  <WriteReviewForm
+                    restaurantId={restaurant.id}
+                    slug={restaurant.slug}
+                    criteria={reviewsResponse.ratingBreakdown.map((c) => ({ code: c.code, label: c.label }))}
+                  />
+                ) : (
+                  <p className="write-review-login-prompt">
+                    <Link href="/login">{tWriteReview('loginToReview')}</Link>
+                  </p>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -488,6 +518,16 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
           ) : null}
         </div>
       </div>
+
+      {/* Mobile-only persistent CTA (see globals.css's `.detail-write-review-fab`)
+          — jumps straight to the write-review form (`#write-review`, switching
+          to the reviews tab along the way) instead of requiring a scroll past
+          hours/menu/similar to find it, matching the redesign's always-visible
+          "Viết đánh giá" button. */}
+      <Link href={`${tabHref('reviews')}#write-review`} className="detail-write-review-fab">
+        <PencilIcon size={18} />
+        {tWriteReview('heading')}
+      </Link>
     </div>
   );
 }

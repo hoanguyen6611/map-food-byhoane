@@ -73,6 +73,15 @@ export function TopBarNav() {
 
   return (
     <>
+      {session ? (
+        <Link href="/notifications" className="topbar-mobile-bell" aria-label={tAuth('notificationsLink')}>
+          <BellIcon size={20} />
+          {session.unreadCount > 0 ? (
+            <span className="notification-badge">{session.unreadCount > 99 ? '99+' : session.unreadCount}</span>
+          ) : null}
+        </Link>
+      ) : null}
+
       <button
         type="button"
         className="topbar-menu-btn"

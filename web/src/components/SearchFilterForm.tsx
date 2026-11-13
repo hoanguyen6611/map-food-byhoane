@@ -66,6 +66,17 @@ interface Props {
   isHcmc: boolean;
   /** Which page this form is mounted on — every generated link targets this instead of assuming `/search`. */
   basePath: "/search" | "/map";
+  /**
+   * Skips the `.filter-card` wrapper (header + mobile FilterCollapse
+   * accordion) and returns just the bare filter sections — for when this
+   * form is itself already inside another panel that supplies its own
+   * header, e.g. /search's mobile filter drawer (MapFilterDrawer), which
+   * mounts a second `basePath="/search"` instance of this form specifically
+   * for that drawer while the sidebar below keeps the normal card for
+   * desktop. Defaults to true for `/map` (MapFilterDrawer there too) so
+   * existing callers don't need to pass it.
+   */
+  bare?: boolean;
 }
 
 export async function SearchFilterForm({
@@ -75,6 +86,7 @@ export async function SearchFilterForm({
   totalCount,
   isHcmc,
   basePath,
+  bare,
 }: Props) {
   const [t, tLabels] = await Promise.all([
     getTranslations("filterForm"),
@@ -285,6 +297,11 @@ export async function SearchFilterForm({
       </div>
     </>
   );
+
+  const isBare = bare ?? basePath === "/map";
+  if (isBare) {
+    return <>{filterSections}</>;
+  }
 
   return (
     <div className={`filter-card ${basePath === "/search" ? "filter-card-search" : ""}`}>

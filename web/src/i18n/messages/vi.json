@@ -119,6 +119,7 @@
     "metaDescriptionFallback": "{name} — {category} tại {district}, {province}. Xem giờ mở cửa, thực đơn, đánh giá thật từ cộng đồng.",
     "ctaTitle": "Muốn viết đánh giá?",
     "ctaBody": "Tính năng viết đánh giá hiện chỉ có trên ứng dụng di động The Food Map of Vietnam — trang web này tập trung vào việc giúp bạn tìm và khám phá quán ăn.",
+    "backAriaLabel": "Quay lại",
     "infoHeading": "Thông tin",
     "addressLabel": "Địa chỉ",
     "phoneLabel": "Điện thoại",

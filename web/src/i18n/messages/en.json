@@ -119,6 +119,7 @@
     "metaDescriptionFallback": "{name} — {category} in {district}, {province}. See opening hours, menu, and real reviews from the community.",
     "ctaTitle": "Want to write a review?",
     "ctaBody": "Writing reviews is currently only available on The Food Map of Vietnam mobile app — this website focuses on helping you find and discover restaurants.",
+    "backAriaLabel": "Go back",
     "infoHeading": "Information",
     "addressLabel": "Address",
     "phoneLabel": "Phone",

@@ -9,6 +9,7 @@ import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
+import { MobileTabBar } from '@/components/MobileTabBar';
 import { SITE_NAME } from '@/lib/constants';
 import '../globals.css';
 
@@ -89,6 +90,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
                   </main>
                   <SiteFooter />
                 </div>
+                <MobileTabBar />
               </FavoritesProvider>
             </ToastProvider>
           </NextIntlClientProvider>
