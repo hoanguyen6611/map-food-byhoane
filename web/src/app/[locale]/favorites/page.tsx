@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import type { FavoriteListResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
@@ -30,7 +30,7 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
   // in" case, not just "the 15-minute access token happened to be stale."
   const res = await backendFetchAuthorized(`/me/favorites?page=${page}`);
   if (!res) {
-    redirect('/login');
+    redirectToLogin('/favorites');
   }
   if (!res.ok) {
     throw new Error(`Backend request failed: GET /me/favorites -> ${res.status}`);

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import type {
   FavoriteListResponse,
@@ -63,7 +63,7 @@ export default async function ProfilePage({ params }: PageProps) {
     getWebPushPublicKey(),
   ]);
   if (!meRes) {
-    redirect('/login');
+    redirectToLogin('/profile');
   }
   if (!meRes.ok) {
     throw new Error(`Backend request failed: GET /me -> ${meRes.status}`);

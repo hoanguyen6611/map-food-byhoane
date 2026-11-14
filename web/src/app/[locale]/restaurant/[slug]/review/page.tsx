@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
+import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant } from '@/lib/api';
 import { formatPriceRange } from '@/lib/format';
@@ -20,7 +21,7 @@ export default async function WriteReviewPage({ params }: PageProps) {
   const { slug } = await params;
   const session = await getSession();
   if (!session) {
-    redirect('/login');
+    redirectToLogin(`/restaurant/${slug}/review`);
   }
 
   let restaurant;

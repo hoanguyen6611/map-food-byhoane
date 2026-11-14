@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import type { FeedResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
@@ -29,7 +29,7 @@ export default async function FeedPage({ params, searchParams }: PageProps) {
   // already retried an expired access token once before giving up.
   const res = await backendFetchAuthorized(`/me/feed?page=${page}`);
   if (!res) {
-    redirect('/login');
+    redirectToLogin('/feed');
   }
   if (!res.ok) {
     throw new Error(`Backend request failed: GET /me/feed -> ${res.status}`);

@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
 import type { ReviewReplyDto } from '@foodmap/shared-types';
 import { createReplyAction, listRepliesAction, toggleHelpfulAction } from '@/app/[locale]/restaurant/[slug]/actions';
 import { formatRelativeDate, initialsOf } from '@/lib/format';
 import { ThumbsUpIcon, MessageCircleIcon } from './icons';
 import { useToast } from './ToastProvider';
+import { useLoginPrompt } from './LoginPromptProvider';
 
 interface Props {
   reviewId: string;
@@ -39,7 +39,6 @@ export function ReviewCardFooter({
   replyPlaceholder,
   replySubmitLabel,
 }: Props) {
-  const router = useRouter();
   const t = useTranslations('common');
   // Called directly here (not a pre-formatted string prop) so it can
   // re-interpolate `count` on every render as `replyCount` state changes —
@@ -47,6 +46,7 @@ export function ReviewCardFooter({
   // be deferred to a manual string `.replace()` on an already-evaluated value.
   const tRestaurant = useTranslations('restaurant');
   const { showToast } = useToast();
+  const { requireLogin } = useLoginPrompt();
   const [helpfulCount, setHelpfulCount] = useState(initialHelpfulCount);
   const [hasMarkedHelpful, setHasMarkedHelpful] = useState(initialViewerHasMarkedHelpful);
   const [replyCount, setReplyCount] = useState(initialReplyCount);
@@ -57,7 +57,7 @@ export function ReviewCardFooter({
 
   function handleToggleHelpful() {
     if (!isLoggedIn) {
-      router.push('/login');
+      requireLogin('helpful');
       return;
     }
     // Optimistic — reverted if the server call fails.
@@ -69,7 +69,8 @@ export function ReviewCardFooter({
       if (!result.ok) {
         setHasMarkedHelpful(wasMarked);
         setHelpfulCount((c) => (wasMarked ? c + 1 : c - 1));
-        showToast(t('actionError'), 'error');
+        if (result.error === 'unauthorized') requireLogin('expired');
+        else showToast(t('actionError'), 'error');
         return;
       }
       setHasMarkedHelpful(result.data.viewerHasMarkedHelpful);
@@ -89,7 +90,7 @@ export function ReviewCardFooter({
 
   function submitReply() {
     if (!isLoggedIn) {
-      router.push('/login');
+      requireLogin('reply');
       return;
     }
     const body = replyDraft.trim();
@@ -102,7 +103,8 @@ export function ReviewCardFooter({
         setReplyDraft('');
         return;
       }
-      showToast(t('actionError'), 'error');
+      if (result.error === 'unauthorized') requireLogin('expired');
+      else showToast(t('actionError'), 'error');
     });
   }
 

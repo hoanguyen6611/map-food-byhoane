@@ -1,14 +1,22 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { LoginForm } from './LoginForm';
-import { MapLogoIcon } from '@/components/icons';
+import { LockIcon, MapLogoIcon } from '@/components/icons';
+import { parseLoginReason, safeNextPath } from '@/lib/login-href';
 
 // Utility page, not a discovery/content page — keep it out of the index per
 // this app's overall SEO focus.
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-export default async function LoginPage() {
-  const t = await getTranslations('auth');
+interface PageProps {
+  searchParams: Promise<{ next?: string; reason?: string }>;
+}
+
+export default async function LoginPage({ searchParams }: PageProps) {
+  const { next: rawNext, reason: rawReason } = await searchParams;
+  const next = safeNextPath(rawNext);
+  const reason = parseLoginReason(rawReason);
+  const [t, tPrompt] = await Promise.all([getTranslations('auth'), getTranslations('loginPrompt')]);
 
   return (
     <div className="page-login">
@@ -21,7 +29,14 @@ export default async function LoginPage() {
           <p className="login-sub">{t('welcomeSub')}</p>
         </div>
 
-        <LoginForm />
+        {reason ? (
+          <p className="login-reason" role="status">
+            <LockIcon size={16} aria-hidden="true" />
+            <span>{tPrompt(`reason.${reason}`)}</span>
+          </p>
+        ) : null}
+
+        <LoginForm next={next} />
 
         <p className="login-footnote">{t('footnote')}</p>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useLoginPrompt } from './LoginPromptProvider';
 
 interface FavoritesContextValue {
   favoriteIds: Set<string>;
@@ -18,6 +19,7 @@ const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 export function FavoritesProvider({ children }: { children: ReactNode }) {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
+  const { isLoggedIn, requireLogin } = useLoginPrompt();
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +40,12 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggle = useCallback((restaurantId: string) => {
+    // Signed out: explain + offer sign-in instead of an optimistic fill that
+    // silently snaps back when the API answers 401.
+    if (isLoggedIn === false) {
+      requireLogin('favorite');
+      return;
+    }
     setFavoriteIds((prev) => {
       const wasFavorited = prev.has(restaurantId);
       const next = new Set(prev);
@@ -51,6 +59,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         method: wasFavorited ? 'DELETE' : 'POST',
       })
         .then((res) => {
+          // Session expired mid-visit (refresh token dead too).
+          if (res.status === 401) requireLogin('expired');
           if (!res.ok) throw new Error(`Favorite toggle failed: ${res.status}`);
         })
         .catch(() => {
@@ -68,7 +78,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
       return next;
     });
-  }, []);
+  }, [isLoggedIn, requireLogin]);
 
   return (
     <FavoritesContext.Provider value={{ favoriteIds, isLoaded, toggle }}>{children}</FavoritesContext.Provider>

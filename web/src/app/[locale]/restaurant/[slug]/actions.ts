@@ -53,11 +53,12 @@ export async function submitReviewAction(
   return { ok: true, status: review.status };
 }
 
-export type ToggleHelpfulResult = { ok: true; data: ToggleHelpfulResponse } | { ok: false };
+export type ToggleHelpfulResult = { ok: true; data: ToggleHelpfulResponse } | { ok: false; error: 'unauthorized' | 'generic' };
 
 export async function toggleHelpfulAction(reviewId: string): Promise<ToggleHelpfulResult> {
   const res = await backendFetchAuthorized(`/reviews/${reviewId}/helpful`, { method: 'POST' });
-  if (!res || !res.ok) return { ok: false };
+  if (!res || res.status === 401) return { ok: false, error: 'unauthorized' };
+  if (!res.ok) return { ok: false, error: 'generic' };
   return { ok: true, data: (await res.json()) as ToggleHelpfulResponse };
 }
 
@@ -104,7 +105,7 @@ export async function createReplyAction(reviewId: string, body: string): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ body }),
   });
-  if (!res) return { ok: false, error: 'unauthorized' };
+  if (!res || res.status === 401) return { ok: false, error: 'unauthorized' };
   if (!res.ok) {
     const errBody = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
     const message = Array.isArray(errBody?.message) ? errBody.message.join(' ') : errBody?.message;

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import type { CollectionListResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CollectionsPage() {
   const res = await backendFetchAuthorized('/me/collections');
   if (!res) {
-    redirect('/login');
+    redirectToLogin('/collections');
   }
   if (!res.ok) {
     throw new Error(`Backend request failed: GET /me/collections -> ${res.status}`);

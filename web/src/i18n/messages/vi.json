@@ -1,5 +1,11 @@
 {
   "common": {
+    "footerAllAreas": "Tất cả khu vực",
+    "footerContact": "Liên hệ",
+    "footerTerms": "Điều khoản",
+    "footerPrivacy": "Quyền riêng tư",
+    "footerCommunity": "Quy tắc cộng đồng",
+    "footerSocial": {"facebook": "{site} trên Facebook", "instagram": "{site} trên Instagram", "tiktok": "{site} trên TikTok"},
     "loading": "Đang tải…",
     "siteDescription": "Bản đồ ẩm thực Việt Nam — tìm quán ăn, quán cà phê, nhà hàng phù hợp nhất với bạn, không chỉ gần bạn nhất.",
     "noResultsFound": "Không tìm thấy kết quả",
@@ -692,5 +698,22 @@
     "installHint": "Trên iPhone/iPad: bấm Chia sẻ → “Thêm vào MH chính”, rồi mở web từ màn hình chính để bật thông báo.",
     "unsupportedHint": "Trình duyệt này không hỗ trợ thông báo đẩy.",
     "dismiss": "Để sau"
+  },
+  "loginPrompt": {
+    "title": "Bạn cần đăng nhập",
+    "expiredTitle": "Phiên đăng nhập đã hết hạn",
+    "signIn": "Đăng nhập",
+    "later": "Để sau",
+    "reason": {
+      "required": "Vui lòng đăng nhập để xem trang này.",
+      "favorite": "Đăng nhập để lưu quán vào danh sách yêu thích và xem lại trên mọi thiết bị.",
+      "collection": "Đăng nhập để thêm quán vào bộ sưu tập của bạn.",
+      "helpful": "Đăng nhập để đánh dấu đánh giá này là hữu ích.",
+      "reply": "Đăng nhập để trả lời đánh giá.",
+      "follow": "Đăng nhập để theo dõi người dùng này.",
+      "review": "Đăng nhập để viết đánh giá cho quán.",
+      "claim": "Đăng nhập để xác nhận bạn là chủ quán.",
+      "expired": "Vui lòng đăng nhập lại để tiếp tục — thao tác vừa rồi chưa được lưu."
+    }
   }
 }

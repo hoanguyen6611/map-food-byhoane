@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useLoginPrompt } from './LoginPromptProvider';
 import { useTranslations } from 'next-intl';
 import type { CollectionSummaryDto } from '@foodmap/shared-types';
 import { addToCollectionAction, createCollectionAction, listMyCollectionsAction } from '@/app/[locale]/collections/actions';
@@ -20,6 +21,7 @@ interface Props {
 // yet to pick from.
 export function AddToCollectionButton({ restaurantId, isLoggedIn, wide }: Props) {
   const t = useTranslations('collections');
+  const { requireLogin } = useLoginPrompt();
   const [open, setOpen] = useState(false);
   const [collections, setCollections] = useState<CollectionSummaryDto[] | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
@@ -39,6 +41,10 @@ export function AddToCollectionButton({ restaurantId, isLoggedIn, wide }: Props)
   }, [open]);
 
   async function handleOpen() {
+    if (!isLoggedIn) {
+      requireLogin('collection');
+      return;
+    }
     setOpen((v) => !v);
     if (collections === null) {
       const result = await listMyCollectionsAction(restaurantId);
@@ -67,7 +73,6 @@ export function AddToCollectionButton({ restaurantId, isLoggedIn, wide }: Props)
     await handleAdd(result.data.id);
   }
 
-  if (!isLoggedIn) return null;
 
   return (
     <div className={`account-menu-wrap ${wide ? 'collection-wide-wrap' : ''}`} ref={menuRef}>

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import type { NotificationListResponse, NotificationType } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
@@ -64,7 +64,7 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
   const { filter: rawFilter } = await searchParams;
   const res = await backendFetchAuthorized('/me/notifications?page=1&pageSize=20');
   if (!res) {
-    redirect('/login');
+    redirectToLogin('/notifications');
   }
   if (!res.ok) {
     throw new Error(`Backend request failed: GET /me/notifications -> ${res.status}`);

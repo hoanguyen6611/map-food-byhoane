@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { useLoginPrompt } from './LoginPromptProvider';
 import { followUserAction, unfollowUserAction } from '@/app/[locale]/profile/[id]/actions';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function FollowButton({ targetUserId, initialIsFollowing, initialFollowerCount, isLoggedIn }: Props) {
-  const router = useRouter();
+  const { requireLogin } = useLoginPrompt();
   const t = useTranslations('publicProfile');
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followerCount, setFollowerCount] = useState(initialFollowerCount);
@@ -21,7 +21,7 @@ export function FollowButton({ targetUserId, initialIsFollowing, initialFollower
 
   if (!isLoggedIn) {
     return (
-      <button type="button" className="secondary-btn" onClick={() => router.push('/login')}>
+      <button type="button" className="secondary-btn" onClick={() => requireLogin('follow')}>
         {t('loginToFollow')}
       </button>
     );
@@ -41,6 +41,7 @@ export function FollowButton({ targetUserId, initialIsFollowing, initialFollower
     } else {
       setIsFollowing(wasFollowing);
       setFollowerCount((c) => (wasFollowing ? c + 1 : c - 1));
+      if (result.error === 'unauthorized') requireLogin('expired');
     }
     setIsPending(false);
   }

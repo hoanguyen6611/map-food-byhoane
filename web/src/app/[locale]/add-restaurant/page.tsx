@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { redirectToLogin } from '@/lib/require-login';
 import { getTranslations } from 'next-intl/server';
 import { getSession } from '@/lib/auth';
 import { getCategories, getCuisines, getFacilities } from '@/lib/api';
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function AddRestaurantPage() {
   const session = await getSession();
   if (!session) {
-    redirect('/login');
+    redirectToLogin('/add-restaurant');
   }
   const [t, categories, cuisines, facilities] = await Promise.all([
     getTranslations('addRestaurant'),

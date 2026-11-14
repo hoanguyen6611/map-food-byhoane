@@ -353,18 +353,30 @@ textarea:focus-visible {
     display: none;
   }
 
-  /* Bottom tab bar replaces SiteFooter's nav role on phones (the redesign's
-     native-app pattern has no footer) — footer content (links/copyright)
-     would otherwise sit directly behind the fixed tab bar. */
+  /* Footer shows on phones too (compact, accordion columns — see the
+     .footer-* mobile rules). It sits at the end of the scroll, so IT carries
+     the clearance for the fixed tab bar (64px + iOS home-indicator inset)
+     and its surface color runs behind the bar; main content needs none. */
   .site-footer {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  /* Detail page's floating "Viết đánh giá" button sits 68px above the tab
+     bar (52px tall + gap) — clear it too so the last footer row and the
+     copyright line aren't hidden under it. */
+  body:has(.detail-write-review-fab) .site-footer {
+    padding-bottom: calc(64px + 96px + env(safe-area-inset-bottom));
+  }
+  /* Full-screen map: nothing to scroll down to, keep it edge-to-edge. */
+  body:has(.map-page) .site-footer {
     display: none;
   }
   .mobile-tab-bar {
     display: flex;
   }
-  /* Keeps the last bit of real content from being hidden behind the fixed
-     tab bar — matches `.mobile-tab-bar`'s own height above. */
   #main-content {
+    padding-bottom: 0;
+  }
+  body:has(.map-page) #main-content {
     padding-bottom: 64px;
   }
 }
@@ -611,6 +623,22 @@ textarea:focus-visible {
   .footer-main {
     grid-template-columns: 1fr;
     gap: 4px;
+    padding: 20px 16px 8px;
+  }
+  .footer-brand {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border-hairline);
+  }
+  .footer-brand-desc {
+    max-width: none;
+    font-size: 13px;
+    margin: 0;
+  }
+  .footer-bottom {
+    border-top: 0;
+    padding: 8px 16px 16px;
+    font-size: 12px;
+    text-align: center;
   }
 }
 .footer-brand {
@@ -8456,5 +8484,197 @@ html[data-nav-pending='same'] #main-content {
 @media (prefers-reduced-motion: reduce) {
   .sk-shell {
     animation: none;
+  }
+}
+
+/* ---------- Login: why sign-in was asked for (?reason=) ---------- */
+
+.login-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-fg);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.login-reason svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- Mobile footer (MobileFooter — "Footer · dùng chung") ---------- */
+
+.mfooter {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .site-footer .footer-main,
+  .site-footer .footer-bottom {
+    display: none;
+  }
+  /* Form screens / full map: no footer at all (design). */
+  .site-footer:has(.mfooter[data-variant='hidden']) {
+    display: none;
+  }
+  .mfooter {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 20px 24px;
+  }
+  .mfooter-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mfooter-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+  .mfooter-logo-tile {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+  }
+  .mfooter-desc {
+    margin: 0;
+    font-family: var(--font-figtree), sans-serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-ink-muted);
+    text-wrap: pretty;
+  }
+  .mfooter-socials {
+    display: flex;
+    gap: 8px;
+  }
+  .mfooter-social {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink);
+  }
+  .mfooter-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 16px;
+  }
+  .mfooter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .mfooter-group-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+  .mfooter-links {
+    display: flex;
+    flex-direction: column;
+  }
+  .mfooter-links-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+  .mfooter-link {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    font-size: 13px;
+    letter-spacing: -0.01em;
+    color: var(--color-ink-muted);
+  }
+  .mfooter-link:hover {
+    color: var(--color-ink);
+  }
+  .mfooter-accs {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--color-border-hairline);
+  }
+  .mfooter-acc {
+    border-top: 1px solid var(--color-border-hairline);
+  }
+  .mfooter-acc-btn {
+    margin: 0;
+    width: 100%;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .mfooter-acc-chevron {
+    color: var(--color-ink-subtle);
+    transition: transform 0.15s ease;
+  }
+  .mfooter-acc-chevron-open {
+    transform: rotate(180deg);
+  }
+  .mfooter-acc-panel {
+    padding: 0 0 10px;
+  }
+  .mfooter-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border-hairline);
+  }
+  .mfooter-bottom-compact {
+    padding-top: 0;
+    border-top: none;
+  }
+  .mfooter-lang {
+    align-self: flex-start;
+  }
+  .mfooter-legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+  .mfooter-legal .mfooter-link {
+    min-height: 24px;
+    font-family: var(--font-figtree), sans-serif;
+    font-size: 12px;
+  }
+  .mfooter-copy {
+    font-family: var(--font-figtree), sans-serif;
+    font-size: 12px;
+    color: var(--color-ink-muted);
+  }
+}
+
+@media (max-width: 767px) {
+  .mfooter-lang {
+    background: var(--color-border-hairline);
   }
 }

@@ -100,39 +100,6 @@ export function HomeSkeleton() {
   );
 }
 
-export function RestaurantDetailSkeleton() {
-  return (
-    <Shell className="container" style={{ paddingBottom: 48 }}>
-      <div className="sk-photo-grid">
-        <Sk h="100%" r={16} className="sk-photo-main" />
-        <Sk h="100%" r={12} />
-        <Sk h="100%" r={12} />
-        <Sk h="100%" r={12} />
-        <Sk h="100%" r={12} className="sk-desktop-only" />
-      </div>
-      <div className="sk-detail-body">
-        <Sk w="62%" h={28} r={8} />
-        <div className="sk-inline">
-          <Sk w={90} h={16} />
-          <Sk w={140} h={16} />
-          <Sk w={80} h={24} r={999} />
-        </div>
-        <Sk w="100%" h={44} r={12} style={{ maxWidth: 360 }} />
-        <div className="sk-card">
-          <Sk w="40%" h={18} />
-          <Sk w="90%" h={13} />
-          <Sk w="75%" h={13} />
-          <Sk w="60%" h={13} />
-        </div>
-        <div className="sk-card">
-          <Sk w="35%" h={18} />
-          <Rows count={3} thumb={52} />
-        </div>
-      </div>
-    </Shell>
-  );
-}
-
 export function ListPageSkeleton({ chips = false, avatar = false, rows = 6, maxWidth }: { chips?: boolean; avatar?: boolean; rows?: number; maxWidth?: number }) {
   return (
     <Shell style={maxWidth ? { maxWidth } : undefined}>

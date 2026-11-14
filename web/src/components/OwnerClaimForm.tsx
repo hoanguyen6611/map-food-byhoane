@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLoginPrompt } from './LoginPromptProvider';
 import { useTranslations } from 'next-intl';
 import { submitOwnerClaimAction } from '@/app/[locale]/restaurant/[slug]/actions';
 
@@ -12,6 +13,7 @@ interface Props {
 type Phase = 'closed' | 'open' | 'submitting' | 'success' | 'error';
 
 export function OwnerClaimForm({ restaurantId, isLoggedIn }: Props) {
+  const { requireLogin } = useLoginPrompt();
   const t = useTranslations('restaurant');
   const [phase, setPhase] = useState<Phase>('closed');
   const [contactPhone, setContactPhone] = useState('');
@@ -37,9 +39,9 @@ export function OwnerClaimForm({ restaurantId, isLoggedIn }: Props) {
             {t('ownerClaimButton')}
           </button>
         ) : (
-          <a href="/login" className="secondary-btn">
+          <button type="button" className="secondary-btn" onClick={() => requireLogin('claim')}>
             {t('ownerClaimLoginPrompt')}
-          </a>
+          </button>
         )}
       </div>
     );

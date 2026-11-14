@@ -295,7 +295,7 @@ export default async function HomePage({ params }: PageProps) {
         </section>
 
         {areaEntries.length > 0 ? (
-          <section className="section-block home-sec-areas">
+          <section id="khu-vuc" className="section-block home-sec-areas">
             <div className="section-head">
               <h2 className="section-title">{t('areasHeading')}</h2>
               <span className="section-caption">{t('areasCaption')}</span>

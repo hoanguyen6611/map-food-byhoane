@@ -2,11 +2,16 @@ import { getTranslations } from 'next-intl/server';
 import type { RestaurantCategoryCode } from '@foodmap/shared-types';
 import { Link } from '@/i18n/navigation';
 import { DISTRICTS } from '@/lib/districts';
-import { SITE_NAME } from '@/lib/constants';
+import { FOOTER_LINKS, SITE_NAME, SOCIAL_LINKS } from '@/lib/constants';
 import { MapLogoIcon } from './icons';
 import { FooterColumn } from './FooterColumn';
+import { MobileFooter, type MobileFooterData } from './MobileFooter';
 
 const ABOUT_SECTIONS = ['cach-cham-diem', 'tieu-chi', 'kiem-duyet', 'du-lieu'] as const;
+
+function aboutHref(section: string): string {
+  return section === 'cach-cham-diem' ? '/about' : `/about?section=${section}`;
+}
 
 // A curated subset (not the full `CATEGORY_OPTIONS`) — the footer is meant
 // as a handful of quick jumping-off points, not an exhaustive category
@@ -21,8 +26,41 @@ export async function SiteFooter() {
     getTranslations('about'),
   ]);
 
+  const year = new Date().getFullYear();
+  const mobileData: MobileFooterData = {
+    siteName: SITE_NAME,
+    brandDesc: t('footerBrandDesc'),
+    exploreHeading: t('footerExploreHeading'),
+    areasHeading: t('footerAreasHeading'),
+    aboutHeading: tAbout('footerHeading'),
+    explore: [
+      ...FOOTER_CATEGORIES.map((code) => ({ href: `/search?category=${code}`, label: tLabels(`category.${code}`) })),
+      { href: '/map', label: t('mapNavLink') },
+      { href: '/leaderboard', label: t('leaderboardNavLink') },
+    ],
+    areas: [
+      ...DISTRICTS.map((d) => ({ href: `/district/${d.slug}`, label: d.name })),
+      { href: '/#khu-vuc', label: t('footerAllAreas') },
+    ],
+    about: [
+      ...[...ABOUT_SECTIONS, 'cap-do-thanh-vien' as const].map((section) => ({ href: aboutHref(section), label: tAbout(`nav.${section}`) })),
+      ...(FOOTER_LINKS.contact ? [{ href: FOOTER_LINKS.contact, label: t('footerContact') }] : []),
+    ],
+    legal: [
+      ...(FOOTER_LINKS.terms ? [{ href: FOOTER_LINKS.terms, label: t('footerTerms') }] : []),
+      ...(FOOTER_LINKS.privacy ? [{ href: FOOTER_LINKS.privacy, label: t('footerPrivacy') }] : []),
+      ...(FOOTER_LINKS.communityGuidelines ? [{ href: FOOTER_LINKS.communityGuidelines, label: t('footerCommunity') }] : []),
+    ],
+    socials: (['facebook', 'instagram', 'tiktok'] as const)
+      .filter((network) => SOCIAL_LINKS[network])
+      .map((network) => ({ network, href: SOCIAL_LINKS[network], label: t(`footerSocial.${network}`, { site: SITE_NAME }) })),
+    languageLabel: t('languageMenuHeading'),
+    copyright: `© ${year} ${SITE_NAME}`,
+  };
+
   return (
     <footer className="site-footer">
+      <MobileFooter data={mobileData} />
       <div className="footer-main">
         <div className="footer-brand">
           <span className="topbar-logo" style={{ fontSize: 16 }}>
@@ -53,7 +91,7 @@ export async function SiteFooter() {
         <FooterColumn title={tAbout('footerHeading')}>
           {ABOUT_SECTIONS.map((section) => (
             <li key={section}>
-              <Link href={section === 'cach-cham-diem' ? '/about' : `/about?section=${section}`}>
+              <Link href={aboutHref(section)}>
                 {tAbout(`nav.${section}`)}
               </Link>
             </li>
@@ -61,7 +99,7 @@ export async function SiteFooter() {
         </FooterColumn>
       </div>
       <div className="footer-bottom">
-        © {new Date().getFullYear()} {SITE_NAME}
+        © {year} {SITE_NAME}
         {t('footerCta') ? ` — ${t('footerCta')}` : ''}
       </div>
     </footer>

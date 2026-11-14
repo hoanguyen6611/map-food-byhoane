@@ -41,7 +41,7 @@ export function AuthGateModal({
       <Pressable style={styles.backdrop} onPress={onDismiss}>
         {/* Swallow taps inside the sheet so they don't bubble to the backdrop's dismiss handler. */}
         <Pressable style={styles.sheet} onPress={() => undefined}>
-          <Text style={styles.title}>Cần đăng nhập</Text>
+          <Text style={styles.title}>Bạn cần đăng nhập</Text>
           <Text style={styles.message}>
             {message ?? 'Bạn cần đăng nhập để thực hiện hành động này.'}
           </Text>

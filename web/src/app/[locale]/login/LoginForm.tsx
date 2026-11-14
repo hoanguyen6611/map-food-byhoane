@@ -48,7 +48,7 @@ declare global {
  * soft client-side navigation — see actions.ts's doc comment for why that
  * matters here.
  */
-export function LoginForm() {
+export function LoginForm({ next = null }: { next?: string | null }) {
   const t = useTranslations('auth');
   const locale = useLocale();
   const [tab, setTab] = useState<Tab>('signin');
@@ -59,8 +59,10 @@ export function LoginForm() {
   const [oauthPending, setOauthPending] = useState<'google' | 'apple' | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
+  // Back to where sign-in was asked for (already validated by safeNextPath
+  // on the server), else Home.
   function goToApp() {
-    window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
+    window.location.href = next ?? (locale === routing.defaultLocale ? '/' : `/${locale}`);
   }
 
   async function handleOAuthToken(provider: 'google' | 'apple', idToken: string) {

@@ -1,5 +1,11 @@
 {
   "common": {
+    "footerAllAreas": "All areas",
+    "footerContact": "Contact",
+    "footerTerms": "Terms",
+    "footerPrivacy": "Privacy",
+    "footerCommunity": "Community guidelines",
+    "footerSocial": {"facebook": "{site} on Facebook", "instagram": "{site} on Instagram", "tiktok": "{site} on TikTok"},
     "loading": "Loading…",
     "siteDescription": "The Food Map of Vietnam — find the restaurant, cafe, or eatery that's actually right for you, not just the closest one.",
     "noResultsFound": "No results found",
@@ -692,5 +698,22 @@
     "installHint": "On iPhone/iPad: tap Share → “Add to Home Screen”, then open the site from your Home Screen to turn on notifications.",
     "unsupportedHint": "This browser doesn't support push notifications.",
     "dismiss": "Not now"
+  },
+  "loginPrompt": {
+    "title": "Sign in required",
+    "expiredTitle": "Your session has expired",
+    "signIn": "Sign in",
+    "later": "Not now",
+    "reason": {
+      "required": "Please sign in to view this page.",
+      "favorite": "Sign in to save places to your favorites and see them on any device.",
+      "collection": "Sign in to add this place to your collections.",
+      "helpful": "Sign in to mark this review as helpful.",
+      "reply": "Sign in to reply to reviews.",
+      "follow": "Sign in to follow this user.",
+      "review": "Sign in to write a review for this place.",
+      "claim": "Sign in to claim this place as its owner.",
+      "expired": "Please sign in again to continue — your last action wasn't saved."
+    }
   }
 }

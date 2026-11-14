@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import { loginHref } from '@/lib/login-href';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { ApiNotFoundError, getFacilities, getRestaurantBySlug, getReviewsForRestaurant, searchRestaurants } from '@/lib/api';
@@ -340,11 +341,9 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             ) : null}
             <ShareButton title={restaurant.name} withLabel className="detail-action-btn" />
           </div>
-          {session ? (
-            <div className="detail-mobile-collection">
-              <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn wide />
-            </div>
-          ) : null}
+          <div className="detail-mobile-collection">
+            <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} wide />
+          </div>
 
           <div className="tab-segment">
             <Link href={tabHref('info')} className={`tab-segment-btn ${activeTab === 'info' ? 'tab-segment-btn-active' : ''}`}>
@@ -629,7 +628,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   />
                 ) : (
                   <p className="write-review-login-prompt">
-                    <Link href="/login">{tWriteReview('loginToReview')}</Link>
+                    <Link href={loginHref(`/restaurant/${slug}?tab=reviews`, 'review')}>{tWriteReview('loginToReview')}</Link>
                   </p>
                 )}
               </div>
@@ -753,7 +752,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
       {/* Mobile-only persistent CTA (see globals.css's `.detail-write-review-fab`)
           — opens the dedicated full-screen write-review route (design's
           "Viết đánh giá" screen); signed-out users go to login first. */}
-      <Link href={session ? `/restaurant/${slug}/review` : '/login'} className="detail-write-review-fab">
+      <Link href={session ? `/restaurant/${slug}/review` : loginHref(`/restaurant/${slug}/review`, 'review')} className="detail-write-review-fab">
         <PencilIcon size={18} />
         {tWriteReview('heading')}
       </Link>
