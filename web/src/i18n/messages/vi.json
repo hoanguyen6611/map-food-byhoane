@@ -4,6 +4,8 @@
     "noResultsFound": "Không tìm thấy kết quả",
     "actionError": "Có lỗi xảy ra. Vui lòng thử lại.",
     "skipToContent": "Bỏ qua để đến nội dung chính",
+    "splashLoading": "Đang tải quán quanh bạn…",
+    "splashAriaLabel": "Đang tải {siteName}",
     "homeAriaLabel": "The Food Map of Vietnam — về trang chủ",
     "mainNav": "Điều hướng chính",
     "menuAriaLabel": "Mở menu",
@@ -177,7 +179,12 @@
     "ownerClaimSuccess": "Đã gửi yêu cầu. Quản trị viên sẽ xem xét và phản hồi sớm.",
     "ownerClaimConflict": "Quán này đã có chủ quán, hoặc bạn đã gửi yêu cầu rồi.",
     "ownerClaimError": "Không thể gửi yêu cầu. Vui lòng thử lại.",
-    "ownerReplyBadge": "Chủ quán"
+    "ownerReplyBadge": "Chủ quán",
+    "call": "Gọi điện",
+    "openUntilLong": "Mở đến {time}",
+    "criteriaHeading": "Điểm theo tiêu chí",
+    "pageOfSpaced": "Trang {page} / {totalPages}",
+    "seeMoreReviews": "Xem thêm"
   },
   "notFound": {
     "title": "Không tìm thấy trang",
@@ -230,8 +237,11 @@
   "favorites": {
     "title": "Quán yêu thích",
     "subtitle": "{count} quán bạn đã lưu để ghé sau",
-    "empty": "Bạn chưa lưu quán ăn nào.",
-    "emptyBody": "Bấm biểu tượng trái tim trên trang chi tiết quán để lưu vào đây."
+    "empty": "Chưa lưu quán nào",
+    "emptyBody": "Lưu quán muốn thử để mở lại nhanh khi đi ăn.",
+    "mobileTitle": "Đã lưu",
+    "emptyCta": "Tìm quán gần bạn",
+    "reviewCta": "Đánh giá"
   },
   "collections": {
     "title": "Bộ sưu tập của tôi",
@@ -355,7 +365,28 @@
     "publishedBody": "Cảm ơn bạn đã chia sẻ — đánh giá của bạn đã hiển thị công khai.",
     "pendingTitle": "Đã gửi đánh giá",
     "pendingBody": "Đánh giá của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai.",
-    "loginToReview": "Đăng nhập để viết đánh giá"
+    "loginToReview": "Đăng nhập để viết đánh giá",
+    "closeLabel": "Đóng",
+    "readyLabel": "Sẵn sàng đăng",
+    "needStarsLabel": "Cần chấm sao",
+    "needCriteriaLabel": "Chấm ít nhất 1 tiêu chí",
+    "ratingWord": {
+      "0": "Chạm vào sao để chấm",
+      "1": "Tệ",
+      "2": "Tạm được",
+      "3": "Ổn",
+      "4": "Ngon",
+      "5": "Xuất sắc"
+    },
+    "criteriaHeading": "Chấm theo tiêu chí",
+    "criteriaHint": "Bỏ qua mục không dùng",
+    "commentPlaceholderLong": "Kể lại trải nghiệm của bạn: món gọi gì, phục vụ ra sao, có nên quay lại không…",
+    "realNameNote": "Đánh giá hiển thị kèm tên thật của bạn. Chỉ viết về lần ghé gần nhất.",
+    "submitScreen": "Đăng đánh giá",
+    "postedTitle": "Đã đăng đánh giá",
+    "postedBody": "Đánh giá {stars} sao cho {name} đã hiển thị trên trang quán và trên web.",
+    "viewRestaurant": "Xem quán",
+    "backHome": "Về trang chủ"
   },
   "profile": {
     "title": "Hồ sơ của tôi",
@@ -389,14 +420,14 @@
     "saved": "Cập nhập thành công",
     "saveError": "Có lỗi khi lưu hồ sơ. Vui lòng thử lại.",
     "unauthorizedError": "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.",
-    "levelBadge": "Người đóng góp cấp {level}",
+    "levelBadge": "Cấp {level}",
     "joinedOn": "Tham gia {date}",
     "levelProgressHeading": "Tiến độ lên cấp",
-    "levelRulesLink": "Quy định tính điểm →",
+    "levelRulesLink": "Xem quy tắc cấp độ →",
     "badgesEarnedLabel": "Huy hiệu đã đạt · {count}",
     "exploreMoreHeading": "Khám phá thêm",
     "darkModeLabel": "Giao diện tối",
-    "pointsToNextLevel": "Còn {points} điểm nữa để lên cấp {level}",
+    "pointsToNextLevel": "Thêm {points} điểm nữa để lên Cấp {level}",
     "maxLevelReached": "Đã đạt cấp cao nhất",
     "reviewsTab": "Đánh giá",
     "contributedTab": "Đóng góp",
@@ -433,7 +464,10 @@
       "hidden": "Đã ẩn",
       "in_review": "Đang chờ duyệt",
       "edit_requested": "Cần chỉnh sửa"
-    }
+    },
+    "levelProgressToHeading": "Tiến độ lên Cấp {level}",
+    "pointsProgress": "{points} / {threshold} điểm",
+    "suggestRestaurantRow": "Đề xuất quán mới"
   },
   "publicProfile": {
     "notFoundTitle": "Không tìm thấy hồ sơ",
@@ -460,7 +494,9 @@
     "tabAll": "Tất cả",
     "tabUnread": "Chưa đọc",
     "tabReviews": "Đánh giá",
-    "tabPlaces": "Địa điểm"
+    "tabPlaces": "Địa điểm",
+    "markAllShort": "Đọc hết",
+    "backLabel": "Quay lại"
   },
   "map": {
     "pageTitle": "Bản đồ quán ăn",

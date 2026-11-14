@@ -4,9 +4,10 @@ import { getTranslations } from 'next-intl/server';
 import type { FavoriteListResponse } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { RestaurantCard } from '@/components/RestaurantCard';
-import { PlaceRow } from '@/components/PlaceRow';
+import { SavedRow } from '@/components/SavedRow';
 import { Link } from '@/i18n/navigation';
 import { BookmarkIcon } from '@/components/icons';
+import { formatPriceRange, placeTileClass } from '@/lib/format';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
@@ -46,22 +47,23 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
           <BookmarkIcon size={20} />
         </span>
         <div>
-          <h1 className="section-title" style={{ margin: 0 }}>
-            {t('title')}
+          <h1 className="section-title favorites-title" style={{ margin: 0 }}>
+            <span className="favorites-title-desktop">{t('title')}</span>
+            <span className="favorites-title-mobile">{t('mobileTitle')}</span>
           </h1>
           <p className="page-header-sub">{t('subtitle', { count: result.total })}</p>
         </div>
       </div>
 
       {result.items.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state favorites-empty">
           <span className="empty-state-icon">
-            <BookmarkIcon size={26} />
+            <BookmarkIcon size={30} />
           </span>
           <p className="empty-state-title">{t('empty')}</p>
           <p className="empty-state-body">{t('emptyBody')}</p>
-          <Link href="/search" className="btn-dark btn-dark-lg">
-            {tCommon('seeAllRestaurants')}
+          <Link href="/map" className="btn-dark btn-dark-lg">
+            {t('emptyCta')}
           </Link>
         </div>
       ) : (
@@ -76,9 +78,26 @@ export default async function FavoritesPage({ searchParams }: PageProps) {
             ))}
           </div>
           <div className="favorites-list">
-            {result.items.map((favorite) => (
-              <PlaceRow key={favorite.id} restaurant={favorite.restaurant} thumb={68} />
-            ))}
+            {result.items.map((favorite) => {
+              const r = favorite.restaurant;
+              const priceLabel = formatPriceRange(r.priceRange, tCommon);
+              return (
+                <SavedRow
+                  key={favorite.id}
+                  restaurantId={r.id}
+                  slug={r.slug}
+                  name={r.name}
+                  meta={[r.district, priceLabel ? `${priceLabel}đ` : null].filter(Boolean).join(' · ')}
+                  thumbnailUrl={r.thumbnailUrl}
+                  tileClass={placeTileClass(r.id)}
+                  score={r.reviewCount > 0 ? r.compositeScore : null}
+                  reviewCount={r.reviewCount}
+                  noRatingLabel={tCommon('noRating')}
+                  removeLabel={tCommon('favoriteRemove')}
+                  reviewLabel={t('reviewCta')}
+                />
+              );
+            })}
           </div>
 
           {totalPages > 1 ? (

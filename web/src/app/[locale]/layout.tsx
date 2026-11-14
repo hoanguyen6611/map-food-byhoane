@@ -11,6 +11,7 @@ import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { SmoothScrollProvider } from '@/components/SmoothScrollProvider';
+import { SplashHead, SplashOverlay } from '@/components/SplashScreen';
 import { SITE_NAME } from '@/lib/constants';
 import '../globals.css';
 
@@ -52,8 +53,11 @@ export async function generateMetadata({ params }: LayoutProps): Promise<Metadat
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Light = the page canvas (#F9F9FB). The mobile splash temporarily
+  // prepends its own #003CFF theme-color while it's showing (SplashScreen's
+  // inline script) and removes it after, which falls back to these.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#003cff' },
+    { media: '(prefers-color-scheme: light)', color: '#f9f9fb' },
     { media: '(prefers-color-scheme: dark)', color: '#0e0f13' },
   ],
 };
@@ -66,7 +70,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
   // Enables static rendering for this locale (next-intl requirement when
   // reading the locale from route params rather than a request header).
   setRequestLocale(locale);
-  const t = await getTranslations('common');
+  const [t, tHome] = await Promise.all([getTranslations('common'), getTranslations('home')]);
 
   return (
     // suppressHydrationWarning on <html> is next-themes' own documented
@@ -76,23 +80,38 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
     // differ; this tells React that one specific, expected mismatch is fine
     // without suppressing real ones anywhere else.
     <html lang={locale} className={`${archivo.variable} ${interTight.variable} ${figtree.variable}`} suppressHydrationWarning>
+      <head>
+        <SplashHead />
+      </head>
       <body>
+        <SplashOverlay
+          siteName={SITE_NAME}
+          tagline={tHome('heroTitle')}
+          loadingText={t('splashLoading')}
+          ariaLabel={t('splashAriaLabel', { siteName: SITE_NAME })}
+          domain={new URL(SITE_URL).host}
+        />
         <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
           <NextIntlClientProvider>
             <ToastProvider>
               <FavoritesProvider>
                 <SmoothScrollProvider>
-                  <a href="#main-content" className="skip-link">
-                    {t('skipToContent')}
-                  </a>
-                  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
-                    <SiteTopBar />
-                    <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      {children}
-                    </main>
-                    <SiteFooter />
+                  {/* `inert` while the splash is showing is set/removed on
+                      this element by SplashScreen's inline script — outside
+                      React, hence suppressHydrationWarning. */}
+                  <div id="fm-app" suppressHydrationWarning>
+                    <a href="#main-content" className="skip-link">
+                      {t('skipToContent')}
+                    </a>
+                    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+                      <SiteTopBar />
+                      <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        {children}
+                      </main>
+                      <SiteFooter />
+                    </div>
+                    <MobileTabBar />
                   </div>
-                  <MobileTabBar />
                 </SmoothScrollProvider>
               </FavoritesProvider>
             </ToastProvider>

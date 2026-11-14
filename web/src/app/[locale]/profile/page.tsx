@@ -263,7 +263,7 @@ export default async function ProfilePage({ params }: PageProps) {
           </span>
           <span className="stat-value font-num">{photos.total}</span>
         </div>
-        <div className="stat-card">
+        <div className="stat-card profile-stat-saved">
           <span className="profile-stat-label-row">
             <span className="profile-stat-icon profile-stat-icon-saved">
               <BookmarkIcon size={13} filled />
@@ -286,11 +286,13 @@ export default async function ProfilePage({ params }: PageProps) {
       <div className="info-card profile-level-card">
         <div className="profile-level-head">
           <span className="info-card-title" style={{ margin: 0 }}>
-            {t('levelProgressHeading')}
+            {gamification.nextLevelThreshold !== null
+              ? t('levelProgressToHeading', { level: gamification.level + 1 })
+              : t('levelProgressHeading')}
           </span>
           <span className="profile-edit-hint">
-            {gamification.pointsToNextLevel !== null
-              ? t('pointsToNextLevel', { points: gamification.pointsToNextLevel, level: gamification.level + 1 })
+            {gamification.nextLevelThreshold !== null
+              ? t('pointsProgress', { points: gamification.points, threshold: gamification.nextLevelThreshold })
               : t('maxLevelReached')}
           </span>
         </div>
@@ -305,6 +307,11 @@ export default async function ProfilePage({ params }: PageProps) {
             }}
           />
         </span>
+        {gamification.pointsToNextLevel !== null ? (
+          <span className="profile-level-hint">
+            {t('pointsToNextLevel', { points: gamification.pointsToNextLevel, level: gamification.level + 1 })}
+          </span>
+        ) : null}
         {gamification.badges.length > 0 ? (
           <>
             <hr className="filter-rule" style={{ margin: '12px 0 0' }} />
@@ -344,6 +351,11 @@ export default async function ProfilePage({ params }: PageProps) {
           <Link href="/collections" className="profile-settings-row">
             <MenuFolderIcon size={18} aria-hidden="true" />
             <span className="profile-settings-row-label">{tAuth('collectionsLink')}</span>
+            <ChevronRightIcon size={15} className="profile-settings-row-chevron" />
+          </Link>
+          <Link href="/add-restaurant" className="profile-settings-row">
+            <PlusIcon size={18} aria-hidden="true" />
+            <span className="profile-settings-row-label">{t('suggestRestaurantRow')}</span>
             <ChevronRightIcon size={15} className="profile-settings-row-chevron" />
           </Link>
         </div>

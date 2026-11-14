@@ -6,10 +6,13 @@ import { useState } from 'react';
 
 interface Props {
   title: string;
+  /** Icon + visible "Chia sẻ" label (detail page's mobile action row) instead of the default icon-only square. */
+  withLabel?: boolean;
+  className?: string;
 }
 
 /** Native share sheet when available, clipboard-copy fallback otherwise — real functionality, not a decorative dead button. */
-export function ShareButton({ title }: Props) {
+export function ShareButton({ title, withLabel, className = 'action-icon-btn' }: Props) {
   const t = useTranslations('common');
   const [copied, setCopied] = useState(false);
 
@@ -29,8 +32,15 @@ export function ShareButton({ title }: Props) {
   }
 
   return (
-    <button type="button" className="action-icon-btn" onClick={handleClick} aria-label={t('share')} title={copied ? t('linkCopied') : t('share')}>
-      {copied ? <CheckIcon size={17} /> : <ShareIcon size={17} />}
+    <button
+      type="button"
+      className={className}
+      onClick={handleClick}
+      aria-label={withLabel ? undefined : t('share')}
+      title={copied ? t('linkCopied') : t('share')}
+    >
+      {copied ? <CheckIcon size={16} /> : <ShareIcon size={16} />}
+      {withLabel ? <span>{copied ? t('linkCopied') : t('share')}</span> : null}
     </button>
   );
 }

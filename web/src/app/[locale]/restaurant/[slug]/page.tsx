@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { ApiNotFoundError, getRestaurantBySlug, getReviewsForRestaurant, searchRestaurants } from '@/lib/api';
+import { ApiNotFoundError, getFacilities, getRestaurantBySlug, getReviewsForRestaurant, searchRestaurants } from '@/lib/api';
 import { formatPriceRange, formatVndFull, placeTileClass } from '@/lib/format';
 import { getDayHoursLines, getActiveRangeCloseTime } from '@/lib/opening-hours-display';
-import { FACILITY_ICON_PATH } from '@/lib/labels';
+import { DEFAULT_FACILITY_ICON_PATH, FACILITY_ICON_PATH } from '@/lib/labels';
 import { Link, getPathname } from '@/i18n/navigation';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { BackButton } from '@/components/BackButton';
@@ -99,11 +99,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
   // `ratingBreakdown` (criteria codes + labels) unconditionally, and the
   // write-review form below needs that list even for a restaurant with zero
   // reviews so far.
-  const [reviewsResponse, session, similarResult] = await Promise.all([
+  const [reviewsResponse, session, similarResult, facilityCatalog] = await Promise.all([
     getReviewsForRestaurant(restaurant.id, reviewPage),
     getSession(),
     searchRestaurants({ category: restaurant.categoryCode, pageSize: 4 }),
+    // Facilities are an admin-editable catalog — a code added after this
+    // build (e.g. `mua_mang_di`) has no static translation, so fall back to
+    // the catalog's own label instead of throwing MISSING_MESSAGE.
+    restaurant.facilities.length > 0 ? getFacilities().catch(() => []) : Promise.resolve([]),
   ]);
+  const facilityCatalogLabel = new Map(facilityCatalog.map((f) => [f.code, f.label]));
+  const facilityLabel = (code: string) =>
+    tLabels.has(`facilityLabel.${code}`) ? tLabels(`facilityLabel.${code}`) : (facilityCatalogLabel.get(code) ?? code);
   const reviewTotalPages = Math.max(1, Math.ceil(reviewsResponse.total / REVIEWS_PAGE_SIZE));
   const similar = similarResult.items.filter((r) => r.id !== restaurant.id).slice(0, 3);
 
@@ -221,7 +228,8 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               in `.detail-mobile-actions`/the sidebar's action row instead. */}
           <BackButton label={t('backAriaLabel')} fallbackHref="/search" />
           <div className="detail-hero-fav-overlay">
-            <FavoriteButton restaurantId={restaurant.id} />
+            <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} />
+            <FavoriteButton restaurantId={restaurant.id} icon="bookmark" />
           </div>
         </div>
       </Reveal>
@@ -254,16 +262,20 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               below hours/similar (see globals.css's `.detail-mobile-actions`,
               which also hides the sidebar's own copy of this same row on
               mobile so it isn't shown twice). */}
-          <div className="action-card detail-mobile-actions">
-            <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="action-primary action-primary-full">
+          {/* Design's three equal outline buttons (Chỉ đường · Gọi điện ·
+              Chia sẻ). Save/collection moved onto the hero overlay above. */}
+          <div className="detail-mobile-actions">
+            <a href={directionsHref} target="_blank" rel="noopener noreferrer" className="detail-action-btn">
               <MapPinIcon size={16} />
-              {t('directions')}
+              <span>{t('directions')}</span>
             </a>
-            <div className="action-row">
-              <FavoriteButton restaurantId={restaurant.id} />
-              <ShareButton title={restaurant.name} />
-              <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} />
-            </div>
+            {restaurant.phone ? (
+              <a href={`tel:${restaurant.phone}`} className="detail-action-btn">
+                <PhoneIcon size={16} />
+                <span>{t('call')}</span>
+              </a>
+            ) : null}
+            <ShareButton title={restaurant.name} withLabel className="detail-action-btn" />
           </div>
 
           <div className="tab-segment">
@@ -278,7 +290,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
           {activeTab === 'info' ? (
             <>
               <Reveal>
-              <div className="info-card">
+              <div className="info-card info-card-compact">
                 <h2 className="info-card-title">{t('infoHeading')}</h2>
                 <div className="info-grid">
                   <div className="info-item">
@@ -312,8 +324,8 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                       <div className="chip-row" style={{ marginTop: 9 }}>
                         {restaurant.facilities.map((f) => (
                           <span key={f} className="facility-pill">
-                            <FacilityIcon path={FACILITY_ICON_PATH[f]} size={14} />
-                            {tLabels(`facilityLabel.${f}`)}
+                            <FacilityIcon path={FACILITY_ICON_PATH[f as keyof typeof FACILITY_ICON_PATH] ?? DEFAULT_FACILITY_ICON_PATH} size={14} />
+                            {facilityLabel(f)}
                           </span>
                         ))}
                       </div>
@@ -339,10 +351,20 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               ) : null}
 
               <Reveal>
-              <div className="info-card">
-                <h2 className="info-card-title">{t('hoursHeading')}</h2>
+              <div className="info-card info-card-compact">
+                <div className="info-card-head">
+                  <h2 className="info-card-title">{t('hoursHeading')}</h2>
+                  {restaurant.isOpenNow && openNote ? (
+                    <span className="info-card-head-status">
+                      {todayHours?.isOpen24h ? openNote : t('openUntilLong', { time: activeRangeCloseTime ?? '' })}
+                    </span>
+                  ) : null}
+                </div>
                 {restaurant.openingHours.map((hour) => (
-                  <div key={hour.dayOfWeek} className="info-hours-row">
+                  <div
+                    key={hour.dayOfWeek}
+                    className={`info-hours-row ${hour.dayOfWeek === todayIndex ? 'info-hours-row-today' : ''}`}
+                  >
                     <span className="info-hours-day">{tLabels(`day.${hour.dayOfWeek}`)}</span>
                     <span className="font-num info-hours-times">
                       {getDayHoursLines(hour, t('closedDay'), t('open24h')).map((line) => (
@@ -360,7 +382,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   <span className="no-menu-title">{t('noMenu')}</span>
                 </div>
               ) : (
-                <div className="info-card">
+                <div className="info-card info-card-compact">
                   <h2 className="info-card-title">{t('menuHeading')}</h2>
                   {firstMenu.items.length > 0 ? (
                     <table className="menu-table">
@@ -384,7 +406,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                     </table>
                   ) : null}
                   {firstMenu.photos.length > 0 ? (
-                    <div style={{ marginTop: firstMenu.items.length > 0 ? 16 : 0 }}>
+                    <div className="info-card-body" style={{ marginTop: firstMenu.items.length > 0 ? 16 : 0 }}>
                       <ReviewCardPhotos photos={firstMenu.photos} />
                     </div>
                   ) : null}
@@ -406,6 +428,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                       </div>
                     </div>
                     <div className="reviews-summary-axis">
+                      <span className="reviews-summary-axis-label">{t('criteriaHeading')}</span>
                       <AxisBars items={reviewsResponse.ratingBreakdown} />
                     </div>
                   </div>
@@ -425,10 +448,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   ))}
 
                   {reviewTotalPages > 1 ? (
-                    <nav className="pagination" aria-label={t('reviewsPaginationLabel')}>
-                      {reviewPage > 1 ? <Link href={reviewPageHref(reviewPage - 1)}>{tCommon('prev')}</Link> : null}
-                      <span>{tCommon('pageOf', { page: reviewPage, totalPages: reviewTotalPages })}</span>
-                      {reviewPage < reviewTotalPages ? <Link href={reviewPageHref(reviewPage + 1)}>{tCommon('next')}</Link> : null}
+                    <nav className="pagination reviews-pagination" aria-label={t('reviewsPaginationLabel')}>
+                      {reviewPage > 1 ? (
+                        <Link href={reviewPageHref(reviewPage - 1)} className="reviews-pagination-btn">
+                          {tCommon('prev')}
+                        </Link>
+                      ) : null}
+                      <span>{t('pageOfSpaced', { page: reviewPage, totalPages: reviewTotalPages })}</span>
+                      {reviewPage < reviewTotalPages ? (
+                        <Link href={reviewPageHref(reviewPage + 1)} className="reviews-pagination-btn">
+                          {t('seeMoreReviews')}
+                        </Link>
+                      ) : null}
                     </nav>
                   ) : null}
                 </>
@@ -528,11 +559,9 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
       </div>
 
       {/* Mobile-only persistent CTA (see globals.css's `.detail-write-review-fab`)
-          — jumps straight to the write-review form (`#write-review`, switching
-          to the reviews tab along the way) instead of requiring a scroll past
-          hours/menu/similar to find it, matching the redesign's always-visible
-          "Viết đánh giá" button. */}
-      <Link href={`${tabHref('reviews')}#write-review`} className="detail-write-review-fab">
+          — opens the dedicated full-screen write-review route (design's
+          "Viết đánh giá" screen); signed-out users go to login first. */}
+      <Link href={session ? `/restaurant/${slug}/review` : '/login'} className="detail-write-review-fab">
         <PencilIcon size={18} />
         {tWriteReview('heading')}
       </Link>

@@ -7,15 +7,16 @@ interface Props {
   label: string;
   /** Used only if there's no actual browser history to go back to (e.g. this page was opened directly) — router.back() would otherwise leave the site entirely. */
   fallbackHref: string;
+  className?: string;
 }
 
-export function BackButton({ label, fallbackHref }: Props) {
+export function BackButton({ label, fallbackHref, className = 'detail-hero-back-btn' }: Props) {
   const router = useRouter();
 
   return (
     <button
       type="button"
-      className="detail-hero-back-btn"
+      className={className}
       aria-label={label}
       onClick={() => {
         if (window.history.length > 1) {

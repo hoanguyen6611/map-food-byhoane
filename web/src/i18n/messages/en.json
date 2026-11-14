@@ -4,6 +4,8 @@
     "noResultsFound": "No results found",
     "actionError": "Something went wrong. Please try again.",
     "skipToContent": "Skip to main content",
+    "splashLoading": "Loading places near you…",
+    "splashAriaLabel": "Loading {siteName}",
     "homeAriaLabel": "The Food Map of Vietnam — go to homepage",
     "mainNav": "Main navigation",
     "menuAriaLabel": "Open menu",
@@ -177,7 +179,12 @@
     "ownerClaimSuccess": "Request sent. An admin will review it soon.",
     "ownerClaimConflict": "This place already has an owner, or you've already submitted a request.",
     "ownerClaimError": "Couldn't send the request. Please try again.",
-    "ownerReplyBadge": "Owner"
+    "ownerReplyBadge": "Owner",
+    "call": "Call",
+    "openUntilLong": "Open until {time}",
+    "criteriaHeading": "Scores by criteria",
+    "pageOfSpaced": "Page {page} / {totalPages}",
+    "seeMoreReviews": "See more"
   },
   "notFound": {
     "title": "Page not found",
@@ -230,8 +237,11 @@
   "favorites": {
     "title": "Favorite restaurants",
     "subtitle": "{count} restaurants saved for later",
-    "empty": "You haven't saved any restaurants yet.",
-    "emptyBody": "Tap the heart icon on a restaurant's page to save it here."
+    "empty": "No saved places yet",
+    "emptyBody": "Save places you want to try so you can open them quickly when it’s time to eat.",
+    "mobileTitle": "Saved",
+    "emptyCta": "Find places near you",
+    "reviewCta": "Review"
   },
   "collections": {
     "title": "My collections",
@@ -355,7 +365,28 @@
     "publishedBody": "Thanks for sharing — your review is now live.",
     "pendingTitle": "Review submitted",
     "pendingBody": "Your review is queued for a quick moderation check before it goes live.",
-    "loginToReview": "Sign in to write a review"
+    "loginToReview": "Sign in to write a review",
+    "closeLabel": "Close",
+    "readyLabel": "Ready to post",
+    "needStarsLabel": "Pick a rating",
+    "needCriteriaLabel": "Rate at least 1 criterion",
+    "ratingWord": {
+      "0": "Tap a star to rate",
+      "1": "Bad",
+      "2": "Meh",
+      "3": "Okay",
+      "4": "Good",
+      "5": "Excellent"
+    },
+    "criteriaHeading": "Rate by criteria",
+    "criteriaHint": "Skip what doesn’t apply",
+    "commentPlaceholderLong": "Tell us about your visit: what you ordered, how the service was, would you go back…",
+    "realNameNote": "Your review is shown with your real name. Only write about your most recent visit.",
+    "submitScreen": "Post review",
+    "postedTitle": "Review posted",
+    "postedBody": "Your {stars}-star review of {name} is now live on the restaurant page and the web.",
+    "viewRestaurant": "View restaurant",
+    "backHome": "Back to home"
   },
   "profile": {
     "title": "My profile",
@@ -389,14 +420,14 @@
     "saved": "Updated successfully",
     "saveError": "Something went wrong saving your profile. Please try again.",
     "unauthorizedError": "Your session has expired — please sign in again.",
-    "levelBadge": "Level {level} contributor",
+    "levelBadge": "Level {level}",
     "joinedOn": "Joined {date}",
     "levelProgressHeading": "Level progress",
-    "levelRulesLink": "Scoring rules →",
+    "levelRulesLink": "See level rules →",
     "badgesEarnedLabel": "Badges earned · {count}",
     "exploreMoreHeading": "More to explore",
     "darkModeLabel": "Dark mode",
-    "pointsToNextLevel": "{points} more points to reach level {level}",
+    "pointsToNextLevel": "{points} more points to reach Level {level}",
     "maxLevelReached": "Max level reached",
     "reviewsTab": "Reviews",
     "contributedTab": "Contributed",
@@ -433,7 +464,10 @@
       "hidden": "Hidden",
       "in_review": "Pending review",
       "edit_requested": "Needs changes"
-    }
+    },
+    "levelProgressToHeading": "Progress to Level {level}",
+    "pointsProgress": "{points} / {threshold} points",
+    "suggestRestaurantRow": "Suggest a new place"
   },
   "publicProfile": {
     "notFoundTitle": "Profile not found",
@@ -460,7 +494,9 @@
     "tabAll": "All",
     "tabUnread": "Unread",
     "tabReviews": "Reviews",
-    "tabPlaces": "Places"
+    "tabPlaces": "Places",
+    "markAllShort": "Read all",
+    "backLabel": "Back"
   },
   "map": {
     "pageTitle": "Restaurant map",

@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import type { MyReviewDto } from '@foodmap/shared-types';
 import { deleteReviewAction } from '@/app/[locale]/profile/actions';
-import { formatRelativeDate } from '@/lib/format';
+import { formatRelativeDate, placeTileClass } from '@/lib/format';
 import { Stars } from './Stars';
 import { ReviewCardPhotos } from './ReviewCardPhotos';
 import { ThumbsUpIcon, MessageCircleIcon } from './icons';
@@ -42,6 +42,18 @@ export function ProfileReviewItem({ review, locale }: Props) {
 
   return (
     <div className="review-card profile-review-item">
+      {/* Mobile-only thumb (design's compact "my reviews" row). */}
+      <Link
+        href={`/restaurant/${review.restaurant.slug}`}
+        className={`profile-review-thumb ${review.restaurant.thumbnailUrl ? '' : placeTileClass(review.restaurant.id)}`}
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        {review.restaurant.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- external ImageKit/S3 URL
+          <img src={review.restaurant.thumbnailUrl} alt="" />
+        ) : null}
+      </Link>
       <div className="my-review-header">
         <Link href={`/restaurant/${review.restaurant.slug}`} className="my-review-name">
           {review.restaurant.name}

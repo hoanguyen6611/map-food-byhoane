@@ -1019,12 +1019,36 @@ textarea:focus-visible {
   font-size: 15px;
   font-weight: 500;
   color: var(--color-primary-hover);
+  flex: none;
+  white-space: nowrap;
+}
+/* With a "Xem tất cả" link, keep it pinned right on the title's first line
+   — a long title wraps onto its own extra lines instead of pushing the link
+   down to a row of its own. Heads with a caption instead still wrap the
+   caption under the title. */
+.section-head:has(> .section-link) {
+  flex-wrap: nowrap;
+}
+.section-head:has(> .section-link) .section-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .cat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 12px;
+}
+/* These grids' items are each wrapped in Reveal's scroll-in <div>, so that
+   wrapper — not the card — is the grid item stretched to the row height.
+   Making the wrapper a one-cell grid stretches the card inside it to fill
+   that height too, so every card in a row ends up the same height. */
+.cat-grid > div,
+.area-grid > div,
+.card-grid > div,
+.result-grid-1 > div,
+.result-grid-2 > div {
+  display: grid;
 }
 .cat-card {
   display: flex;
@@ -2859,10 +2883,9 @@ textarea:focus-visible {
 .detail-hero-fav-overlay {
   display: none;
 }
-/* `.action-card.detail-mobile-actions` (two classes) beats plain
-   `.action-card`'s own `display: flex` at equal specificity regardless of
-   which rule's source order wins — this must stay hidden on desktop. */
-.action-card.detail-mobile-actions {
+/* Mobile-only three-button row (Chỉ đường · Gọi điện · Chia sẻ) —
+   desktop keeps the sidebar's action card. */
+.detail-mobile-actions {
   display: none;
 }
 .detail-write-review-fab {
@@ -2891,16 +2914,77 @@ textarea:focus-visible {
     color: var(--color-ink-subtle);
     cursor: pointer;
   }
-  /* `.favorite-button`'s own default CSS already floats itself top-right
-     (absolute, translucent, blurred) relative to the nearest positioned
-     ancestor — `.detail-hero-wrap` — so this wrapper only needs to exist
-     to be the thing this media query shows/hides; no positioning of its
-     own to add. */
+  /* Top-right cluster over the hero: "add to collection" + bookmark save,
+     both as the design's 36px translucent circles. */
   .detail-hero-fav-overlay {
-    display: block;
-  }
-  .action-card.detail-mobile-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
     display: flex;
+    gap: 8px;
+  }
+  .detail-hero-fav-overlay .favorite-button,
+  .detail-hero-fav-overlay .action-icon-btn {
+    position: static;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
+    color: var(--color-ink-subtle);
+  }
+  .detail-hero-fav-overlay .favorite-button-active {
+    color: #1c2024;
+  }
+  .detail-hero-fav-overlay .account-menu {
+    right: 0;
+    left: auto;
+  }
+  .detail-mobile-actions {
+    display: flex;
+    gap: 8px;
+  }
+  /* Design: Thông tin / Đánh giá segment spans the full width, equal halves. */
+  .detail-main > .tab-segment {
+    align-self: stretch;
+    width: 100%;
+  }
+  .detail-main > .tab-segment .tab-segment-btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .detail-action-btn {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 8px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .detail-action-btn:hover {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  .detail-action-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* This same row already shows above (`.detail-mobile-actions`) right
      under the header — see restaurant/[slug]/page.tsx's doc comment on
@@ -3037,6 +3121,156 @@ textarea:focus-visible {
 }
 .info-hours-day {
   flex-shrink: 0;
+}
+.info-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.info-card-head-status {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-open-dot);
+}
+.info-hours-row-today {
+  font-weight: 600;
+}
+.reviews-summary-axis {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.reviews-summary-axis-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+.reviews-pagination span {
+  border: none;
+  padding: 0;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  color: var(--color-ink-subtle);
+}
+.reviews-pagination .reviews-pagination-btn {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+/* Mobile: design's compact cards — small uppercase card captions, rows
+   separated by hairlines, today's hours row highlighted. */
+@media (max-width: 767px) {
+  .info-card-compact {
+    padding: 0;
+    gap: 0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .info-card-compact > .info-card-title,
+  .info-card-compact .info-card-head {
+    padding: 13px 14px 9px;
+  }
+  .info-card-compact .info-card-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+  .info-card-compact .info-card-head .info-card-title {
+    padding: 0;
+  }
+  .info-card-compact .info-card-head-status {
+    font-size: 11px;
+  }
+  .info-card-compact .info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .info-card-compact .info-item {
+    padding: 10px 14px;
+    border-top: 1px solid var(--color-border-hairline);
+    align-items: flex-start;
+  }
+  .info-card-compact .info-item-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+  .info-card-compact .info-grid .info-item-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .info-card-compact .info-item-value {
+    font-size: 13px;
+  }
+  .info-card-compact > .filter-rule {
+    display: none;
+  }
+  .info-card-compact > .filter-rule + div {
+    padding: 12px 14px;
+    border-top: 1px solid var(--color-border-hairline);
+  }
+  .info-card-compact > .filter-rule + div .info-item-label {
+    font-size: 11px;
+  }
+  .info-card-compact .info-hours-row {
+    padding: 9px 14px;
+    border-top: 1px solid var(--color-border-hairline);
+    font-size: 13px;
+    align-items: center;
+  }
+  .info-card-compact .info-hours-times {
+    font-size: 13px;
+  }
+  .info-card-compact .info-hours-row-today {
+    background: var(--color-canvas);
+  }
+  .info-card-compact .info-hours-row-today .info-hours-times {
+    color: var(--color-ink);
+  }
+  .info-card-compact > .menu-table,
+  .info-card-compact > .info-card-body {
+    padding: 0 14px 14px;
+  }
+  .reviews-summary-card {
+    padding: 16px;
+    gap: 14px;
+    flex-direction: column;
+    border-radius: 12px;
+  }
+  .reviews-summary-card > .reviews-summary-left {
+    flex: none;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border-hairline);
+  }
+  .reviews-summary-card > .reviews-summary-axis {
+    flex: none;
+  }
+  .reviews-summary-score-value {
+    font-size: 34px;
+  }
+  .reviews-summary-score-count {
+    font-size: 11px;
+  }
+  .reviews-pagination {
+    margin: 4px 0 0;
+  }
 }
 .info-hours-times {
   display: flex;
@@ -3320,6 +3554,8 @@ table.menu-table td.price {
   overflow: hidden;
 }
 .axis-fill {
+  /* A <span> — must be block-level or its inline `width` is ignored and the bar never shows. */
+  display: block;
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--gradient-magenta);
@@ -4875,6 +5111,9 @@ table.menu-table td.price {
 .favorites-list {
   display: none;
 }
+.favorites-title-mobile {
+  display: none;
+}
 @media (max-width: 767px) {
   .favorites-grid {
     display: none;
@@ -4884,6 +5123,138 @@ table.menu-table td.price {
     flex-direction: column;
     gap: 10px;
   }
+  /* Design's Saved screen: plain 22px "Đã lưu" title, no icon tile/subtitle. */
+  .favorites-page-header .favorites-header-icon,
+  .favorites-page-header .page-header-sub,
+  .favorites-title-desktop {
+    display: none;
+  }
+  .favorites-title-mobile {
+    display: inline;
+  }
+  .favorites-title {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .favorites-empty {
+    background: transparent;
+    border: none;
+    padding: 44px 20px;
+    gap: 14px;
+  }
+  .favorites-empty .empty-state-icon {
+    width: 76px;
+    height: 76px;
+    background: var(--color-surface);
+  }
+  .favorites-empty .empty-state-title {
+    font-size: 16px;
+    color: var(--color-ink);
+  }
+  .favorites-empty .empty-state-body {
+    font-size: 13px;
+    max-width: 230px;
+  }
+  .favorites-empty .btn-dark-lg {
+    height: 42px;
+    font-size: 14px;
+  }
+}
+
+.saved-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: 12px;
+  min-width: 0;
+}
+.saved-row-thumb {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.saved-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.saved-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--color-ink);
+}
+.saved-row-body:hover {
+  color: var(--color-ink);
+}
+.saved-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.saved-row-meta {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: var(--color-ink-subtle);
+}
+.saved-row-score {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 2px;
+  color: #f0cd86;
+}
+.saved-row-score-value {
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.saved-row-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+}
+.saved-row-remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-subtle);
+  cursor: pointer;
+}
+.saved-row-remove:hover {
+  background: var(--color-border-hairline);
+}
+.saved-row-review {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: var(--color-chip-selected-bg);
+  color: var(--color-primary-hover);
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .profile-avatar {
@@ -5015,9 +5386,15 @@ table.menu-table td.price {
   cursor: pointer;
   font-family: inherit;
 }
-.notification-tab-active {
-  background: var(--color-ink);
-  color: #fff;
+.notification-tab:hover {
+  color: var(--color-ink);
+}
+/* Selected-chip colors (light blue / blue text) — and pinned on :hover so
+   the global `a:hover` link color can't turn the label blue-on-black. */
+.notification-tab-active,
+.notification-tab-active:hover {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-fg);
 }
 .notification-tab-count {
   font-size: 12px;
@@ -5027,7 +5404,8 @@ table.menu-table td.price {
   background: rgba(0, 0, 0, 0.06);
 }
 .notification-tab-active .notification-tab-count {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-chip-selected-fg);
+  color: var(--color-surface);
 }
 .notification-item {
   display: flex;
@@ -5123,6 +5501,106 @@ table.menu-table td.price {
   border-radius: 50%;
   background: #dd00d8;
   margin-top: 4px;
+}
+
+.notifications-back-btn,
+.notification-mark-all-mobile {
+  display: none;
+}
+.notifications-header-text {
+  flex: 1;
+  min-width: 0;
+}
+/* Mobile — design's Notifications screen: back square + 19px title +
+   "Đọc hết" text link; unread cards get a blue border instead of a dot. */
+@media (max-width: 767px) {
+  .notifications-header {
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-top: 4px;
+  }
+  .notifications-back-btn {
+    width: 36px;
+    height: 36px;
+    flex: none;
+    padding: 0;
+    border-radius: 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-hairline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+  .notifications-title {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+  }
+  .notifications-header .page-header-sub,
+  .notification-mark-all-desktop {
+    display: none;
+  }
+  .notification-mark-all-mobile {
+    display: inline;
+  }
+  .notification-mark-all-btn,
+  .notification-mark-all-btn:hover {
+    padding: 0;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-primary-hover);
+  }
+  .notification-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-bottom: 14px;
+  }
+  .notification-tab {
+    flex: none;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .notification-item {
+    gap: 11px;
+    padding: 13px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  .notification-item-unread {
+    border-color: #c9d9ff;
+  }
+  [data-theme='dark'] .notification-item-unread {
+    border-color: #2b4a8a;
+  }
+  .notification-item .notification-dot {
+    display: none;
+  }
+  .notification-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .notification-body {
+    gap: 3px;
+  }
+  .notification-title,
+  .notification-item-unread .notification-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .notification-text {
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+  .notification-time {
+    font-size: 11px;
+  }
 }
 
 .edit-profile-form {
@@ -5534,25 +6012,110 @@ table.menu-table td.price {
   .profile-header-actions .btn-dark:hover {
     color: var(--color-ink);
   }
+  /* Design: three plain stat cards (Đánh giá · Ảnh · Lượt hữu ích) —
+     value on top, small label below, no icons; saved count lives in the
+     "Đã lưu" tab instead. */
   .profile-stats.stat-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+  }
+  .profile-stats .profile-stat-saved,
+  .profile-stats .profile-stat-icon {
+    display: none;
   }
   .profile-stats .stat-card {
     min-width: 0;
-    padding: 10px 6px;
-    align-items: center;
-    text-align: center;
-    gap: 6px;
+    padding: 12px;
+    border-radius: 12px;
+    align-items: flex-start;
+    text-align: left;
+    gap: 2px;
   }
   .profile-stats .stat-value {
-    font-size: 17px;
+    order: -1;
+    font-size: 19px;
   }
   .profile-stats .stat-label {
-    font-size: 10.5px;
-    line-height: 1.2;
+    font-size: 11px;
+    line-height: 1.3;
   }
+  .profile-level-head {
+    align-items: baseline;
+    margin-bottom: 9px;
+  }
+  .profile-level-head .info-card-title {
+    font-family: var(--font-figtree), sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-ink);
+  }
+  .profile-level-head .profile-edit-hint {
+    font-size: 11px;
+  }
+  .profile-level-track {
+    height: 8px;
+  }
+  .profile-level-rules-link {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-primary-hover);
+  }
+  /* Compact "my reviews" rows: thumb · name / area · when / stars, with
+     edit/delete kept underneath (comment, criteria and photos hidden). */
+  .profile-review-item {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 3px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .profile-review-item > * {
+    grid-column: 2;
+  }
+  .profile-review-item > .profile-review-thumb {
+    display: block;
+    grid-column: 1;
+    grid-row: 1 / span 4;
+  }
+  .profile-review-item > .review-card-body,
+  .profile-review-item > .profile-review-criteria,
+  .profile-review-item > .review-card-photos {
+    display: none;
+  }
+  .profile-review-item .my-review-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .profile-review-item .review-card-when {
+    font-size: 11px;
+  }
+  .profile-review-item .review-card-footer {
+    padding-top: 4px;
+    border-top: none;
+  }
+}
+.profile-review-thumb {
+  display: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.profile-review-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-level-hint {
+  display: block;
+  margin-top: 9px;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: var(--color-ink-subtle);
 }
 
 /* ---------- Toast notifications (save/delete/error feedback) ---------- */
@@ -6051,4 +6614,350 @@ table.menu-table td.price {
 }
 :root[data-theme='dark'] .profile-badge-chip-helpful_100 {
   border-color: #245c38;
+}
+
+/* ---------- Write-review screen (/restaurant/[slug]/review) ---------- */
+
+.review-screen-container {
+  max-width: 560px;
+  padding-top: 8px;
+  padding-bottom: 160px;
+}
+.review-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.review-screen-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+.review-screen-close {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+}
+.review-screen-title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.review-screen-ready {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ink-subtle);
+}
+.review-screen-ready-ok {
+  color: var(--color-open-fg);
+}
+.review-screen-place {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: 12px;
+}
+.review-screen-place-thumb {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #fff3de 0%, #f0cd86 100%);
+}
+.review-screen-place-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.review-screen-place-name {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.review-screen-place-meta,
+.review-screen-hint {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: var(--color-ink-subtle);
+}
+.review-screen-overall {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.review-screen-overall-label {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.review-screen-big-stars {
+  display: flex;
+  gap: 8px;
+}
+.review-screen-big-star {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.review-screen-big-star-on {
+  background: #fff8eb;
+}
+[data-theme='dark'] .review-screen-big-star-on {
+  background: rgba(240, 205, 134, 0.12);
+}
+.review-screen-word {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+.review-screen-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.review-screen-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.review-screen-caption {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+.review-screen-criteria {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.review-screen-criterion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+}
+.review-screen-criterion + .review-screen-criterion {
+  border-top: 1px solid var(--color-border-hairline);
+}
+.review-screen-criterion-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.review-screen-criterion-stars {
+  flex: none;
+  display: flex;
+  gap: 3px;
+}
+.review-screen-small-star {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.review-screen-comment {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.review-screen-comment textarea {
+  border: none;
+  outline: none;
+  resize: none;
+  min-height: 100px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  background: transparent;
+}
+.review-screen-comment-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.review-screen-comment-foot .photo-upload-field {
+  flex: 1;
+  min-width: 0;
+}
+.review-screen-count {
+  flex: none;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+.review-screen-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff8eb;
+  border: 1px solid #f0cd86;
+  color: #8a6a18;
+}
+.review-screen-note svg {
+  flex: none;
+}
+.review-screen-note span {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6b5311;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+[data-theme='dark'] .review-screen-note {
+  background: rgba(240, 205, 134, 0.1);
+  border-color: rgba(240, 205, 134, 0.35);
+  color: #f0cd86;
+}
+[data-theme='dark'] .review-screen-note span {
+  color: #e8d3a6;
+}
+.review-screen-submit-wrap {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+}
+.review-screen-submit {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
+  cursor: pointer;
+}
+.review-screen-submit:disabled {
+  background: var(--color-border);
+  color: var(--color-ink-faint);
+  cursor: not-allowed;
+}
+@media (max-width: 767px) {
+  /* Clear the fixed bottom tab bar, as in the design (submit floats above it). */
+  .review-screen-submit-wrap {
+    bottom: 80px;
+  }
+}
+
+.review-posted {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 36px 16px;
+  text-align: center;
+}
+.review-posted-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(160deg, #57d7e0 0%, #dbf1f2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.review-posted-icon svg {
+  stroke-width: 2;
+}
+.review-posted-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.review-posted-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.review-posted-body {
+  margin: 0;
+  max-width: 250px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
+  text-wrap: pretty;
+}
+.review-posted-actions {
+  display: flex;
+  gap: 10px;
+}
+.review-posted-btn {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  color: var(--color-ink);
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+.review-posted-btn-primary,
+.review-posted-btn-primary:hover {
+  border: none;
+  padding: 0 22px;
+  background: var(--gradient-primary);
+  color: #fff;
 }

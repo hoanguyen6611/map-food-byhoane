@@ -6,6 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds } from '@/lib/api';
 import { Link } from '@/i18n/navigation';
+import { BackButton } from '@/components/BackButton';
 import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon, MessageCircleIcon } from '@/components/icons';
 import { markAllNotificationsReadAction } from './actions';
 
@@ -110,8 +111,10 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
   return (
     <div className="container page-sections">
       <div className="notifications-header">
-        <div>
-          <h1 className="section-title" style={{ margin: 0 }}>
+        {/* Mobile-only (design's 36px back square) — desktop has the top nav. */}
+        <BackButton label={t('backLabel')} fallbackHref="/" className="notifications-back-btn" />
+        <div className="notifications-header-text">
+          <h1 className="section-title notifications-title" style={{ margin: 0 }}>
             {t('title')}
           </h1>
           <p className="page-header-sub">{data.unreadCount > 0 ? t('unreadSubtitle', { count: data.unreadCount }) : t('allCaughtUp')}</p>
@@ -119,7 +122,8 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
         {data.unreadCount > 0 ? (
           <form action={markAllNotificationsReadAction}>
             <button type="submit" className="notification-mark-all-btn">
-              {t('markRead')}
+              <span className="notification-mark-all-desktop">{t('markRead')}</span>
+              <span className="notification-mark-all-mobile">{t('markAllShort')}</span>
             </button>
           </form>
         ) : null}

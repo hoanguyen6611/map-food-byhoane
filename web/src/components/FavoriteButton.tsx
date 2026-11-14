@@ -5,9 +5,11 @@ import { useFavorites } from './FavoritesProvider';
 
 interface Props {
   restaurantId: string;
+  /** Bookmark glyph ("Lưu") instead of the default heart — the detail page's hero save button in the redesign. */
+  icon?: 'heart' | 'bookmark';
 }
 
-export function FavoriteButton({ restaurantId }: Props) {
+export function FavoriteButton({ restaurantId, icon = 'heart' }: Props) {
   const t = useTranslations('common');
   const { favoriteIds, isLoaded, toggle } = useFavorites();
   const isFavorited = favoriteIds.has(restaurantId);
@@ -27,15 +29,27 @@ export function FavoriteButton({ restaurantId }: Props) {
         toggle(restaurantId);
       }}
     >
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-        <path
-          d="M12 21s-7.5-4.6-10-9.2C.4 8.6 1.7 5 5.2 4.2 7.6 3.6 9.9 4.7 12 7c2.1-2.3 4.4-3.4 6.8-2.8 3.5.8 4.8 4.4 3.2 7.6C19.5 16.4 12 21 12 21z"
-          fill={isFavorited ? 'currentColor' : 'none'}
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-      </svg>
+      {icon === 'bookmark' ? (
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <path
+            d="M6 4h12v16l-6-4-6 4z"
+            fill={isFavorited ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            d="M12 21s-7.5-4.6-10-9.2C.4 8.6 1.7 5 5.2 4.2 7.6 3.6 9.9 4.7 12 7c2.1-2.3 4.4-3.4 6.8-2.8 3.5.8 4.8 4.4 3.2 7.6C19.5 16.4 12 21 12 21z"
+            fill={isFavorited ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
     </button>
   );
 }
