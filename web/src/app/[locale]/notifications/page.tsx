@@ -6,6 +6,7 @@ import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
 import { getRestaurantSlugsByIds, getWebPushPublicKey } from '@/lib/api';
 import { WebPushControl } from '@/components/WebPushControl';
+import { LiveUnreadCount, LiveUnreadSubtitle, UnreadCountSync } from '@/components/UnreadCountSync';
 import { Link } from '@/i18n/navigation';
 import { BackButton } from '@/components/BackButton';
 import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon, MessageCircleIcon } from '@/components/icons';
@@ -118,7 +119,9 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
           <h1 className="section-title notifications-title" style={{ margin: 0 }}>
             {t('title')}
           </h1>
-          <p className="page-header-sub">{data.unreadCount > 0 ? t('unreadSubtitle', { count: data.unreadCount }) : t('allCaughtUp')}</p>
+          <p className="page-header-sub">
+            <LiveUnreadSubtitle fallback={data.unreadCount} />
+          </p>
         </div>
         {data.unreadCount > 0 ? (
           <form action={markAllNotificationsReadAction}>
@@ -130,13 +133,14 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
         ) : null}
       </div>
 
+      <UnreadCountSync count={data.unreadCount} />
       <WebPushControl publicKey={webPushPublicKey} variant="card" />
 
       <div className="notification-tabs">
         {tabs.map((tab) => (
           <Link key={tab.key} href={tab.href} className={`notification-tab ${filter === tab.key ? 'notification-tab-active' : ''}`}>
             {tab.label}
-            <span className="notification-tab-count">{tab.count}</span>
+            <span className="notification-tab-count">{tab.key === 'unread' ? <LiveUnreadCount fallback={tab.count} /> : tab.count}</span>
           </Link>
         ))}
       </div>
@@ -178,7 +182,11 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
                   {NOTIFICATION_ICON[notification.type]}
                 </span>
                 {href ? (
-                  <Link href={href} className="notification-body notification-body-link">
+                  <Link
+                    href={href}
+                    className="notification-body notification-body-link"
+                    data-unread-notification={notification.isRead ? undefined : ''}
+                  >
                     {body}
                   </Link>
                 ) : (

@@ -6091,8 +6091,9 @@ table.menu-table td.price {
     font-weight: 500;
     color: var(--color-primary-hover);
   }
-  /* Compact "my reviews" rows: thumb · name / area · when / stars, with
-     edit/delete kept underneath (comment, criteria and photos hidden). */
+  /* Compact "my reviews" rows: thumb · name / area · when / stars · the
+     review's own photos (small, side-scrolling strip), with edit/delete kept
+     underneath (comment and criteria hidden). */
   .profile-review-item {
     display: grid;
     grid-template-columns: 56px minmax(0, 1fr);
@@ -6110,9 +6111,24 @@ table.menu-table td.price {
     grid-row: 1 / span 4;
   }
   .profile-review-item > .review-card-body,
-  .profile-review-item > .profile-review-criteria,
-  .profile-review-item > .review-card-photos {
+  .profile-review-item > .profile-review-criteria {
     display: none;
+  }
+  .profile-review-item > .review-card-photos {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-top: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .profile-review-item > .review-card-photos::-webkit-scrollbar {
+    display: none;
+  }
+  .profile-review-item .review-card-photo {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
   }
   .profile-review-item .my-review-name {
     font-size: 13px;
@@ -7122,13 +7138,13 @@ table.menu-table td.price {
     padding-top: 22px;
   }
   .home-sections > .home-sec-categories {
-    order: 1;
-  }
-  .home-sections > .home-quick-links {
     order: 2;
   }
-  .home-sections > .home-sec-trending {
+  .home-sections > .home-quick-links {
     order: 3;
+  }
+  .home-sections > .home-sec-trending {
+    order: 1;
   }
   .home-sections > .home-sec-topchips {
     order: 4;

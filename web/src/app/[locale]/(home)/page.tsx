@@ -232,6 +232,64 @@ export default async function HomePage({ params }: PageProps) {
       </section>
 
       <div className="container page-sections home-sections">
+        {trendingUp.length > 0 ? (
+          <section className="section-block home-sec-trending">
+            <div className="section-head">
+              <h2 className="section-title home-trending-title">
+                {t('trendingUpHeading')}
+                <TrendingUpIcon size={14} className="home-trending-icon" aria-hidden="true" />
+              </h2>
+              <span className="section-caption">{t('trendingUpCaption')}</span>
+            </div>
+            <div className="card-grid home-desktop-only">
+              {trendingUp.map((restaurant, i) => (
+                <Reveal key={restaurant.id} delay={staggerDelay(i)}>
+                  <RestaurantCard restaurant={restaurant} />
+                </Reveal>
+              ))}
+            </div>
+            {/* Mobile: design's horizontal strip of compact ranked cards. */}
+            <div className="home-trending-strip">
+              {trendingUp.map((r, i) => {
+                const price = formatPriceRange(r.priceRange, tCommon);
+                return (
+                  <Link key={r.id} href={`/restaurant/${r.slug}`} className="home-trending-card">
+                    <span className={`home-trending-thumb ${r.thumbnailUrl ? '' : placeTileClass(r.id)}`}>
+                      {r.thumbnailUrl ? <Image src={r.thumbnailUrl} alt="" fill sizes="182px" style={{ objectFit: 'cover' }} /> : null}
+                      <span className="home-trending-rank">#{i + 1}</span>
+                      {r.viewGrowthPercent != null && r.viewGrowthPercent > 0 ? (
+                        <span className="home-trending-growth">
+                          {i === 0
+                            ? t('trendingGrowthViews', { percent: r.viewGrowthPercent })
+                            : t('trendingGrowth', { percent: r.viewGrowthPercent })}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="home-trending-body">
+                      <span className="home-trending-name">{r.name}</span>
+                      <span className="home-trending-score">
+                        {r.compositeScore !== null && r.reviewCount > 0 ? (
+                          <>
+                            <StarIcon size={12} filled className="home-top-star" />
+                            <span className="home-top-score">{r.compositeScore.toFixed(1)}</span>
+                            <span>({r.reviewCount})</span>
+                          </>
+                        ) : (
+                          <span>{tCommon('noRating')}</span>
+                        )}
+                      </span>
+                      <span className="home-trending-meta">
+                        {[r.categoryLabel, r.area ?? (price ? `${price}đ` : null)].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+            <p className="home-trending-footnote">{t('trendingUpCaption')}</p>
+          </section>
+        ) : null}
+
         <section className="section-block home-sec-categories">
           <div className="section-head">
             <h2 className="section-title">{t('categoriesHeading')}</h2>
@@ -335,63 +393,6 @@ export default async function HomePage({ params }: PageProps) {
           </section>
         ) : null}
 
-        {trendingUp.length > 0 ? (
-          <section className="section-block home-sec-trending">
-            <div className="section-head">
-              <h2 className="section-title home-trending-title">
-                {t('trendingUpHeading')}
-                <TrendingUpIcon size={14} className="home-trending-icon" aria-hidden="true" />
-              </h2>
-              <span className="section-caption">{t('trendingUpCaption')}</span>
-            </div>
-            <div className="card-grid home-desktop-only">
-              {trendingUp.map((restaurant, i) => (
-                <Reveal key={restaurant.id} delay={staggerDelay(i)}>
-                  <RestaurantCard restaurant={restaurant} />
-                </Reveal>
-              ))}
-            </div>
-            {/* Mobile: design's horizontal strip of compact ranked cards. */}
-            <div className="home-trending-strip">
-              {trendingUp.map((r, i) => {
-                const price = formatPriceRange(r.priceRange, tCommon);
-                return (
-                  <Link key={r.id} href={`/restaurant/${r.slug}`} className="home-trending-card">
-                    <span className={`home-trending-thumb ${r.thumbnailUrl ? '' : placeTileClass(r.id)}`}>
-                      {r.thumbnailUrl ? <Image src={r.thumbnailUrl} alt="" fill sizes="182px" style={{ objectFit: 'cover' }} /> : null}
-                      <span className="home-trending-rank">#{i + 1}</span>
-                      {r.viewGrowthPercent != null && r.viewGrowthPercent > 0 ? (
-                        <span className="home-trending-growth">
-                          {i === 0
-                            ? t('trendingGrowthViews', { percent: r.viewGrowthPercent })
-                            : t('trendingGrowth', { percent: r.viewGrowthPercent })}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="home-trending-body">
-                      <span className="home-trending-name">{r.name}</span>
-                      <span className="home-trending-score">
-                        {r.compositeScore !== null && r.reviewCount > 0 ? (
-                          <>
-                            <StarIcon size={12} filled className="home-top-star" />
-                            <span className="home-top-score">{r.compositeScore.toFixed(1)}</span>
-                            <span>({r.reviewCount})</span>
-                          </>
-                        ) : (
-                          <span>{tCommon('noRating')}</span>
-                        )}
-                      </span>
-                      <span className="home-trending-meta">
-                        {[r.categoryLabel, r.area ?? (price ? `${price}đ` : null)].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-            <p className="home-trending-footnote">{t('trendingUpCaption')}</p>
-          </section>
-        ) : null}
 
         {topChipSections.length > 0 ? (
           <section className="section-block home-sec-topchips">

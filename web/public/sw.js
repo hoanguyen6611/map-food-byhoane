@@ -14,12 +14,17 @@ self.addEventListener('push', (event) => {
   }
   const title = data.title || 'Bản Đồ Ẩm Thực';
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || '',
-      icon: '/api/pwa-icon/192',
-      tag: data.notificationId || undefined,
-      data: { url: data.url || '/notifications' },
-    }),
+    (async () => {
+      await self.registration.showNotification(title, {
+        body: data.body || '',
+        icon: '/api/pwa-icon/192',
+        tag: data.notificationId || undefined,
+        data: { url: data.url || '/notifications' },
+      });
+      // Open tabs update their unread badge (and the Notifications list) right away.
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of windows) client.postMessage({ type: 'fm:push', notificationId: data.notificationId || null });
+    })(),
   );
 });
 

@@ -10,6 +10,7 @@ import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { WebPushSync } from '@/components/WebPushSync';
 import { LoginPromptProvider } from '@/components/LoginPromptProvider';
+import { SessionProvider } from '@/components/SessionProvider';
 import { NavigationProgress } from '@/components/NavigationProgress';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
@@ -100,35 +101,37 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
         />
         <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
           <NextIntlClientProvider>
-            <ToastProvider>
-              <LoginPromptProvider>
-                <FavoritesProvider>
-                  <SmoothScrollProvider>
-                    {/* `inert` while the splash is showing is set/removed on
-                        this element by SplashScreen's inline script — outside
-                        React, hence suppressHydrationWarning. */}
-                    <div id="fm-app" suppressHydrationWarning>
-                      <a href="#main-content" className="skip-link">
-                        {t('skipToContent')}
-                      </a>
-                      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
-                        <SiteTopBar />
-                        <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                          {children}
-                        </main>
-                        <SiteFooter />
+            <SessionProvider>
+              <ToastProvider>
+                <LoginPromptProvider>
+                  <FavoritesProvider>
+                    <SmoothScrollProvider>
+                      {/* `inert` while the splash is showing is set/removed on
+                          this element by SplashScreen's inline script — outside
+                          React, hence suppressHydrationWarning. */}
+                      <div id="fm-app" suppressHydrationWarning>
+                        <a href="#main-content" className="skip-link">
+                          {t('skipToContent')}
+                        </a>
+                        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+                          <SiteTopBar />
+                          <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            {children}
+                          </main>
+                          <SiteFooter />
+                        </div>
+                        <MobileTabBar />
+                        <WebPushSync />
+                        {/* Suspense: useSearchParams must not opt the whole layout out of static rendering. */}
+                        <Suspense fallback={null}>
+                          <NavigationProgress />
+                        </Suspense>
                       </div>
-                      <MobileTabBar />
-                      <WebPushSync />
-                      {/* Suspense: useSearchParams must not opt the whole layout out of static rendering. */}
-                      <Suspense fallback={null}>
-                        <NavigationProgress />
-                      </Suspense>
-                    </div>
-                  </SmoothScrollProvider>
-                </FavoritesProvider>
-              </LoginPromptProvider>
-            </ToastProvider>
+                    </SmoothScrollProvider>
+                  </FavoritesProvider>
+                </LoginPromptProvider>
+              </ToastProvider>
+            </SessionProvider>
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>
