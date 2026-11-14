@@ -81,7 +81,18 @@ export class AdminRestaurantService {
       addressFilter.ward = { contains: query.ward, mode: 'insensitive' };
 
     const where = {
-      ...(query.status ? { status: { publicationStatus: query.status } } : {}),
+      ...(query.status || query.closed !== undefined
+        ? {
+            status: {
+              ...(query.status ? { publicationStatus: query.status } : {}),
+              ...(query.closed === true
+                ? { permanentlyClosedAt: { not: null } }
+                : query.closed === false
+                  ? { permanentlyClosedAt: null }
+                  : {}),
+            },
+          }
+        : {}),
       ...(Object.keys(addressFilter).length > 0
         ? { address: addressFilter }
         : {}),
@@ -112,6 +123,7 @@ export class AdminRestaurantService {
       publicationStatus: r.status?.publicationStatus ?? 'pending',
       createdAt: r.createdAt.toISOString(),
       viewCount: r.status?.viewCount ?? 0,
+      permanentlyClosedAt: r.status?.permanentlyClosedAt?.toISOString() ?? null,
     }));
 
     return { items, total, page, pageSize };
@@ -308,6 +320,62 @@ export class AdminRestaurantService {
     void this.revalidateRestaurant(id, before.slug);
 
     return this.getDetail(id);
+  }
+
+  /**
+   * "Đóng cửa vĩnh viễn" — stamps RestaurantStatus.permanentlyClosedAt.
+   * Deliberately NOT a publicationStatus change: the restaurant stays
+   * published (detail page, reviews, favorites/collections links keep
+   * working and show a closed banner) but disappears from every discovery
+   * query (search, map, trending, area counts). Idempotent — re-closing
+   * keeps the original timestamp.
+   */
+  async closePermanently(id: string, actorId: string, reason?: string): Promise<void> {
+    const status = await this.prisma.restaurantStatus.findUnique({
+      where: { restaurantId: id },
+      select: { permanentlyClosedAt: true },
+    });
+    if (!status) throw new NotFoundException('Không tìm thấy quán ăn');
+    if (status.permanentlyClosedAt) return;
+    const closedAt = new Date();
+    await this.prisma.restaurantStatus.update({
+      where: { restaurantId: id },
+      data: { permanentlyClosedAt: closedAt },
+    });
+    await this.restaurantService.invalidateViewportCache();
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.close_permanently',
+      targetType: 'restaurant',
+      targetId: id,
+      beforeState: { permanentlyClosedAt: null },
+      afterState: { permanentlyClosedAt: closedAt.toISOString(), reason: reason ?? null },
+    });
+    void this.revalidateRestaurant(id);
+  }
+
+  /** Undo of closePermanently (marked by mistake, or the place reopened). */
+  async reopen(id: string, actorId: string): Promise<void> {
+    const status = await this.prisma.restaurantStatus.findUnique({
+      where: { restaurantId: id },
+      select: { permanentlyClosedAt: true },
+    });
+    if (!status) throw new NotFoundException('Không tìm thấy quán ăn');
+    if (!status.permanentlyClosedAt) return;
+    await this.prisma.restaurantStatus.update({
+      where: { restaurantId: id },
+      data: { permanentlyClosedAt: null },
+    });
+    await this.restaurantService.invalidateViewportCache();
+    await this.auditLog.record({
+      actorId,
+      action: 'restaurant.reopen',
+      targetType: 'restaurant',
+      targetId: id,
+      beforeState: { permanentlyClosedAt: status.permanentlyClosedAt.toISOString() },
+      afterState: { permanentlyClosedAt: null },
+    });
+    void this.revalidateRestaurant(id);
   }
 
   async hide(id: string, actorId: string): Promise<void> {

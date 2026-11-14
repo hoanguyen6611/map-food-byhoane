@@ -125,6 +125,8 @@ export interface RestaurantDetailDto {
   viewCount: number;
   /** Page views in the last 7 days (RestaurantDailyStat). */
   weeklyViewCount: number;
+  /** ISO time an admin marked the restaurant "đóng cửa vĩnh viễn"; null while operating. Closed restaurants stay reachable by URL but are excluded from search/map/lists. */
+  permanentlyClosedAt: string | null;
   reviews: ReviewDto[];
   // Whether Restaurant.ownerId is set — never the raw id itself, which the
   // public has no reason to see. Gates the "Bạn là chủ quán này?" claim CTA.
@@ -149,6 +151,7 @@ export interface AdminRestaurantListItemDto {
   publicationStatus: RestaurantPublicationStatus;
   createdAt: string;
   viewCount: number;
+  permanentlyClosedAt: string | null;
 }
 
 // build-prompts/09-public-web.md's sitemap.xml generator — every published

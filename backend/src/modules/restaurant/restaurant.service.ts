@@ -395,7 +395,8 @@ export class RestaurantService {
           }
         : null,
       openingHours: this.formatOpeningHours(restaurant.openingHours),
-      isOpenNow: isOpenNow(openingHourRows, vnNow),
+      // A permanently closed restaurant is never "đang mở", whatever its stored hours say.
+      isOpenNow: !restaurant.status?.permanentlyClosedAt && isOpenNow(openingHourRows, vnNow),
       facilities: restaurant.facilities.map((f) => f.facilityCode),
       menus: restaurant.menus.map((menu) => ({
         id: menu.id,
@@ -445,6 +446,7 @@ export class RestaurantService {
       // Today's increment (if any) already landed in RestaurantDailyStat
       // before this aggregate ran — no delta to add here.
       weeklyViewCount: weeklyViews._sum.viewCount ?? 0,
+      permanentlyClosedAt: restaurant.status?.permanentlyClosedAt?.toISOString() ?? null,
       hasOwner: restaurant.ownerId !== null,
       reviews: await (async () => {
         const { avatarUrlByPhotoId, countsByReviewId } =
@@ -717,6 +719,7 @@ export class RestaurantService {
       LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
       WHERE r.deleted_at IS NULL
         AND rs.publication_status = 'published'
+        AND rs.permanently_closed_at IS NULL
         AND ST_DWithin(
           l.geo_point,
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
@@ -762,6 +765,7 @@ export class RestaurantService {
     const conditions: Prisma.Sql[] = [
       Prisma.sql`r.deleted_at IS NULL`,
       Prisma.sql`rs.publication_status = 'published'`,
+      Prisma.sql`rs.permanently_closed_at IS NULL`,
       Prisma.sql`l.geo_point && ST_MakeEnvelope(${swLng}, ${swLat}, ${neLng}, ${neLat}, 4326)::geography`,
     ];
 

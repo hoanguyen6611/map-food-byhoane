@@ -35,6 +35,7 @@ import { CreateMenuItemDto, UpdateMenuItemDto } from './dto/menu-item.dto';
 import { BulkCreateMenuItemsDto } from './dto/bulk-create-menu-items.dto';
 import { AttachPhotoDto } from './dto/attach-photo.dto';
 import { SetCoverPhotoDto } from './dto/set-cover-photo.dto';
+import { ClosePermanentlyDto } from './dto/close-permanently.dto';
 
 // `admin` and `moderator` share every action here EXCEPT hard delete
 // (see the DELETE :id handler below) — that split is the explicit
@@ -76,6 +77,25 @@ export class AdminRestaurantController {
     @CurrentUser() user: RequestUser,
   ): Promise<AdminRestaurantDetailDto> {
     return this.adminRestaurantService.update(id, dto, user.id);
+  }
+
+  @Post(':id/close-permanently')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  closePermanently(
+    @Param('id') id: string,
+    @Body() dto: ClosePermanentlyDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    return this.adminRestaurantService.closePermanently(id, user.id, dto.reason);
+  }
+
+  @Post(':id/reopen')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  reopen(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    return this.adminRestaurantService.reopen(id, user.id);
   }
 
   @Post(':id/hide')

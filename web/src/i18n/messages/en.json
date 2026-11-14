@@ -205,6 +205,8 @@
     "menuPhotosCount": "{count} photos",
     "openMap": "Open map",
     "seeMoreShort": "See more",
+    "permanentlyClosedTitle": "Permanently closed",
+    "permanentlyClosedBody": "This place has shut down. The details and reviews below are kept for reference only.",
     "weeklyViewCount": "{count} this week",
     "menuUpdatedAt": "updated {date}"
   },

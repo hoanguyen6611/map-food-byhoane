@@ -9,7 +9,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Fragment, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import type {
   AdminModerationDetailDto,
   ModerationDecision,
@@ -469,6 +469,17 @@ function ContributionDetail({ detail }: { detail: Extract<AdminModerationDetailD
 
       {(detail.contributionType === 'status_update' || detail.contributionType === 'closure_report') && (
         <KeyValueList payload={payload} />
+      )}
+
+      {/* Approving a closure report never changes the restaurant itself (see
+          ContributionFinalizeService) — the actual "đóng cửa vĩnh viễn" mark is
+          a deliberate separate action on the restaurant's page. */}
+      {detail.contributionType === 'closure_report' && detail.targetRestaurantId && (
+        <p style={{ marginTop: 8 }}>
+          <Link to={`/restaurants/${detail.targetRestaurantId}`}>
+            Mở trang quán để đánh dấu đóng cửa vĩnh viễn →
+          </Link>
+        </p>
       )}
 
       {detail.contributionType === 'owner_claim' && (

@@ -563,6 +563,11 @@ body {
   color: #555555;
 }
 
+.status-badge-closed {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
 .status-badge-approved {
   background: #d3f5df;
   color: #106b31;
@@ -641,6 +646,16 @@ body {
   gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+.closed-banner {
+  margin: -8px 0 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
 }
 
 .admin-form {

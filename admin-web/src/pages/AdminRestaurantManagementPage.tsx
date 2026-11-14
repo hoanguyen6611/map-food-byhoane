@@ -30,6 +30,7 @@ export function AdminRestaurantManagementPage() {
 
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState<RestaurantPublicationStatus | ''>('')
+  const [closedFilter, setClosedFilter] = useState<'' | 'open' | 'closed'>('')
   // Province/Ward select the dataset's `code`, resolved to `.name` (the
   // format actually stored on Address.province/Address.ward) before being
   // sent to the API — same code/name split as RestaurantCoreForm.tsx.
@@ -69,11 +70,12 @@ export function AdminRestaurantManagementPage() {
   ]
 
   const listQuery = useQuery({
-    queryKey: ['admin-restaurants', debouncedSearch, status, province, ward, page, pageSize],
+    queryKey: ['admin-restaurants', debouncedSearch, status, closedFilter, province, ward, page, pageSize],
     queryFn: () =>
       adminRestaurantsApi.list({
         search: debouncedSearch || undefined,
         status: status || undefined,
+        closed: closedFilter === '' ? undefined : closedFilter === 'closed',
         province,
         ward,
         page,
@@ -190,6 +192,21 @@ export function AdminRestaurantManagementPage() {
         </label>
 
         <label className="filter-field">
+          <span>Hoạt động</span>
+          <select
+            value={closedFilter}
+            onChange={(event) => {
+              setClosedFilter(event.target.value as '' | 'open' | 'closed')
+              resetToFirstPage()
+            }}
+          >
+            <option value="">Tất cả</option>
+            <option value="open">Đang hoạt động</option>
+            <option value="closed">Đã đóng cửa vĩnh viễn</option>
+          </select>
+        </label>
+
+        <label className="filter-field">
           <span>Tỉnh/Thành</span>
           <SearchableSelect
             value={provinceCode}
@@ -272,6 +289,15 @@ export function AdminRestaurantManagementPage() {
                     <span className={`status-badge status-badge-${item.publicationStatus}`}>
                       {statusLabel(item.publicationStatus)}
                     </span>
+                    {item.permanentlyClosedAt && (
+                      <span
+                        className="status-badge status-badge-closed"
+                        style={{ marginLeft: 6 }}
+                        title={`Đóng cửa từ ${formatDateTime(item.permanentlyClosedAt)}`}
+                      >
+                        Đã đóng cửa
+                      </span>
+                    )}
                   </td>
                   <td>{item.viewCount.toLocaleString('vi-VN')}</td>
                   <td>{formatDateTime(item.createdAt)}</td>

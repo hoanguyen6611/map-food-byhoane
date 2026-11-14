@@ -23,7 +23,7 @@ import {
   RestaurantCoreForm,
   coreFormValuesFromDetail,
 } from './restaurant-admin/RestaurantCoreForm'
-import { statusLabel } from './restaurant-admin/constants'
+import { formatDateTime, statusLabel } from './restaurant-admin/constants'
 
 export function AdminRestaurantEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -94,6 +94,43 @@ export function AdminRestaurantEditPage() {
       setStatusError(err instanceof ApiError ? err.message : 'Không thể khôi phục nhà hàng.'),
   })
 
+  const closeMutation = useMutation({
+    mutationFn: (reason?: string) => adminRestaurantsApi.closePermanently(id!, reason),
+    meta: { successMessage: 'Đã đánh dấu quán đóng cửa vĩnh viễn.' },
+    onSuccess: () => {
+      setStatusError(null)
+      queryClient.invalidateQueries({ queryKey: ['admin-restaurant', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] })
+    },
+    onError: (err: unknown) =>
+      setStatusError(err instanceof ApiError ? err.message : 'Không thể đánh dấu đóng cửa.'),
+  })
+
+  const reopenMutation = useMutation({
+    mutationFn: () => adminRestaurantsApi.reopen(id!),
+    meta: { successMessage: 'Đã mở lại quán.' },
+    onSuccess: () => {
+      setStatusError(null)
+      queryClient.invalidateQueries({ queryKey: ['admin-restaurant', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] })
+    },
+    onError: (err: unknown) =>
+      setStatusError(err instanceof ApiError ? err.message : 'Không thể mở lại quán.'),
+  })
+
+  function handleClosePermanently() {
+    const reason = window.prompt(
+      `Đánh dấu "${detailQuery.data?.name ?? ''}" đã đóng cửa vĩnh viễn?\n\n` +
+        'Quán sẽ không còn xuất hiện trong tìm kiếm, bản đồ và các danh sách gợi ý. ' +
+        'Trang chi tiết, đánh giá và lượt lưu vẫn giữ nguyên, kèm thông báo "Đã đóng cửa vĩnh viễn". ' +
+        'Có thể mở lại bất cứ lúc nào.\n\nGhi chú (không bắt buộc, chỉ lưu vào nhật ký):',
+      '',
+    )
+    if (reason === null) return
+    setStatusError(null)
+    closeMutation.mutate(reason.trim() || undefined)
+  }
+
   const deleteMutation = useMutation({
     mutationFn: () => adminRestaurantsApi.remove(id!),
     meta: { successMessage: 'Đã xoá nhà hàng.' },
@@ -155,6 +192,9 @@ export function AdminRestaurantEditPage() {
             <span className={`status-badge status-badge-${detailQuery.data.publicationStatus}`}>
               {statusLabel(detailQuery.data.publicationStatus)}
             </span>
+            {detailQuery.data.permanentlyClosedAt && (
+              <span className="status-badge status-badge-closed">Đã đóng cửa vĩnh viễn</span>
+            )}
 
             {detailQuery.data.publicationStatus === 'hidden' ? (
               <button
@@ -173,6 +213,30 @@ export function AdminRestaurantEditPage() {
                 onClick={() => hideMutation.mutate()}
               >
                 Ẩn
+              </button>
+            )}
+
+            {detailQuery.data.permanentlyClosedAt ? (
+              <button
+                type="button"
+                className="button"
+                disabled={reopenMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(`Mở lại "${detailQuery.data?.name ?? ''}"? Quán sẽ xuất hiện lại trong tìm kiếm và bản đồ.`)) {
+                    reopenMutation.mutate()
+                  }
+                }}
+              >
+                Mở lại hoạt động
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button"
+                disabled={closeMutation.isPending || detailQuery.data.publicationStatus === 'removed'}
+                onClick={handleClosePermanently}
+              >
+                Đóng cửa vĩnh viễn
               </button>
             )}
 
@@ -196,6 +260,14 @@ export function AdminRestaurantEditPage() {
               </span>
             )}
           </div>
+
+          {detailQuery.data.permanentlyClosedAt && (
+            <p className="closed-banner" role="status">
+              Quán đã được đánh dấu <strong>đóng cửa vĩnh viễn</strong> từ{' '}
+              {formatDateTime(detailQuery.data.permanentlyClosedAt)}. Quán đã bị ẩn khỏi tìm kiếm, bản đồ và
+              danh sách gợi ý; trang chi tiết vẫn truy cập được và hiển thị thông báo đóng cửa.
+            </p>
+          )}
 
           <RestaurantCoreForm
             initialValues={coreFormValuesFromDetail(detailQuery.data)}

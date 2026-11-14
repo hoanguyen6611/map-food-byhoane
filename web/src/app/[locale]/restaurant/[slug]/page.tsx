@@ -280,6 +280,13 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
       <div className="detail-layout" style={{ marginTop: 20 }}>
         <div className="detail-main">
+          {/* Optional until every backend serves it. */}
+          {restaurant.permanentlyClosedAt ? (
+            <p className="detail-closed-banner" role="status">
+              <strong>{t('permanentlyClosedTitle')}</strong>
+              <span>{t('permanentlyClosedBody')}</span>
+            </p>
+          ) : null}
           <h1 className="detail-title">{restaurant.name}</h1>
           <div className="detail-meta-row">
             {restaurant.reviewCount > 0 ? (
@@ -299,7 +306,11 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             </span>
             <span className="detail-divider detail-meta-views" aria-hidden="true" />
             <span className="detail-meta-text detail-meta-views">{t('viewCount', { count: restaurant.viewCount })}</span>
-            <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
+            {restaurant.permanentlyClosedAt ? (
+              <span className="detail-closed-pill">{t('permanentlyClosedTitle')}</span>
+            ) : (
+              <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
+            )}
           </div>
           {/* Mobile: views on their own line under the meta row (design). */}
           <p className="detail-views-line">

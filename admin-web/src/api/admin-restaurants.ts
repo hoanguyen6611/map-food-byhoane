@@ -27,6 +27,8 @@ import { apiClient } from './client'
 
 export interface AdminRestaurantListQuery {
   status?: RestaurantPublicationStatus
+  /** true = only permanently closed, false = only operating. */
+  closed?: boolean
   province?: string
   ward?: string
   district?: string
@@ -169,6 +171,12 @@ export const adminRestaurantsApi = {
   hide: (id: string) => apiClient.post<void>(`/admin/restaurants/${id}/hide`),
 
   restore: (id: string) => apiClient.post<void>(`/admin/restaurants/${id}/restore`),
+
+  /** Mark "đóng cửa vĩnh viễn" — stays published but leaves search/map/lists. */
+  closePermanently: (id: string, reason?: string) =>
+    apiClient.post<void>(`/admin/restaurants/${id}/close-permanently`, reason ? { reason } : {}),
+
+  reopen: (id: string) => apiClient.post<void>(`/admin/restaurants/${id}/reopen`),
 
   /** Hard delete — admin role only; backend returns 403 for moderator. */
   remove: (id: string) => apiClient.delete<void>(`/admin/restaurants/${id}`),

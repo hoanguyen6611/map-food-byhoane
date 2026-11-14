@@ -7528,6 +7528,38 @@ table.menu-table td.price {
   color: var(--color-ink-subtle);
 }
 
+/* ---------- Detail: permanently closed ---------- */
+
+.detail-closed-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-ink);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.detail-closed-banner strong {
+  font-size: 15px;
+}
+
+.detail-closed-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ---------- Detail: "Bổ sung Chi tiết quán" ---------- */
 
 .detail-views-line,

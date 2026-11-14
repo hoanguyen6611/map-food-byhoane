@@ -84,6 +84,7 @@ export class SearchService {
     const conditions: Prisma.Sql[] = [
       Prisma.sql`r.deleted_at IS NULL`,
       Prisma.sql`rs.publication_status = 'published'`,
+      Prisma.sql`rs.permanently_closed_at IS NULL`,
     ];
 
     if (query.q) {
@@ -313,6 +314,7 @@ export class SearchService {
       LEFT JOIN review_stats rv ON rv.restaurant_id = r.id
       WHERE r.deleted_at IS NULL
         AND rs.publication_status = 'published'
+        AND rs.permanently_closed_at IS NULL
         ${provinceCondition}
         AND (
           (COALESCE(v.views_recent, 0) + COALESCE(rv.reviews_recent, 0) * 5)
@@ -354,6 +356,7 @@ export class SearchService {
         JOIN restaurant_status rs ON rs.restaurant_id = r.id
         WHERE r.deleted_at IS NULL
           AND rs.publication_status = 'published'
+          AND rs.permanently_closed_at IS NULL
           ${provinceCondition}
       ) t
       WHERE t.name IS NOT NULL AND t.name <> ''
@@ -376,6 +379,7 @@ export class SearchService {
       JOIN restaurant_status rs ON rs.restaurant_id = r.id
       WHERE r.deleted_at IS NULL
         AND rs.publication_status = 'published'
+        AND rs.permanently_closed_at IS NULL
         AND a.province <> ''
       GROUP BY a.province
       ORDER BY restaurant_count DESC, a.province ASC
@@ -397,6 +401,7 @@ export class SearchService {
       JOIN restaurant_status rs ON rs.restaurant_id = r.id
       WHERE r.deleted_at IS NULL
         AND rs.publication_status = 'published'
+        AND rs.permanently_closed_at IS NULL
         AND a.province <> ''
         AND ST_DWithin(l.geo_point, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography, 150000)
       ORDER BY l.geo_point <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography

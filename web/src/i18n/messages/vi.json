@@ -205,6 +205,8 @@
     "menuPhotosCount": "{count} ảnh",
     "openMap": "Mở bản đồ",
     "seeMoreShort": "Xem thêm",
+    "permanentlyClosedTitle": "Đã đóng cửa vĩnh viễn",
+    "permanentlyClosedBody": "Quán này đã ngừng hoạt động. Thông tin và đánh giá bên dưới chỉ được giữ lại để tham khảo.",
     "weeklyViewCount": "{count} trong tuần này",
     "menuUpdatedAt": "cập nhật {date}"
   },

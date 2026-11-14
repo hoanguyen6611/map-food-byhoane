@@ -1,5 +1,4 @@
--- Photo caption for the web's full-screen photo viewer.
-ALTER TABLE "photos" ADD COLUMN "caption" TEXT;
-
--- Menu last-updated timestamp ("cập nhật 10/2026" on the public menu card).
-ALTER TABLE "menus" ADD COLUMN "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+-- IF NOT EXISTS: photos.caption was already added to the live database
+-- outside migrations (db push / manual), which made this fail with 42701.
+ALTER TABLE "photos" ADD COLUMN IF NOT EXISTS "caption" TEXT;
+ALTER TABLE "menus" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

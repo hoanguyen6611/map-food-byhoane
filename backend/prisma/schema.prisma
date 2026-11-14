@@ -396,6 +396,11 @@ model RestaurantStatus {
   // map platforms' "lượt xem". Incremented via an atomic `increment` update
   // from RestaurantService.getDetail/getDetailBySlug, never read-then-write.
   viewCount         Int                         @default(0) @map("view_count")
+  // Set by an admin/moderator ("Đóng cửa vĩnh viễn"). Independent of
+  // publicationStatus: a closed restaurant stays published so its detail
+  // page, reviews and saved links keep working (with a closed banner), but
+  // every discovery surface — search, map, trending, area counts — skips it.
+  permanentlyClosedAt DateTime?                 @map("permanently_closed_at")
 
   @@map("restaurant_status")
 }
