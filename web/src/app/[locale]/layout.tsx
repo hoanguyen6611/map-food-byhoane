@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ToastProvider';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
 import { MobileTabBar } from '@/components/MobileTabBar';
+import { SmoothScrollProvider } from '@/components/SmoothScrollProvider';
 import { SITE_NAME } from '@/lib/constants';
 import '../globals.css';
 
@@ -80,17 +81,19 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
           <NextIntlClientProvider>
             <ToastProvider>
               <FavoritesProvider>
-                <a href="#main-content" className="skip-link">
-                  {t('skipToContent')}
-                </a>
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
-                  <SiteTopBar />
-                  <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    {children}
-                  </main>
-                  <SiteFooter />
-                </div>
-                <MobileTabBar />
+                <SmoothScrollProvider>
+                  <a href="#main-content" className="skip-link">
+                    {t('skipToContent')}
+                  </a>
+                  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-canvas)' }}>
+                    <SiteTopBar />
+                    <main id="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {children}
+                    </main>
+                    <SiteFooter />
+                  </div>
+                  <MobileTabBar />
+                </SmoothScrollProvider>
               </FavoritesProvider>
             </ToastProvider>
           </NextIntlClientProvider>

@@ -7,8 +7,19 @@ import { HomeProvinceSelect } from '@/components/HomeProvinceSelect';
 import { DISTRICTS } from '@/lib/districts';
 import { getHomeProvince, HCMC_PROVINCE_NAME, HCMC_DATASET_CODE } from '@/lib/home-province';
 import { Link, getPathname } from '@/i18n/navigation';
-import { SearchIcon, MapPinIcon } from '@/components/icons';
+import { SearchIcon, MapPinIcon, MapLogoIcon, TrophyIcon, ArrowUpRightIcon } from '@/components/icons';
 import { VN_PROVINCES, getCategoryIconPath } from '@foodmap/shared-types';
+import { Reveal } from '@/components/Reveal';
+import { LoggedOutOnly } from '@/components/LoggedOutOnly';
+
+// Caps how much a long grid's last items wait before animating in — past
+// this many items, every later one fires at the same (max) delay instead of
+// stretching the stagger out further and further.
+const MAX_STAGGER_INDEX = 8;
+const STAGGER_STEP = 0.05;
+function staggerDelay(index: number): number {
+  return Math.min(index, MAX_STAGGER_INDEX) * STAGGER_STEP;
+}
 
 // HCMC is pinned as its own default option (below, with the friendlier
 // "heroArea" label instead of the dataset's plain shortName) rather than
@@ -173,20 +184,56 @@ export default async function HomePage({ params }: PageProps) {
           </div>
           <div className="cat-grid">
             {categories.map((category, i) => (
-              <Link key={category.code} href={withProvince(`/search?category=${category.code}`)} className="cat-card">
-                <span className={`cat-icon-tile ${CAT_TILE_CLASSES[i % CAT_TILE_CLASSES.length]}`} aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1c2024" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                    <path d={getCategoryIconPath(category.icon)} />
-                  </svg>
-                </span>
-                <span>
-                  <span className="cat-card-name" style={{ display: 'block' }}>
-                    {category.label}
+              <Reveal key={category.code} delay={staggerDelay(i)} y={16}>
+                <Link href={withProvince(`/search?category=${category.code}`)} className="cat-card">
+                  <span className={`cat-icon-tile ${CAT_TILE_CLASSES[i % CAT_TILE_CLASSES.length]}`} aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1c2024" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                      <path d={getCategoryIconPath(category.icon)} />
+                    </svg>
                   </span>
-                  <span className="cat-card-count">{tCommon('resultCount', { count: categoryCounts[i].total })}</span>
-                </span>
-              </Link>
+                  <span>
+                    <span className="cat-card-name" style={{ display: 'block' }}>
+                      {category.label}
+                    </span>
+                    <span className="cat-card-count">{tCommon('resultCount', { count: categoryCounts[i].total })}</span>
+                  </span>
+                </Link>
+              </Reveal>
             ))}
+          </div>
+        </section>
+
+        {/* Mobile-only (see globals.css's `.home-quick-links`) — the only way
+            to reach these two public pages on a phone now that the hamburger
+            menu is gone; desktop still has both in the header nav row. */}
+        <section className="section-block home-quick-links">
+          <div className="section-head">
+            <h2 className="section-title">{t('exploreHeading')}</h2>
+            <LoggedOutOnly>
+              <span className="section-caption">{t('exploreNoLoginHint')}</span>
+            </LoggedOutOnly>
+          </div>
+          <div className="home-quick-grid">
+            <Link href="/map" className="home-quick-card">
+              <span className="home-quick-icon home-quick-icon-map" aria-hidden="true">
+                <MapLogoIcon size={21} strokeWidth={1.5} />
+              </span>
+              <ArrowUpRightIcon size={16} className="home-quick-arrow" />
+              <span className="home-quick-text">
+                <span className="home-quick-title">{tCommon('mapNavLink')}</span>
+                <span className="home-quick-sub">{t('exploreMapSub')}</span>
+              </span>
+            </Link>
+            <Link href="/leaderboard" className="home-quick-card">
+              <span className="home-quick-icon home-quick-icon-rank" aria-hidden="true">
+                <TrophyIcon size={21} />
+              </span>
+              <ArrowUpRightIcon size={16} className="home-quick-arrow" />
+              <span className="home-quick-text">
+                <span className="home-quick-title">{tCommon('leaderboardNavLink')}</span>
+                <span className="home-quick-sub">{t('exploreRankSub')}</span>
+              </span>
+            </Link>
           </div>
         </section>
 
@@ -198,14 +245,15 @@ export default async function HomePage({ params }: PageProps) {
             </div>
             <div className="area-grid">
               {DISTRICTS.map((district, i) => (
-                <Link
-                  key={district.slug}
-                  href={`/district/${district.slug}`}
-                  className={`area-card ${AREA_TILE_CLASSES[i % AREA_TILE_CLASSES.length]}`}
-                >
-                  <span className="area-card-name">{district.name}</span>
-                  <span className="area-card-meta">{tCommon('resultCount', { count: areaCounts[i].total })}</span>
-                </Link>
+                <Reveal key={district.slug} delay={staggerDelay(i)} y={16}>
+                  <Link
+                    href={`/district/${district.slug}`}
+                    className={`area-card ${AREA_TILE_CLASSES[i % AREA_TILE_CLASSES.length]}`}
+                  >
+                    <span className="area-card-name">{district.name}</span>
+                    <span className="area-card-meta">{tCommon('resultCount', { count: areaCounts[i].total })}</span>
+                  </Link>
+                </Reveal>
               ))}
             </div>
           </section>
@@ -218,8 +266,10 @@ export default async function HomePage({ params }: PageProps) {
               <span className="section-caption">{t('trendingUpCaption')}</span>
             </div>
             <div className="card-grid">
-              {trendingUp.map((restaurant) => (
-                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+              {trendingUp.map((restaurant, i) => (
+                <Reveal key={restaurant.id} delay={staggerDelay(i)}>
+                  <RestaurantCard restaurant={restaurant} />
+                </Reveal>
               ))}
             </div>
           </section>
@@ -234,8 +284,10 @@ export default async function HomePage({ params }: PageProps) {
               </Link>
             </div>
             <div className="card-grid">
-              {result.items.map((restaurant) => (
-                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+              {result.items.map((restaurant, i) => (
+                <Reveal key={restaurant.id} delay={staggerDelay(i)}>
+                  <RestaurantCard restaurant={restaurant} />
+                </Reveal>
               ))}
             </div>
           </section>

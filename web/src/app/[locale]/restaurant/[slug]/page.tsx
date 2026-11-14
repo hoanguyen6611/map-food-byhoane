@@ -19,6 +19,7 @@ import { ReviewCard } from '@/components/ReviewCard';
 import { ReviewCardPhotos } from '@/components/ReviewCardPhotos';
 import { MapCanvas } from '@/components/MapCanvas';
 import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
+import { Reveal } from '@/components/Reveal';
 import { SocialLinksCard } from '@/components/SocialLinksCard';
 import { OwnerClaimForm } from '@/components/OwnerClaimForm';
 import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, PencilIcon } from '@/components/icons';
@@ -205,23 +206,25 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
         <span aria-current="page">{restaurant.name}</span>
       </nav>
 
-      <div className="detail-hero-wrap">
-        <PhotoGalleryHero
-          photos={restaurant.photos}
-          photoAlts={restaurant.photos.map((_, index) => t('photoAlt', { index: index + 1, name: restaurant.name }))}
-          emptyText={t('noPhotos')}
-          seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
-          moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
-        />
-        {/* Mobile-only floating controls over the hero (see globals.css's
-            `.detail-hero-back-btn`/`.detail-hero-fav-overlay`) — on desktop
-            the breadcrumb above already covers "back", and favoriting lives
-            in `.detail-mobile-actions`/the sidebar's action row instead. */}
-        <BackButton label={t('backAriaLabel')} fallbackHref="/search" />
-        <div className="detail-hero-fav-overlay">
-          <FavoriteButton restaurantId={restaurant.id} />
+      <Reveal y={16}>
+        <div className="detail-hero-wrap">
+          <PhotoGalleryHero
+            photos={restaurant.photos}
+            photoAlts={restaurant.photos.map((_, index) => t('photoAlt', { index: index + 1, name: restaurant.name }))}
+            emptyText={t('noPhotos')}
+            seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
+            moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
+          />
+          {/* Mobile-only floating controls over the hero (see globals.css's
+              `.detail-hero-back-btn`/`.detail-hero-fav-overlay`) — on desktop
+              the breadcrumb above already covers "back", and favoriting lives
+              in `.detail-mobile-actions`/the sidebar's action row instead. */}
+          <BackButton label={t('backAriaLabel')} fallbackHref="/search" />
+          <div className="detail-hero-fav-overlay">
+            <FavoriteButton restaurantId={restaurant.id} />
+          </div>
         </div>
-      </div>
+      </Reveal>
 
       <div className="detail-layout" style={{ marginTop: 20 }}>
         <div className="detail-main">
@@ -274,6 +277,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
           {activeTab === 'info' ? (
             <>
+              <Reveal>
               <div className="info-card">
                 <h2 className="info-card-title">{t('infoHeading')}</h2>
                 <div className="info-grid">
@@ -317,6 +321,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   </>
                 ) : null}
               </div>
+              </Reveal>
 
               {restaurant.socialLinks.length > 0 ? (
                 <SocialLinksCard
@@ -333,6 +338,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                 <OwnerClaimForm restaurantId={restaurant.id} isLoggedIn={!!session} />
               ) : null}
 
+              <Reveal>
               <div className="info-card">
                 <h2 className="info-card-title">{t('hoursHeading')}</h2>
                 {restaurant.openingHours.map((hour) => (
@@ -346,6 +352,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   </div>
                 ))}
               </div>
+              </Reveal>
 
               {!firstMenu || (firstMenu.items.length === 0 && firstMenu.photos.length === 0) ? (
                 <div className="no-menu-card">
@@ -403,17 +410,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                     </div>
                   </div>
 
-                  {reviewsResponse.items.map((review) => (
-                    <ReviewCard
-                      key={review.id}
-                      review={review}
-                      locale={locale}
-                      isLoggedIn={!!session}
-                      reportLabel={t('reportLabel')}
-                      helpfulLabel={t('helpfulLabel')}
-                      replyPlaceholder={t('replyPlaceholder')}
-                      replySubmitLabel={t('replySubmit')}
-                    />
+                  {reviewsResponse.items.map((review, i) => (
+                    <Reveal key={review.id} delay={Math.min(i, 8) * 0.05}>
+                      <ReviewCard
+                        review={review}
+                        locale={locale}
+                        isLoggedIn={!!session}
+                        reportLabel={t('reportLabel')}
+                        helpfulLabel={t('helpfulLabel')}
+                        replyPlaceholder={t('replyPlaceholder')}
+                        replySubmitLabel={t('replySubmit')}
+                      />
+                    </Reveal>
                   ))}
 
                   {reviewTotalPages > 1 ? (

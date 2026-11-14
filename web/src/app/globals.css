@@ -69,40 +69,6 @@
   --max-width-wide: 1280px;
 }
 
-/* Mobile-only theme shift toward the redesign's app mockup ("Ngon — App
-   đánh giá món ăn v3.dc.html"): warm cream canvas, bigger card radii, fully
-   pill-shaped controls — layout/data stays exactly as-is (restaurant-scoped,
-   not the mockup's dish-scoped review model), only these tokens move.
-   `:not([data-theme='dark'])` because the mockup's palette is a light-theme
-   one — dark mode keeps its own existing canvas/radii untouched. */
-@media (max-width: 767px) {
-  :root:not([data-theme='dark']) {
-    --color-canvas: var(--color-cream);
-    --radius-lg: 16px;
-    --radius-xl: 20px;
-    --radius-2xl: 24px;
-  }
-  /* `--radius-md` itself stays untouched — it's shared by 30+ unrelated
-     selectors (photo thumbnails, the mini-map, login page fields, category
-     tiles) where a full pill would look wrong, not just buttons. Each
-     control the mockup actually draws as a pill is listed explicitly
-     instead, scoped to this same breakpoint. */
-  .search-input-wrap,
-  .search-field,
-  .search-submit,
-  .action-primary,
-  .btn-dark,
-  .sort-btn,
-  .view-switch,
-  .view-switch-btn,
-  .action-icon-btn,
-  .map-filter-trigger-btn,
-  .map-page-search,
-  .favorites-header-icon {
-    border-radius: var(--radius-pill);
-  }
-}
-
 /* Dark theme — same token set, applied by next-themes via `data-theme` on
    `<html>` (ThemeToggle.tsx / [locale]/layout.tsx). Every rule elsewhere in
    this file that already reads a `var(--color-*)` token repaints for free;
@@ -267,26 +233,6 @@ textarea:focus-visible {
     flex-wrap: nowrap;
   }
 }
-/* Below 768px the wrapped multi-line nav row gets cramped, so it collapses
-   behind a hamburger toggle instead (TopBarNav owns the open/close state and
-   closes it automatically on navigation). 768px is a fresh convention here —
-   nothing else in this file defines a general phone breakpoint yet — chosen
-   as the standard phone/tablet split, distinct from the topbar's own
-   measured 960px "everything fits on one line" threshold above. */
-.topbar-menu-btn {
-  display: none;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  border: none;
-  border-radius: 8px;
-  background: none;
-  color: var(--color-ink);
-  cursor: pointer;
-}
 /* Mirrors AuthStatus's desktop `.notification-bell-btn` — hidden here by
    default since `.topbar-right` (which has the desktop one) is what's
    visible above 768px; the mobile media query below reveals this one
@@ -296,46 +242,42 @@ textarea:focus-visible {
   display: none;
   position: relative;
 }
-/* Floating pill bottom nav from the redesign (home/search/write/saved/
-   profile) — hidden by default, shown only below 768px (see that media
-   query's own `.mobile-tab-bar` override) since desktop keeps
-   `.topbar-right`'s nav row and has no room/need for app-style tab
-   navigation. Icon-only (no visible labels — see MobileTabBar.tsx's own
-   doc comment), floating clear of both edges rather than a flush
-   full-width bar, dark pill matching the mockup's `tabItems` bar exactly. */
+/* Fixed bottom nav from the app redesign (home/search/write/saved/profile) —
+   hidden by default, shown only below 768px (see that media query's own
+   `.mobile-tab-bar` override) since desktop keeps `.topbar-right`'s nav row
+   and has no room/need for app-style tab navigation. Matches
+   "FoodMap - App mobile.dc.html"'s `tabItems` bar: a flush full-width bar
+   with icon + visible label, not a floating icon-only pill. */
 .mobile-tab-bar {
   display: none;
   position: fixed;
-  left: 20px;
-  right: 20px;
-  bottom: 16px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 20;
   height: 64px;
-  background: var(--gradient-ink);
-  border-radius: var(--radius-pill);
-  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.18);
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  align-items: flex-start;
+  padding: 6px 4px 0;
 }
 .mobile-tab-item {
-  width: 46px;
-  height: 46px;
-  flex: none;
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  transition: all 180ms var(--ease-standard);
+  gap: 4px;
+  padding: 6px 0;
+  border-radius: 10px;
+  color: var(--color-ink-faint);
 }
 .mobile-tab-item-active {
-  background: var(--color-cream);
   color: var(--color-ink);
 }
-.topbar-menu-btn:hover {
-  background: var(--color-border-hairline);
+.mobile-tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .topbar-logo {
   display: inline-flex;
@@ -393,10 +335,6 @@ textarea:focus-visible {
    rules it needs to override loses the cascade at equal specificity
    regardless of which one's condition matches, so it must come after them. */
 @media (max-width: 767px) {
-  .topbar-menu-btn {
-    display: flex;
-    margin-left: 4px;
-  }
   .topbar-mobile-bell {
     display: inline-flex;
     align-items: center;
@@ -408,170 +346,11 @@ textarea:focus-visible {
     border-radius: var(--radius-pill);
     color: var(--color-ink-muted);
   }
-  /* The open mobile menu is `.mobile-nav-overlay` below, a separate
-     full-screen panel — not this row reflowed. Nothing here ever shows on
-     mobile, `open` state or not. */
+  /* No hamburger/overlay substitute anymore (removed — see TopBarNav.tsx's
+     own doc comment on where each destination moved instead), so this row
+     just stays hidden with nothing replacing it. */
   .topbar-right {
     display: none;
-  }
-
-  /* Full-screen mobile menu panel — sits below the real header (64px,
-     matching .site-topbar's own min-height, so the logo + open/close toggle
-     stay visible and usable) rather than floating as a dropdown, so nothing
-     in it can overlap the page content behind it. */
-  .mobile-nav-overlay {
-    position: fixed;
-    top: 64px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 25;
-    background: var(--color-surface);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .mobile-nav-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px 20px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .mobile-nav-profile-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border-hairline);
-    border-radius: var(--radius-xl);
-    text-decoration: none;
-    color: inherit;
-    margin-bottom: 20px;
-  }
-  .mobile-nav-avatar {
-    width: 44px;
-    height: 44px;
-    font-size: 15px;
-  }
-  .mobile-nav-profile-text {
-    flex: 1;
-    min-width: 0;
-  }
-  .mobile-nav-profile-name {
-    display: block;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-ink);
-  }
-  .mobile-nav-profile-hint {
-    display: block;
-    font-size: 13px;
-    color: var(--color-ink-muted);
-    margin-top: 2px;
-  }
-  .mobile-nav-chevron {
-    flex: none;
-    color: var(--color-ink-faint);
-  }
-  .mobile-nav-section-label {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--color-ink-subtle);
-    text-transform: uppercase;
-    padding: 0 4px;
-    margin-bottom: 2px;
-  }
-  .mobile-nav-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 52px;
-    padding: 0 4px;
-    flex: none;
-    text-decoration: none;
-    color: inherit;
-  }
-  .mobile-nav-row-label {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 500;
-  }
-  .mobile-nav-row-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-  }
-  .mobile-nav-row-icon-blue {
-    background: var(--color-chip-selected-bg);
-    color: var(--color-chip-selected-fg);
-  }
-  .mobile-nav-row-icon-magenta {
-    background: #fdeef2;
-    color: #dd00d8;
-  }
-  .mobile-nav-row-icon-green {
-    background: var(--color-open-bg);
-    color: var(--color-open-fg);
-  }
-  .mobile-nav-row-badge {
-    position: static;
-    box-shadow: none;
-  }
-  .mobile-nav-divider {
-    height: 1px;
-    background: var(--color-border-hairline);
-    margin: 14px 4px;
-    flex: none;
-  }
-  .mobile-nav-footer {
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    border-top: 1px solid var(--color-border-hairline);
-  }
-  .mobile-nav-footer-lang {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  /* The language switcher's own dropdown normally opens downward and
-     right-anchored (`.lang-menu`'s `top: calc(100% + 8px); right: 0`) — that
-     assumes its trigger sits at the right edge of a wide desktop header, so
-     the 240px-wide menu has room to expand leftward. Here the trigger sits
-     at the LEFT of this footer instead, so a right anchor would push most
-     of the menu off the left edge of the screen (clipped, only its
-     right-most item — the checkmark — staying on screen). Flip both axes:
-     open upward, and left-anchored so it expands rightward instead. */
-  .mobile-nav-footer-lang .lang-menu {
-    top: auto;
-    bottom: calc(100% + 8px);
-    right: auto;
-    left: 0;
-  }
-  .mobile-nav-signout {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: none;
-    background: none;
-    padding: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-error);
-    cursor: pointer;
-  }
-  .mobile-nav-login {
-    text-decoration: none;
   }
 
   /* Bottom tab bar replaces SiteFooter's nav role on phones (the redesign's
@@ -584,10 +363,9 @@ textarea:focus-visible {
     display: flex;
   }
   /* Keeps the last bit of real content from being hidden behind the fixed
-     tab bar — `.mobile-tab-bar`'s top edge sits 16px (its own `bottom`) +
-     64px (its own height) = 80px above the viewport's bottom edge. */
+     tab bar — matches `.mobile-tab-bar`'s own height above. */
   #main-content {
-    padding-bottom: 96px;
+    padding-bottom: 64px;
   }
 }
 .account-pill {
@@ -1159,6 +937,7 @@ textarea:focus-visible {
   color: #fff;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   font-family: var(--font-inter-tight), sans-serif;
   font-size: 15px;
   font-weight: 500;
@@ -1300,39 +1079,82 @@ textarea:focus-visible {
   font-size: 13px;
   color: var(--color-ink-subtle);
 }
-/* Redesign's category grid is 4 icon-over-label tiles per row, not this
-   row-layout icon+text+count card — the tile colors already match it
-   exactly (`.cat-tile-0..5` above are its literal hex values), only the
-   shape differs. No count shown there either (it's a glance-level nav
-   grid, not a filtered list preview). */
+/* Home's "Khám phá" block (Bản đồ/Xếp hạng) — mobile only, see page.tsx. */
+.home-quick-links {
+  display: none;
+}
+.home-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.home-quick-card {
+  position: relative;
+  min-width: 0;
+  min-height: 112px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  color: var(--color-ink);
+}
+.home-quick-card:hover {
+  color: var(--color-ink);
+  border-color: var(--color-border);
+}
+.home-quick-card:active {
+  transform: translateY(0.5px);
+}
+.home-quick-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-quick-icon-map {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-primary-hover);
+}
+.home-quick-icon-rank {
+  background: var(--color-cream);
+  color: #8a6a18;
+}
+.home-quick-arrow {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  color: var(--color-ink-disabled);
+}
+.home-quick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-quick-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.home-quick-sub {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-ink-muted);
+}
 @media (max-width: 767px) {
-  .cat-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+  .home-quick-links {
+    display: flex;
   }
-  .cat-card {
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 0;
-    background: none;
-    border: none;
-    box-shadow: none;
-    text-align: center;
-  }
-  .cat-icon-tile {
-    width: 100%;
-    aspect-ratio: 1;
-    height: auto;
-    border-radius: 18px;
-  }
-  .cat-card-name {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--color-ink-muted);
-  }
-  .cat-card-count {
+  /* The "Khám phá" block's Bản đồ card replaces this on phones. */
+  .map-teaser-card {
     display: none;
   }
 }
@@ -1688,6 +1510,13 @@ textarea:focus-visible {
 .place-card {
   display: flex;
   flex-direction: column;
+  /* Grid items default to `min-width: auto` (their own min-content size),
+     which can exceed a `1fr` track's computed width and force the whole
+     grid (and page) wider than the viewport — `.card-grid`'s 2-column
+     mobile layout hit exactly this with a long restaurant name. `overflow:
+     hidden` above already clips content to this box; this just lets the
+     box itself shrink to the track first. */
+  min-width: 0;
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border-hairline);
   background: var(--color-surface);
@@ -2622,12 +2451,38 @@ textarea:focus-visible {
   .search-mobile-filter-trigger {
     display: flex;
   }
-  /* `.map-filter-trigger-btn`'s own base styling (light outlined pill,
-     icon + "Bộ lọc" label + inline badge) already matches the redesign's
-     reference ("Khám phá" screen's filter pill) as-is — no override needed
-     here beyond the bottom-sheet panel below. */
+  /* Dark square icon-only button + corner badge, matching
+     "FoodMap - App mobile.dc.html"'s search screen filter button exactly
+     (its `.map-filter-trigger-btn` base is a light outlined pill
+     everywhere else /map uses it — desktop included — so this only
+     overrides the /search mobile instance, not /map's). */
+  .search-mobile-filter-trigger .map-filter-trigger-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    border: none;
+    border-radius: 12px;
+    background: var(--gradient-ink);
+    color: #fff;
+    /* Hides the button's bare "Bộ lọc" text node (not wrapped in its own
+       element, so it can't be targeted directly) — icons are SVG
+       (unaffected by font-size) and the badge resets its own below. */
+    font-size: 0;
+  }
+  /* The base `.map-filter-trigger-badge` resets `.notification-badge`'s own
+     `position: absolute` back to `static` — correct for /map's pill, where
+     the badge sits inline after a visible text label, but with that label
+     hidden above there's nothing to hold it away from the icon. Floats it
+     at the corner instead, matching the mockup's badge. */
+  .search-mobile-filter-trigger .map-filter-trigger-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 12px;
+  }
   /* Bottom sheet instead of /map's centered modal — slides up from the
-     tab bar instead of floating mid-screen, matching the redesign's filter
+     tab bar instead of floating mid-screen, matching the mockup's filter
      drawer. */
   .search-mobile-filter-trigger .profile-edit-modal-overlay {
     align-items: flex-end;
@@ -2637,7 +2492,7 @@ textarea:focus-visible {
     max-width: none;
     width: 100%;
     max-height: 86vh;
-    border-radius: 28px 28px 0 0;
+    border-radius: 20px 20px 0 0;
   }
 }
 
@@ -3055,14 +2910,24 @@ textarea:focus-visible {
   .detail-sidebar .action-row {
     display: none;
   }
+  /* The sidebar's `.hours-card` repeats the Info tab's own "Giờ mở cửa"
+     card word-for-word — harmless side by side on desktop's two-column
+     layout, but once the sidebar stacks below `.detail-main` on mobile
+     (same `@media (max-width: 767px)` as `.detail-sidebar`'s own
+     position:static override above) it reads as the same hours listed
+     twice in a row. The mini-map and "Quán tương tự" below it aren't
+     duplicated anywhere else, so only this one card is hidden. */
+  .detail-sidebar .hours-card {
+    display: none;
+  }
   .detail-write-review-fab {
     position: fixed;
     left: 20px;
     right: 20px;
-    bottom: 92px;
+    bottom: 80px;
     z-index: 15;
-    height: 56px;
-    border-radius: var(--radius-pill);
+    height: 52px;
+    border-radius: var(--radius-md);
     background: var(--gradient-primary);
     display: flex;
     align-items: center;
@@ -3072,7 +2937,7 @@ textarea:focus-visible {
     font-family: var(--font-inter-tight), sans-serif;
     font-size: 16px;
     font-weight: 500;
-    box-shadow: 0 4px 12px 0 rgba(6, 56, 205, 0.28);
+    box-shadow: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
   }
   .detail-write-review-fab:hover {
     color: #fff;
@@ -5431,6 +5296,13 @@ table.menu-table td.price {
   border-radius: var(--radius-pill);
   background: var(--gradient-magenta);
 }
+.profile-badges-earned-label {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}
 .profile-level-rules-link {
   display: inline-block;
   margin-top: 12px;
@@ -5490,6 +5362,104 @@ table.menu-table td.price {
   color: #2fa360;
 }
 
+/* Settings card — a row list (language switcher + sign-out + delete
+   account), matching "FoodMap - App mobile.dc.html"'s updated `isProfile`
+   settings section. */
+.profile-settings-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.profile-settings-lang-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+}
+.profile-settings-theme-row {
+  border-top: 1px solid var(--color-border-hairline);
+}
+/* The first row inside "Khám phá thêm" has nothing above it to divide from. */
+.profile-settings-card > .profile-settings-row:first-child {
+  border-top: none;
+}
+.profile-settings-lang-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.profile-lang-pill-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-canvas);
+}
+.profile-lang-pill {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-ink-subtle);
+  transition: all 120ms var(--ease-standard);
+}
+.profile-lang-pill-active {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-segment);
+}
+.profile-settings-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border: none;
+  border-top: 1px solid var(--color-border-hairline);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--color-ink);
+}
+.profile-settings-row:hover {
+  background: var(--color-canvas);
+}
+.profile-settings-row-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.profile-settings-row-chevron {
+  color: var(--color-ink-disabled);
+}
+.profile-settings-row-danger {
+  border-top-color: #f9dada;
+  background: #fff8f8;
+  color: #ce2c31;
+}
+.profile-settings-row-danger:hover {
+  background: #fff0f0;
+}
+.profile-settings-row-danger-hint {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 11px;
+  color: #b42318;
+}
+.profile-settings-row-danger .profile-settings-row-chevron {
+  color: #f2a7a7;
+}
+
 /* Mobile profile redesign: the desktop banner is a left-aligned row (avatar |
    info | actions); below 768px it becomes a centered "profile card" instead
    (avatar/name/badge/meta/bio/actions all stacked and centered). The 4 stat
@@ -5498,20 +5468,71 @@ table.menu-table td.price {
    `.profile-stats` only, so the home page's own (unrelated) `.stat-grid`
    usage is untouched. */
 @media (max-width: 767px) {
+  /* Matches the redesign's profile card exactly: a short gradient cover
+     strip behind the avatar (not the whole banner, unlike desktop's own
+     full-card gradient above) with the avatar overlapping it via negative
+     margin, floating edit/share/logout buttons on the cover itself, and a
+     plain white body below for name/meta/bio — left-aligned, not the
+     desktop override's centered stack. */
+  .profile-banner {
+    position: relative;
+    padding: 0;
+    background: none;
+    overflow: hidden;
+  }
+  .profile-banner-cover {
+    height: 84px;
+    background: linear-gradient(160deg, #e5edff 0%, #c9d9ff 55%, #fff0fb 100%);
+  }
   .profile-banner-content {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    text-align: left;
+    padding: 0 16px 16px;
+  }
+  .profile-banner-avatar {
+    position: relative;
+    z-index: 1;
+    margin-top: -30px;
+    box-shadow: 0 0 0 3px var(--color-surface);
   }
   .profile-banner-info {
-    align-items: center;
+    align-items: flex-start;
   }
   .profile-banner-name-row {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
   }
   .profile-header-actions {
-    margin-top: 4px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  /* Icon-only circular buttons floating on the cover (edit/share/logout) —
+     the desktop "Chỉnh sửa hồ sơ" text button becomes icon+hidden-label
+     here (see ProfileHeaderActions.tsx's `.btn-dark-label`/PencilIcon),
+     matching the other two (already icon-only `.action-icon-btn`s). */
+  .profile-header-actions .btn-dark,
+  .profile-header-actions .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px 0 rgba(2, 6, 23, 0.08);
+  }
+  .profile-header-actions .btn-dark {
+    gap: 0;
+  }
+  .profile-header-actions .btn-dark-label {
+    display: none;
+  }
+  .profile-header-actions .btn-dark:hover {
+    color: var(--color-ink);
   }
   .profile-stats.stat-grid {
     display: grid;
@@ -5616,6 +5637,29 @@ table.menu-table td.price {
 .profile-tab-panel {
   margin-top: 16px;
 }
+/* `.tab-segment`'s own `align-self: flex-start`/content-width sizing suits
+   the detail page's 2-tab case; Profile's 4 tabs need the segment to span
+   the full card width with equal-width buttons instead, matching the
+   redesign's `pTabs`. */
+.profile-tab-segment {
+  align-self: stretch;
+  width: 100%;
+  /* `.tab-segment`'s own base rule sets `flex-wrap: wrap` (fine for the
+     detail page's 2 short tabs) — without overriding it back here, 4
+     `flex: 1` items whose combined min-content width exceeds the
+     container wrap onto a second row instead of shrinking to fit one. */
+  flex-wrap: nowrap;
+}
+.profile-tab-segment .tab-segment-btn {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .profile-review-item {
   gap: 8px;
@@ -5652,10 +5696,61 @@ table.menu-table td.price {
 }
 .profile-photo-tile {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
+  display: block;
+}
+.profile-photo-tile-wrap {
+  position: relative;
+  aspect-ratio: 1;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-hairline);
+  overflow: hidden;
+}
+.profile-photo-more-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 32, 36, 0.55);
+  color: #fff;
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+/* Count + optional action link above each Profile tab's content — "{N}
+   reviews"/"{N} photos"/etc + "Thêm địa điểm"/"Mở mục Đã lưu" where the
+   redesign shows one. */
+.profile-tab-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.profile-tab-panel-count {
+  font-family: var(--font-figtree), sans-serif;
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+.profile-tab-panel-action {
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary-hover);
+  white-space: nowrap;
+}
+.profile-saved-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-settings-section {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ---------- Edit-profile modal (avatar/username/bio/cuisines/social/toggle) ---------- */
@@ -5709,6 +5804,120 @@ table.menu-table td.price {
 }
 .profile-edit-modal-close:hover {
   background: var(--color-border-hairline);
+}
+.confirm-sheet-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+.confirm-sheet-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.confirm-sheet-icon {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-chip-selected-bg);
+  color: var(--color-primary-hover);
+}
+.confirm-sheet-icon-danger {
+  background: #fff5f5;
+  color: #ce2c31;
+}
+.confirm-sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.confirm-sheet-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
+  max-width: 300px;
+  margin: 0;
+}
+.confirm-sheet-actions {
+  align-self: stretch;
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+.confirm-sheet-actions .secondary-btn {
+  flex: 1;
+}
+.confirm-sheet-confirm-btn {
+  flex: 1;
+  height: 50px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary);
+  color: #fff;
+  font-family: var(--font-inter-tight), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.confirm-sheet-confirm-btn:active {
+  transform: translateY(0.5px);
+}
+.confirm-sheet-confirm-btn-danger {
+  background: #ce2c31;
+}
+.confirm-sheet-confirm-btn:disabled {
+  background: var(--color-border-hairline);
+  color: var(--color-ink-faint);
+  cursor: not-allowed;
+}
+.confirm-sheet-ack {
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: #fff8f8;
+  border: 1px solid #f9c6c6;
+  cursor: pointer;
+  text-align: left;
+}
+.confirm-sheet-ack input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: #ce2c31;
+  cursor: pointer;
+}
+.confirm-sheet-ack span {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+@media (max-width: 767px) {
+  /* Bottom sheet instead of a centered modal — same technique as
+     `.search-mobile-filter-trigger`'s filter drawer. */
+  .confirm-sheet-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .confirm-sheet-panel {
+    max-width: none;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+  }
 }
 .profile-edit-modal-sub {
   font-size: 14px;
@@ -5797,9 +6006,6 @@ table.menu-table td.price {
    themes, not neutral chrome. */
 :root[data-theme='dark'] .leaflet-container {
   background: #1c1e24;
-}
-:root[data-theme='dark'] .mobile-nav-row-icon-magenta {
-  background: #3a1830;
 }
 :root[data-theme='dark'] .status-badge-rejected,
 :root[data-theme='dark'] .status-badge-hidden {

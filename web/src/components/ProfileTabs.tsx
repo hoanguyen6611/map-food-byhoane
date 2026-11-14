@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-export type ProfileTabKey = 'reviews' | 'contributed' | 'saved' | 'photos' | 'settings';
+export type ProfileTabKey = 'reviews' | 'contributed' | 'photos' | 'saved';
 
 interface Tab {
   key: ProfileTabKey;
@@ -26,16 +26,21 @@ export function ProfileTabs({ tabs }: Props) {
 
   return (
     <div>
-      <div className="notification-tabs">
+      {/* `.tab-segment`/`.tab-segment-btn` — same segmented-control look as
+          the restaurant detail page's Thông tin/Đánh giá tabs and the
+          redesign's `pTabs` (no visible count pill there, unlike the old
+          `.notification-tab` look this replaced; the count still reaches
+          assistive tech via aria-label). */}
+      <div className="tab-segment profile-tab-segment">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
-            className={`notification-tab ${active === tab.key ? 'notification-tab-active' : ''}`}
+            className={`tab-segment-btn ${active === tab.key ? 'tab-segment-btn-active' : ''}`}
+            aria-label={`${tab.label} (${tab.count})`}
             onClick={() => setActive(tab.key)}
           >
             {tab.label}
-            <span className="notification-tab-count">{tab.count}</span>
           </button>
         ))}
       </div>

@@ -5,6 +5,7 @@ import { RestaurantCard } from '@/components/RestaurantCard';
 import { PlaceRow } from '@/components/PlaceRow';
 import { SearchFilterForm, buildSearchHref, type SearchParamsRecord } from '@/components/SearchFilterForm';
 import { MapFilterDrawer } from '@/components/MapFilterDrawer';
+import { Reveal } from '@/components/Reveal';
 import { FACILITY_OPTIONS, PRICE_BUCKETS } from '@/lib/labels';
 import { Link } from '@/i18n/navigation';
 import { SearchIcon, ListViewIcon, GridViewIcon, CloseIcon, SearchMinusIcon } from '@/components/icons';
@@ -235,13 +236,11 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
         ) : (
           <div className="result-list">
             <div className={view === 'grid' ? 'result-grid-2' : 'result-grid-1'}>
-              {result.items.map((restaurant) =>
-                view === 'grid' ? (
-                  <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-                ) : (
-                  <PlaceRow key={restaurant.id} restaurant={restaurant} />
-                ),
-              )}
+              {result.items.map((restaurant, i) => (
+                <Reveal key={restaurant.id} delay={Math.min(i, 8) * 0.05} y={16}>
+                  {view === 'grid' ? <RestaurantCard restaurant={restaurant} /> : <PlaceRow restaurant={restaurant} />}
+                </Reveal>
+              ))}
             </div>
             <div className="result-footer-line">{t('shownAllLine', { count: result.items.length })}</div>
 

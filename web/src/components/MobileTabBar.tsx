@@ -6,15 +6,10 @@ import { HomeIcon, SearchIcon, PencilIcon, BookmarkIcon, UserIcon } from './icon
 
 /**
  * Fixed bottom tab bar, mobile-only (see globals.css's `.mobile-tab-bar`
- * 768px breakpoint, matching TopBarNav's own convention) — the redesign's
- * floating icon-only pill (`navDefs`/`tabItems` in "Ngon — App đánh giá món
- * ăn v3.dc.html": home/explore/write/saved/me, each a plain circle, no
- * visible label, active one highlighted by a filled circle behind the
- * icon instead) adapted to this app's existing routes. Labels stay in the
- * DOM via `.sr-only` — the mockup's own icon-only bar has no text
- * equivalent at all, so these aren't from it, just this app's own a11y
- * baseline (every other nav here, including the hamburger overlay, names
- * its destinations for screen readers).
+ * 768px breakpoint, matching TopBarNav's own convention) — "FoodMap - App
+ * mobile.dc.html"'s `navDefs` (home/search/write/saved/me), adapted to this
+ * app's existing routes rather than the mockup's single-screen app-state
+ * model.
  */
 export function MobileTabBar() {
   const t = useTranslations('common');
@@ -36,7 +31,7 @@ export function MobileTabBar() {
         return (
           <Link key={href} href={href} className={`mobile-tab-item ${active ? 'mobile-tab-item-active' : ''}`}>
             <Icon size={22} />
-            <span className="sr-only">{label}</span>
+            <span className="mobile-tab-label">{label}</span>
           </Link>
         );
       })}

@@ -1,29 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { deleteAccountAction } from '@/app/[locale]/profile/actions';
 import { logoutAction } from '@/app/[locale]/login/actions';
 import { useToast } from './ToastProvider';
+import { ConfirmBottomSheet } from './ConfirmBottomSheet';
+import { GlobeIcon, LogOutIcon, TrashIcon, ChevronRightIcon, SunIcon, MoonIcon } from './icons';
+
+// Same two languages/self-description convention as LanguageSwitcher.tsx's
+// header dropdown — kept in sync by hand since there are only two.
+const LANGUAGES = [
+  { code: 'vi', name: 'Tiếng Việt' },
+  { code: 'en', name: 'English' },
+] as const;
 
 export function ProfileSettingsTab() {
   const t = useTranslations('profile');
   const tAuth = useTranslations('auth');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
+  const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
-  const [confirming, setConfirming] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
 
-  // Real reload (not router navigation) — same reasoning as AuthStatus's/
-  // TopBarNav's own handleLogout: a Server Action's effect on a soft
-  // client-side nav doesn't remount either of those, so they'd keep
-  // showing "signed in". Sign-out itself used to only live in the
-  // header's account menu/hamburger overlay — now that the bottom tab bar
-  // makes this Settings tab the primary way to reach "account" on mobile,
-  // it needs its own copy here too.
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Same reasoning as ThemeToggle.tsx — `resolvedTheme` depends on the
+  // visitor's OS preference/stored choice, which the server render can't
+  // know, so this renders a neutral icon until mounted client-side rather
+  // than guessing one that might flip a moment later.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && resolvedTheme === 'dark';
+
+  function selectLocale(code: string) {
+    if (code !== locale) router.replace(pathname, { locale: code });
+  }
+
+  // Real reload (not router navigation) — same reasoning as TopBarNav's own
+  // handleLogout: a Server Action's effect on a soft client-side nav
+  // doesn't remount it, so it'd keep showing "signed in".
   async function handleLogout() {
     await logoutAction();
     window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
@@ -33,8 +56,7 @@ export function ProfileSettingsTab() {
     setIsDeleting(true);
     const result = await deleteAccountAction();
     if (result.ok) {
-      router.push('/');
-      router.refresh();
+      window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
       return;
     }
     setIsDeleting(false);
@@ -43,40 +65,87 @@ export function ProfileSettingsTab() {
 
   return (
     <>
-      <div className="info-card" style={{ marginBottom: 14 }}>
-        <h2 className="info-card-title" style={{ margin: '0 0 4px' }}>
-          {tAuth('signOut')}
-        </h2>
-        <button type="button" className="secondary-btn" style={{ marginTop: 12 }} onClick={handleLogout}>
-          {tAuth('signOut')}
+      <div className="profile-settings-card">
+        <div className="profile-settings-lang-row">
+          <GlobeIcon size={18} aria-hidden="true" />
+          <span className="profile-settings-lang-label">{tCommon('languageMenuHeading')}</span>
+          <span className="profile-lang-pill-group">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                className={`profile-lang-pill ${lang.code === locale ? 'profile-lang-pill-active' : ''}`}
+                aria-pressed={lang.code === locale}
+                onClick={() => selectLocale(lang.code)}
+              >
+                {lang.name}
+              </button>
+            ))}
+          </span>
+        </div>
+
+        <div className="profile-settings-lang-row profile-settings-theme-row">
+          {isDark ? <MoonIcon size={18} aria-hidden="true" /> : <SunIcon size={18} aria-hidden="true" />}
+          <span className="profile-settings-lang-label">{t('darkModeLabel')}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDark}
+            aria-label={t('darkModeLabel')}
+            className={`toggle-switch ${isDark ? 'toggle-switch-on' : 'toggle-switch-off'}`}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          >
+            <span className="toggle-knob" />
+          </button>
+        </div>
+
+        <button type="button" className="profile-settings-row" onClick={() => setLoggingOut(true)}>
+          <LogOutIcon size={18} aria-hidden="true" />
+          <span className="profile-settings-row-label">{tAuth('signOut')}</span>
+          <ChevronRightIcon size={15} className="profile-settings-row-chevron" />
+        </button>
+
+        <button
+          type="button"
+          className="profile-settings-row profile-settings-row-danger"
+          onClick={() => setDeleting(true)}
+        >
+          <TrashIcon size={18} aria-hidden="true" />
+          <span className="profile-settings-row-label">{t('deleteAccountHeading')}</span>
+          <span className="profile-settings-row-danger-hint">{t('deleteAccountIrreversible')}</span>
+          <ChevronRightIcon size={15} className="profile-settings-row-chevron" />
         </button>
       </div>
 
-      <div className="info-card">
-        <h2 className="info-card-title" style={{ margin: '0 0 4px' }}>
-          {t('deleteAccountHeading')}
-        </h2>
-        <p className="profile-edit-hint">{t('deleteAccountBody')}</p>
-        {confirming ? (
-          <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-            <button type="button" className="secondary-btn" onClick={() => setConfirming(false)} disabled={isDeleting}>
-              {t('cancel')}
-            </button>
-            <button
-              type="button"
-              className="profile-review-action profile-review-action-danger"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? t('saving') : t('confirmDelete')}
-            </button>
-          </div>
-        ) : (
-          <button type="button" className="secondary-btn" style={{ marginTop: 12 }} onClick={() => setConfirming(true)}>
-            {t('deleteAccountCta')}
-          </button>
-        )}
-      </div>
+      <ConfirmBottomSheet
+        open={loggingOut}
+        onClose={() => setLoggingOut(false)}
+        icon={<LogOutIcon size={24} />}
+        danger
+        title={t('logoutConfirmTitle')}
+        body={t('logoutConfirmBody')}
+        cancelLabel={t('cancel')}
+        confirmLabel={tAuth('signOut')}
+        onConfirm={handleLogout}
+      />
+
+      <ConfirmBottomSheet
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        icon={<TrashIcon size={24} />}
+        danger
+        title={t('deleteAccountHeading')}
+        body={t('deleteAccountBody')}
+        cancelLabel={t('cancel')}
+        confirmLabel={isDeleting ? t('saving') : t('deleteAccountCta')}
+        onConfirm={handleDelete}
+        confirmDisabled={!deleteAck || isDeleting}
+      >
+        <label className="confirm-sheet-ack">
+          <input type="checkbox" checked={deleteAck} onChange={() => setDeleteAck((v) => !v)} />
+          <span>{t('deleteAccountAck')}</span>
+        </label>
+      </ConfirmBottomSheet>
     </>
   );
 }

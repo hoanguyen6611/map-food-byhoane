@@ -425,3 +425,27 @@ export function PencilIcon(props: IconProps) {
     </Base>
   );
 }
+
+export function TrophyIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7" />
+    </Base>
+  );
+}
+
+export function ArrowUpRightIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 17 17 7M9 7h8v8" />
+    </Base>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </Base>
+  );
+}
