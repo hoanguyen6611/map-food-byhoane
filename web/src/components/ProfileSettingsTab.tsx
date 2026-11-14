@@ -8,6 +8,8 @@ import { routing } from '@/i18n/routing';
 import { deleteAccountAction } from '@/app/[locale]/profile/actions';
 import { logoutAction } from '@/app/[locale]/login/actions';
 import { useToast } from './ToastProvider';
+import { WebPushControl } from './WebPushControl';
+import { detachWebPushForSignOut } from '@/lib/web-push-client';
 import { ConfirmBottomSheet } from './ConfirmBottomSheet';
 import { GlobeIcon, LogOutIcon, TrashIcon, ChevronRightIcon, SunIcon, MoonIcon } from './icons';
 
@@ -18,7 +20,7 @@ const LANGUAGES = [
   { code: 'en', name: 'English' },
 ] as const;
 
-export function ProfileSettingsTab() {
+export function ProfileSettingsTab({ webPushPublicKey = null }: { webPushPublicKey?: string | null }) {
   const t = useTranslations('profile');
   const tAuth = useTranslations('auth');
   const tCommon = useTranslations('common');
@@ -48,6 +50,7 @@ export function ProfileSettingsTab() {
   // handleLogout: a Server Action's effect on a soft client-side nav
   // doesn't remount it, so it'd keep showing "signed in".
   async function handleLogout() {
+    await detachWebPushForSignOut();
     await logoutAction();
     window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
   }
@@ -98,6 +101,8 @@ export function ProfileSettingsTab() {
             <span className="toggle-knob" />
           </button>
         </div>
+
+        <WebPushControl publicKey={webPushPublicKey} variant="row" />
 
         <button type="button" className="profile-settings-row" onClick={() => setLoggingOut(true)}>
           <LogOutIcon size={18} aria-hidden="true" />

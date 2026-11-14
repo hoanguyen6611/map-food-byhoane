@@ -677,5 +677,19 @@
     "publishedBody": "Cảm ơn đóng góp của bạn — quán đã hiển thị công khai trên bản đồ.",
     "pendingTitle": "Cảm ơn đóng góp của bạn",
     "pendingBody": "Thông tin địa điểm của bạn đang chờ kiểm duyệt nhanh trước khi hiển thị công khai."
+  },
+  "push": {
+    "label": "Thông báo đẩy",
+    "cardTitle": "Nhận thông báo trên thiết bị này",
+    "cardBody": "Biết ngay khi có người trả lời đánh giá, quán bạn đóng góp được duyệt… kể cả khi không mở web.",
+    "enable": "Bật thông báo",
+    "enabling": "Đang bật…",
+    "enabledToast": "Đã bật thông báo trên thiết bị này",
+    "disabledToast": "Đã tắt thông báo trên thiết bị này",
+    "errorToast": "Không bật được thông báo. Vui lòng thử lại.",
+    "deniedHint": "Thông báo đang bị chặn. Hãy cho phép trong cài đặt trình duyệt rồi thử lại.",
+    "installHint": "Trên iPhone/iPad: bấm Chia sẻ → “Thêm vào MH chính”, rồi mở web từ màn hình chính để bật thông báo.",
+    "unsupportedHint": "Trình duyệt này không hỗ trợ thông báo đẩy.",
+    "dismiss": "Để sau"
   }
 }

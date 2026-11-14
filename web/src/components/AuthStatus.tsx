@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { logoutAction } from '@/app/[locale]/login/actions';
+import { detachWebPushForSignOut } from '@/lib/web-push-client';
 import { initialsOf } from '@/lib/format';
 import type { SessionInfo } from '@/app/api/session/route';
 import { BellIcon, UserIcon, BookmarkIcon, PlusIcon, LogOutIcon, ChevronDownIcon, ListViewIcon, MenuFolderIcon } from './icons';
@@ -35,6 +36,7 @@ export function AuthStatus({ session }: Props) {
   // doc comment: a Server Action's effect on a soft client-side nav doesn't
   // remount this component, so it would keep showing "signed in" after logout.
   async function handleLogout() {
+    await detachWebPushForSignOut();
     await logoutAction();
     window.location.href = locale === routing.defaultLocale ? '/' : `/${locale}`;
   }

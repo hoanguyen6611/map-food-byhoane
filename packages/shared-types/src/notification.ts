@@ -58,3 +58,15 @@ export interface NotificationListResponse {
   page: number;
   pageSize: number;
 }
+
+/** `GET /push/web/config` — VAPID public key for browser push; null when the backend has web push disabled. */
+export interface WebPushConfigDto {
+  publicKey: string | null;
+}
+
+/** Body of `POST /me/web-push-subscriptions` — the browser's PushSubscription.toJSON(). */
+export interface WebPushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string;
+}

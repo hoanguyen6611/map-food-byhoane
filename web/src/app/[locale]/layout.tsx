@@ -7,6 +7,7 @@ import { ThemeProvider } from 'next-themes';
 import { routing } from '@/i18n/routing';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { ToastProvider } from '@/components/ToastProvider';
+import { WebPushSync } from '@/components/WebPushSync';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
 import { MobileTabBar } from '@/components/MobileTabBar';
@@ -42,6 +43,9 @@ export async function generateMetadata({ params }: LayoutProps): Promise<Metadat
     metadataBase: new URL(SITE_URL),
     title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
     description: t('siteDescription'),
+    // Home-screen web app on iOS (needed there for Web Push) — the manifest
+    // (app/manifest.ts) covers Android/desktop.
+    appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'default' },
     openGraph: {
       siteName: SITE_NAME,
       type: 'website',
@@ -111,6 +115,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
                       <SiteFooter />
                     </div>
                     <MobileTabBar />
+                    <WebPushSync />
                   </div>
                 </SmoothScrollProvider>
               </FavoritesProvider>

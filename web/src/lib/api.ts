@@ -4,6 +4,7 @@
 // is read directly from `process.env` rather than threaded through
 // `NEXT_PUBLIC_*`/Expo's `extra` mechanism the other two client apps use.
 import type {
+  WebPushConfigDto,
   CategoryDto,
   CuisineDto,
   DistrictSummaryDto,
@@ -95,6 +96,16 @@ export async function getProvinces(): Promise<ProvinceSummaryDto[]> {
     return await apiFetch<ProvinceSummaryDto[]>('/provinces', LISTING_REVALIDATE_SECONDS, ['restaurants']);
   } catch {
     return [];
+  }
+}
+
+/** VAPID public key for browser push; null when web push is off or the backend predates it. */
+export async function getWebPushPublicKey(): Promise<string | null> {
+  try {
+    const res = await apiFetch<WebPushConfigDto>('/push/web/config', 3600);
+    return res.publicKey ?? null;
+  } catch {
+    return null;
   }
 }
 

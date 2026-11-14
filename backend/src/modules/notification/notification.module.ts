@@ -3,6 +3,8 @@ import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { PushTokenController } from './push-token.controller';
 import { PushDeliveryService } from './push-delivery.service';
+import { WebPushService } from './web-push.service';
+import { WebPushConfigController, WebPushSubscriptionController } from './web-push.controller';
 
 // Implemented by docs/build-prompts/08-favorites-notifications-polish.md —
 // transactional Notification read/write API. The Admin Moderation Queue's
@@ -12,8 +14,8 @@ import { PushDeliveryService } from './push-delivery.service';
 // module: NotificationService.create() is push delivery's only call site, so
 // the two are one cohesive unit, not independent domains.
 @Module({
-  controllers: [NotificationController, PushTokenController],
-  providers: [NotificationService, PushDeliveryService],
+  controllers: [NotificationController, PushTokenController, WebPushConfigController, WebPushSubscriptionController],
+  providers: [NotificationService, PushDeliveryService, WebPushService],
   exports: [NotificationService],
 })
 export class NotificationModule {}

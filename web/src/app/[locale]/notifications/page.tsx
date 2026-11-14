@@ -4,7 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import type { NotificationListResponse, NotificationType } from '@foodmap/shared-types';
 import { backendFetchAuthorized } from '@/lib/auth';
 import { formatRelativeDate } from '@/lib/format';
-import { getRestaurantSlugsByIds } from '@/lib/api';
+import { getRestaurantSlugsByIds, getWebPushPublicKey } from '@/lib/api';
+import { WebPushControl } from '@/components/WebPushControl';
 import { Link } from '@/i18n/navigation';
 import { BackButton } from '@/components/BackButton';
 import { AlertIcon, CheckIcon, MapPinIcon, ThumbsUpIcon, StarIcon, ClockIcon, UserIcon, MessageCircleIcon } from '@/components/icons';
@@ -106,7 +107,7 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
   // non-linked card, same as before. One batched request for every distinct
   // id on the page, not one request per notification.
   const restaurantIds = [...new Set(visibleItems.map((n) => n.payload.deepLink.restaurantId).filter((id): id is string => Boolean(id)))];
-  const restaurantSlugById = await getRestaurantSlugsByIds(restaurantIds);
+  const [restaurantSlugById, webPushPublicKey] = await Promise.all([getRestaurantSlugsByIds(restaurantIds), getWebPushPublicKey()]);
 
   return (
     <div className="container page-sections">
@@ -128,6 +129,8 @@ export default async function NotificationsPage({ params, searchParams }: PagePr
           </form>
         ) : null}
       </div>
+
+      <WebPushControl publicKey={webPushPublicKey} variant="card" />
 
       <div className="notification-tabs">
         {tabs.map((tab) => (

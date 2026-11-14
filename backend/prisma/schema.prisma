@@ -101,29 +101,30 @@ model User {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   profile                 UserProfile?
-  submittedRestaurants    Restaurant[]         @relation("SubmittedRestaurants")
-  ownedRestaurants        Restaurant[]         @relation("OwnedRestaurants")
+  submittedRestaurants    Restaurant[]          @relation("SubmittedRestaurants")
+  ownedRestaurants        Restaurant[]          @relation("OwnedRestaurants")
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
   searchHistory           SearchHistory[]
   uploadedPhotos          Photo[]
   auditLogs               AuditLog[]
   reviews                 Review[]
-  moderationDecisions     ModerationResult[]   @relation("ModerationDecidedBy")
+  moderationDecisions     ModerationResult[]    @relation("ModerationDecidedBy")
   favorites               Favorite[]
   notifications           Notification[]
   pushTokens              PushToken[]
+  webPushSubscriptions    WebPushSubscription[]
   contributions           Contribution[]
   reviewHelpfulVotes      ReviewHelpfulVote[]
   reviewReplies           ReviewReply[]
-  reportsFiled            Report[]             @relation("ReportedBy")
-  reportsResolved         Report[]             @relation("ReportResolvedBy")
-  crowdedStatusReports    CrowdedStatus[]      @relation("CrowdedStatusReportedBy")
-  seatAvailabilityReports SeatAvailability[]   @relation("SeatAvailabilityReportedBy")
-  powerOutletReports      PowerOutletStatus[]  @relation("PowerOutletReportedBy")
-  parkingInfoUpdates      ParkingInformation[] @relation("ParkingLastUpdatedBy")
-  following               Follow[]             @relation("Following")
-  followers               Follow[]             @relation("Followers")
+  reportsFiled            Report[]              @relation("ReportedBy")
+  reportsResolved         Report[]              @relation("ReportResolvedBy")
+  crowdedStatusReports    CrowdedStatus[]       @relation("CrowdedStatusReportedBy")
+  seatAvailabilityReports SeatAvailability[]    @relation("SeatAvailabilityReportedBy")
+  powerOutletReports      PowerOutletStatus[]   @relation("PowerOutletReportedBy")
+  parkingInfoUpdates      ParkingInformation[]  @relation("ParkingLastUpdatedBy")
+  following               Follow[]              @relation("Following")
+  followers               Follow[]              @relation("Followers")
   collections             Collection[]
 
   // Unique index below allows multiple (none, NULL) rows since Postgres
@@ -168,15 +169,15 @@ model PasswordResetToken {
 }
 
 model UserProfile {
-  id            String   @id @default(uuid())
-  userId        String   @unique @map("user_id")
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName   String   @map("display_name")
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName      String   @map("display_name")
   // FK to Photo added once MediaModule exists (build-prompts/07) — plain
   // nullable id for now so this table doesn't need a migration later.
-  avatarPhotoId String?  @map("avatar_photo_id")
-  bio           String?
-  homeCity      String?  @map("home_city")
+  avatarPhotoId    String?  @map("avatar_photo_id")
+  bio              String?
+  homeCity         String?  @map("home_city")
   // @handle, distinct from the DB row id — chosen/settable once by the user.
   username         String?  @unique
   // Controls whether this user's real displayName/avatar appear on THEIR
@@ -187,8 +188,8 @@ model UserProfile {
   facebookUrl      String?  @map("facebook_url")
   instagramUrl     String?  @map("instagram_url")
   favoriteCuisines String[] @default([]) @map("favorite_cuisines")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@map("user_profiles")
 }
@@ -384,23 +385,23 @@ model Restaurant {
 }
 
 model RestaurantStatus {
-  restaurantId      String                      @id @map("restaurant_id")
-  restaurant        Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  publicationStatus RestaurantPublicationStatus @default(pending) @map("publication_status")
-  compositeScore    Decimal?                    @map("composite_score") @db.Decimal(3, 2)
-  reviewCount       Int                         @default(0) @map("review_count")
-  lastReviewAt      DateTime?                   @map("last_review_at")
-  lastComputedAt    DateTime?                   @map("last_computed_at")
+  restaurantId        String                      @id @map("restaurant_id")
+  restaurant          Restaurant                  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  publicationStatus   RestaurantPublicationStatus @default(pending) @map("publication_status")
+  compositeScore      Decimal?                    @map("composite_score") @db.Decimal(3, 2)
+  reviewCount         Int                         @default(0) @map("review_count")
+  lastReviewAt        DateTime?                   @map("last_review_at")
+  lastComputedAt      DateTime?                   @map("last_computed_at")
   // Raw page-view counter — every detail-page load counts, including repeat
   // views by the same visitor (no dedup), same convention as public video/
   // map platforms' "lượt xem". Incremented via an atomic `increment` update
   // from RestaurantService.getDetail/getDetailBySlug, never read-then-write.
-  viewCount         Int                         @default(0) @map("view_count")
+  viewCount           Int                         @default(0) @map("view_count")
   // Set by an admin/moderator ("Đóng cửa vĩnh viễn"). Independent of
   // publicationStatus: a closed restaurant stays published so its detail
   // page, reviews and saved links keep working (with a closed banner), but
   // every discovery surface — search, map, trending, area counts — skips it.
-  permanentlyClosedAt DateTime?                 @map("permanently_closed_at")
+  permanentlyClosedAt DateTime?                   @map("permanently_closed_at")
 
   @@map("restaurant_status")
 }
@@ -621,7 +622,7 @@ model Review {
   updatedAt       DateTime     @updatedAt @map("updated_at")
   deletedAt       DateTime?    @map("deleted_at")
 
-  ratings ReviewRating[]
+  ratings      ReviewRating[]
   helpfulVotes ReviewHelpfulVote[]
   replies      ReviewReply[]
 
@@ -1079,6 +1080,26 @@ model PushToken {
 
   @@index([userId])
   @@map("push_tokens")
+}
+
+// Web Push (VAPID) subscriptions from the public web app — the browser
+// equivalent of PushToken. Separate table because a subscription is three
+// values (endpoint + two encryption keys), not one opaque token, and the
+// endpoint URL is far longer than an Expo token. One row per browser
+// (endpoint is globally unique); re-subscribing under another account
+// re-points the row, same as PushTokenController's upsert.
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("web_push_subscriptions")
 }
 
 // ---------- System (docs/06-database-erd.md §10) ----------

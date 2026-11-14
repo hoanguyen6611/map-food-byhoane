@@ -8,6 +8,7 @@ import type {
 import { Prisma, type Notification } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PushDeliveryService } from './push-delivery.service';
+import { WebPushService } from './web-push.service';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -19,6 +20,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pushDelivery: PushDeliveryService,
+    private readonly webPush: WebPushService,
   ) {}
 
   async list(
@@ -68,13 +70,19 @@ export class NotificationService {
     // flow" shape as the AI moderation calls elsewhere in this codebase.
     // Wired here (the single choke point every notification passes through)
     // so any future producer gets push delivery for free.
-    try {
-      await this.pushDelivery.sendToUser(userId, payload, notification.id);
-    } catch (error) {
-      this.logger.error(
-        'Push delivery failed',
-        error instanceof Error ? error.stack : error,
-      );
+    // Expo (mobile app) and Web Push (browser/PWA) run independently — one
+    // channel failing never skips the other.
+    const results = await Promise.allSettled([
+      this.pushDelivery.sendToUser(userId, payload, notification.id),
+      this.webPush.sendToUser(userId, payload, notification.id, type),
+    ]);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          'Push delivery failed',
+          result.reason instanceof Error ? result.reason.stack : result.reason,
+        );
+      }
     }
   }
 
