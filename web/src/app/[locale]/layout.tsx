@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Archivo, Figtree, Inter_Tight } from 'next/font/google';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
@@ -8,6 +9,7 @@ import { routing } from '@/i18n/routing';
 import { FavoritesProvider } from '@/components/FavoritesProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { WebPushSync } from '@/components/WebPushSync';
+import { NavigationProgress } from '@/components/NavigationProgress';
 import { SiteTopBar } from '@/components/SiteTopBar';
 import { SiteFooter } from '@/components/SiteFooter';
 import { MobileTabBar } from '@/components/MobileTabBar';
@@ -116,6 +118,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps) {
                     </div>
                     <MobileTabBar />
                     <WebPushSync />
+                    {/* Suspense: useSearchParams must not opt the whole layout out of static rendering. */}
+                    <Suspense fallback={null}>
+                      <NavigationProgress />
+                    </Suspense>
                   </div>
                 </SmoothScrollProvider>
               </FavoritesProvider>

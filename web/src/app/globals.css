@@ -8196,3 +8196,265 @@ table.menu-table td.price {
   color: var(--color-ink-subtle);
   cursor: pointer;
 }
+
+/* ---------- Navigation feedback (NavigationProgress) ---------- */
+
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: 3px;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 60%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Only the query changed (tab/filter on the same page): loading.tsx doesn't
+   show for that, so dim the current content until the new render lands. The
+   short delay keeps fast (cached) switches from flickering. */
+html[data-nav-pending='same'] #main-content {
+  opacity: 0.55;
+  transition: opacity 0.2s ease 0.12s;
+}
+#main-content {
+  transition: opacity 0.15s ease;
+}
+
+/* Clicked tab looks selected immediately; its previously-active sibling
+   steps back. Plain attribute set by NavigationProgress, cleared on arrival. */
+.tab-segment > [data-nav-target] {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-segment);
+}
+.tab-segment:has(> [data-nav-target]) > .tab-segment-btn-active:not([data-nav-target]) {
+  background: transparent;
+  color: var(--color-ink-subtle);
+  box-shadow: none;
+}
+.notification-tabs > [data-nav-target],
+.notification-tabs > [data-nav-target]:hover {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-fg);
+}
+.notification-tabs:has(> [data-nav-target]) > .notification-tab-active:not([data-nav-target]) {
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+}
+.mobile-tab-bar > [data-nav-target] {
+  color: var(--color-ink);
+}
+.mobile-tab-bar:has(> [data-nav-target]) > .mobile-tab-item-active:not([data-nav-target]) {
+  color: var(--color-ink-faint);
+}
+.mobile-tab-bar > [data-nav-target] svg {
+  animation: nav-tab-pop 0.25s ease;
+}
+@keyframes nav-tab-pop {
+  50% {
+    transform: scale(0.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav-pending='same'] #main-content,
+  #main-content {
+    transition: none;
+  }
+  .mobile-tab-bar > [data-nav-target] svg {
+    animation: none;
+  }
+}
+
+/* ---------- Page skeletons (components/Skeletons.tsx) ---------- */
+
+[data-theme='dark'] .skeleton-block::after,
+[data-theme='dark'] .skeleton-line::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+}
+
+.sk-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: sk-fade-in 0.2s ease both;
+}
+/* Skip the skeleton entirely for near-instant loads: it only fades in if
+   the page is still loading after a beat. */
+@keyframes sk-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.sk-shell {
+  animation-delay: 0.08s;
+}
+.sk-header,
+.sk-section,
+.sk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sk-section {
+  gap: 12px;
+}
+.sk-section-head,
+.sk-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sk-inline {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.sk-chips {
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+}
+.sk-chips > * {
+  flex: none;
+}
+.sk-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+}
+.sk-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sk-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+.sk-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+}
+.sk-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.sk-strip-card,
+.sk-grid-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sk-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.sk-photo-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-rows: 190px 190px;
+  gap: 8px;
+  margin-top: 20px;
+}
+.sk-photo-main {
+  grid-row: span 2;
+}
+.sk-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  max-width: 760px;
+}
+.sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-hairline);
+}
+.sk-card .sk-row {
+  padding: 0;
+  border: 0;
+}
+.sk-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.sk-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.sk-map {
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+}
+
+@media (max-width: 767px) {
+  .sk-hero {
+    height: 132px !important;
+  }
+  .sk-cat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sk-strip {
+    display: flex;
+    overflow: hidden;
+  }
+  .sk-strip-card {
+    flex: none;
+    width: 62%;
+  }
+  .sk-photo-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: 210px 78px;
+    margin-top: 12px;
+    gap: 6px;
+  }
+  .sk-photo-main {
+    grid-row: auto;
+    grid-column: span 3;
+  }
+  .sk-photo-grid .sk-desktop-only {
+    display: none;
+  }
+  .sk-map {
+    height: calc(100dvh - 64px - 64px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-shell {
+    animation: none;
+  }
+}

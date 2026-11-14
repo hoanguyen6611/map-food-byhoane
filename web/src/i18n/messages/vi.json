@@ -1,5 +1,6 @@
 {
   "common": {
+    "loading": "Đang tải…",
     "siteDescription": "Bản đồ ẩm thực Việt Nam — tìm quán ăn, quán cà phê, nhà hàng phù hợp nhất với bạn, không chỉ gần bạn nhất.",
     "noResultsFound": "Không tìm thấy kết quả",
     "actionError": "Có lỗi xảy ra. Vui lòng thử lại.",

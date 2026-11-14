@@ -1,5 +1,6 @@
 {
   "common": {
+    "loading": "Loading…",
     "siteDescription": "The Food Map of Vietnam — find the restaurant, cafe, or eatery that's actually right for you, not just the closest one.",
     "noResultsFound": "No results found",
     "actionError": "Something went wrong. Please try again.",
