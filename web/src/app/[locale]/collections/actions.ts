@@ -50,8 +50,11 @@ export async function deleteCollectionAction(id: string): Promise<SimpleActionRe
   return { ok };
 }
 
-export async function listMyCollectionsAction(): Promise<CollectionListResponse | null> {
-  const res = await backendFetchAuthorized('/me/collections');
+/** With `restaurantId`, each collection also carries `containsRestaurant` (backend permitting). */
+export async function listMyCollectionsAction(restaurantId?: string): Promise<CollectionListResponse | null> {
+  const res = await backendFetchAuthorized(
+    restaurantId ? `/me/collections?restaurantId=${encodeURIComponent(restaurantId)}` : '/me/collections',
+  );
   if (!res || !res.ok) return null;
   return (await res.json()) as CollectionListResponse;
 }

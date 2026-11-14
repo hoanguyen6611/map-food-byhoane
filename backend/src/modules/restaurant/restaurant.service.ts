@@ -1,3 +1,4 @@
+import { AREA_SQL } from '../search/area.util';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -55,6 +56,7 @@ interface RawRestaurantRow {
   lng: Prisma.Decimal;
   distance_meters?: number;
   cover_photo_id: string | null;
+  area: string | null;
 }
 
 // Shared shape for the aggregated detail query — a module-level constant
@@ -286,9 +288,16 @@ export class RestaurantService {
       // separate id lookup rather than a join.
       this.prisma.review.findMany({
         where: { restaurantId: restaurant.id, status: 'published', deletedAt: null },
-        select: { id: true },
+        select: { id: true, overallRating: true, userId: true },
       }),
     ]);
+    const weekStart = new Date();
+    weekStart.setUTCHours(0, 0, 0, 0);
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    const weeklyViews = await this.prisma.restaurantDailyStat.aggregate({
+      where: { restaurantId: restaurant.id, date: { gte: weekStart } },
+      _sum: { viewCount: true },
+    });
     const reviewPhotos = publishedReviews.length
       ? await this.prisma.photo.findMany({
           where: {
@@ -309,6 +318,44 @@ export class RestaurantService {
         )
       : restaurantPhotos;
     const photos = [...orderedRestaurantPhotos, ...reviewPhotos];
+    // Full-screen viewer metadata: who posted each photo (a review photo's
+    // author is the review's user; otherwise the uploader) and, for review
+    // photos, that review's star rating.
+    const reviewById = new Map(publishedReviews.map((r) => [r.id, r]));
+    const uploaderIds = [
+      ...new Set(
+        photos
+          .map((p) => (p.ownerType === 'review' && p.ownerId ? reviewById.get(p.ownerId)?.userId : p.uploadedBy))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const uploaders = uploaderIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: uploaderIds } },
+          select: { id: true, profile: { select: { displayName: true, avatarPhotoId: true, isPublic: true } } },
+        })
+      : [];
+    // Same privacy rule as review previews: an isPublic:false user shows no name/avatar/id.
+    const avatarPhotoIds = uploaders
+      .filter((u) => u.profile?.isPublic !== false)
+      .map((u) => u.profile?.avatarPhotoId)
+      .filter((id): id is string => Boolean(id));
+    const avatarPhotos = avatarPhotoIds.length
+      ? await this.prisma.photo.findMany({ where: { id: { in: avatarPhotoIds }, deletedAt: null } })
+      : [];
+    const avatarUrlById = new Map(avatarPhotos.map((p) => [p.id, this.s3.publicUrl(p.storageKey)]));
+    const uploaderById = new Map(
+      uploaders
+        .filter((u) => u.profile?.isPublic !== false)
+        .map((u) => [
+          u.id,
+          {
+            id: u.id,
+            displayName: u.profile?.displayName ?? null,
+            avatarUrl: u.profile?.avatarPhotoId ? (avatarUrlById.get(u.profile.avatarPhotoId) ?? null) : null,
+          },
+        ]),
+    );
     const menuPhotosByMenuId = new Map<string, typeof menuPhotos>();
     for (const photo of menuPhotos) {
       const list = menuPhotosByMenuId.get(photo.ownerId!) ?? [];
@@ -353,6 +400,13 @@ export class RestaurantService {
       menus: restaurant.menus.map((menu) => ({
         id: menu.id,
         name: menu.name,
+        // Menu row's own timestamp, bumped by a newer menu photo if any.
+        updatedAt: new Date(
+          Math.max(
+            menu.updatedAt.getTime(),
+            ...(menuPhotosByMenuId.get(menu.id) ?? []).map((p) => p.createdAt.getTime()),
+          ),
+        ).toISOString(),
         items: menu.items.map((item) => ({
           id: item.id,
           name: item.name,
@@ -367,12 +421,20 @@ export class RestaurantService {
           height: p.height,
         })),
       })),
-      photos: photos.map((p) => ({
-        id: p.id,
-        url: this.s3.publicUrl(p.storageKey),
-        width: p.width,
-        height: p.height,
-      })),
+      photos: photos.map((p) => {
+        const review = p.ownerType === 'review' && p.ownerId ? reviewById.get(p.ownerId) : undefined;
+        const uploaderId = review ? review.userId : p.uploadedBy;
+        return {
+          id: p.id,
+          url: this.s3.publicUrl(p.storageKey),
+          width: p.width,
+          height: p.height,
+          createdAt: p.createdAt.toISOString(),
+          caption: p.caption,
+          uploader: uploaderId ? (uploaderById.get(uploaderId) ?? null) : null,
+          reviewRating: review ? review.overallRating : null,
+        };
+      }),
       coverPhotoId: restaurant.coverPhotoId,
       socialLinks: this.buildSocialLinks(restaurant),
       compositeScore: restaurant.status?.compositeScore
@@ -380,6 +442,9 @@ export class RestaurantService {
         : null,
       reviewCount: restaurant.status?.reviewCount ?? 0,
       viewCount: (restaurant.status?.viewCount ?? 0) + viewCountDelta,
+      // Today's increment (if any) already landed in RestaurantDailyStat
+      // before this aggregate ran — no delta to add here.
+      weeklyViewCount: weeklyViews._sum.viewCount ?? 0,
       hasOwner: restaurant.ownerId !== null,
       reviews: await (async () => {
         const { avatarUrlByPhotoId, countsByReviewId } =
@@ -642,10 +707,12 @@ export class RestaurantService {
         ST_Distance(
           l.geo_point,
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-        ) AS distance_meters
+        ) AS distance_meters,
+        ${AREA_SQL} AS area
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
+      JOIN addresses a ON a.id = r.address_id
       LEFT JOIN restaurant_status rs ON rs.restaurant_id = r.id
       LEFT JOIN price_ranges pr ON pr.id = r.price_range_id
       WHERE r.deleted_at IS NULL
@@ -738,7 +805,8 @@ export class RestaurantService {
         pr.min_vnd AS price_min_vnd,
         pr.max_vnd AS price_max_vnd,
         l.lat,
-        l.lng
+        l.lng,
+        ${AREA_SQL} AS area
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
@@ -847,6 +915,7 @@ export class RestaurantService {
           ? Math.round(row.distance_meters)
           : null,
       isOpenNow: isOpenNow(hoursByRestaurant.get(row.id) ?? [], vnNow),
+      area: row.area ?? null,
     }));
   }
 

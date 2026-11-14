@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { searchRestaurants } from '@/lib/api';
 import { PlaceRow } from '@/components/PlaceRow';
 import { MapCanvas } from '@/components/MapCanvas';
-import { DISTRICTS, findDistrictBySlug } from '@/lib/districts';
+import { DISTRICTS, resolveDistrict } from '@/lib/districts';
 import { Link, getPathname } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 
@@ -27,7 +27,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await params;
-  const district = findDistrictBySlug(slug);
+  const district = await resolveDistrict(slug);
   const t = await getTranslations({ locale, namespace: 'district' });
   if (!district) {
     return { title: t('notFoundTitle') };
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function DistrictPage({ params, searchParams }: PageProps) {
   const { locale, slug } = await params;
   const { page: pageParam } = await searchParams;
-  const district = findDistrictBySlug(slug);
+  const district = await resolveDistrict(slug);
   if (!district) {
     notFound();
   }

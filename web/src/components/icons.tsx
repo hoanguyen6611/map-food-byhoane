@@ -442,6 +442,23 @@ export function ArrowUpRightIcon(props: IconProps) {
   );
 }
 
+export function TrendingUpIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M3 17l6-6 4 4 8-8M14 7h7v7" />
+    </Base>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Base>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <Base {...props}>

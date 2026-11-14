@@ -1,13 +1,16 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { getCategories, getTrendingUp, searchRestaurants } from '@/lib/api';
+import { getCategories, getDistricts, getProvinces, getTrendingUp, searchRestaurants } from '@/lib/api';
 import { RestaurantCard } from '@/components/RestaurantCard';
+import { HomeTopByCategory, type TopCategorySection } from '@/components/HomeTopByCategory';
+import { formatPriceRange, placeTileClass } from '@/lib/format';
+import Image from 'next/image';
 import { MapCanvas } from '@/components/MapCanvas';
 import { HomeProvinceSelect } from '@/components/HomeProvinceSelect';
 import { DISTRICTS } from '@/lib/districts';
 import { getHomeProvince, HCMC_PROVINCE_NAME, HCMC_DATASET_CODE } from '@/lib/home-province';
 import { Link, getPathname } from '@/i18n/navigation';
-import { SearchIcon, MapPinIcon, MapLogoIcon, TrophyIcon, ArrowUpRightIcon } from '@/components/icons';
+import { SearchIcon, MapPinIcon, MapLogoIcon, TrophyIcon, ArrowUpRightIcon, StarIcon, TrendingUpIcon } from '@/components/icons';
 import { VN_PROVINCES, getCategoryIconPath } from '@foodmap/shared-types';
 import { Reveal } from '@/components/Reveal';
 import { LoggedOutOnly } from '@/components/LoggedOutOnly';
@@ -24,7 +27,9 @@ function staggerDelay(index: number): number {
 // HCMC is pinned as its own default option (below, with the friendlier
 // "heroArea" label instead of the dataset's plain shortName) rather than
 // appearing a second time in this list.
-const OTHER_PROVINCES = VN_PROVINCES.filter((p) => p.code !== HCMC_DATASET_CODE);
+// Slimmed to what the picker shows — the full dataset carries every ward,
+// which would otherwise be serialized into the client component's props.
+const OTHER_PROVINCES = VN_PROVINCES.filter((p) => p.code !== HCMC_DATASET_CODE).map(({ code, name, shortName }) => ({ code, name, shortName }));
 
 export const metadata: Metadata = {
   // No `title` key here at all — Next.js only inherits a parent segment's
@@ -55,7 +60,7 @@ export default async function HomePage({ params }: PageProps) {
   // equivalent breakdown for any other province, so the whole section is
   // skipped (not fetched, not rendered) rather than showing HCMC's district
   // names with a stale/misleading count for a different province.
-  const [featured, categoryCounts, areaCounts, topByCategory, trendingUp] = await Promise.all([
+  const [featured, categoryCounts, areaCounts, topByCategory, trendingUp, apiDistricts, provinces] = await Promise.all([
     searchRestaurants({ pageSize: 8, province: selectedProvince }),
     Promise.all(categories.map((c) => searchRestaurants({ category: c.code, pageSize: 1, province: selectedProvince }))),
     isHcmc ? Promise.all(DISTRICTS.map((d) => searchRestaurants({ district: d.name, pageSize: 1 }))) : Promise.resolve([]),
@@ -74,10 +79,52 @@ export default async function HomePage({ params }: PageProps) {
     // during a quiet period is expected, not an error — hidden entirely
     // rather than showing a misleading "no results" state.
     getTrendingUp({ province: selectedProvince }),
+    // Live district list (stored or parsed from the address) — null when
+    // the backend doesn't serve /districts yet; then the static HCMC list
+    // below is used as before.
+    getDistricts(selectedProvince),
+    getProvinces(),
   ]);
+  const provinceCounts: Record<string, number> = Object.fromEntries(provinces.map((p) => [p.name, p.restaurantCount]));
+  const provinceCountLabels: Record<string, string> = Object.fromEntries(
+    provinces.map((p) => [p.name, tCommon('resultCount', { count: p.restaurantCount })]),
+  );
+  const AREA_PREVIEW = 6;
+  const areaEntries =
+    apiDistricts && apiDistricts.length > 0
+      ? apiDistricts.map((d) => ({ slug: d.slug, name: d.name, count: d.restaurantCount }))
+      : isHcmc
+        ? DISTRICTS.map((d, i) => ({ slug: d.slug, name: d.name, count: areaCounts[i]?.total ?? 0 }))
+        : [];
   const topCategorySections = categories
     .map((category, i) => ({ category, result: topByCategory[i] }))
     .filter(({ result }) => result.total >= 6);
+
+  // Mobile's single chip-switched "Top 6" block — any category with at least
+  // 3 ranked places (a short list still reads fine as a ranking; the desktop
+  // per-category grids above keep their stricter ≥6 rule).
+  const topChipSections: TopCategorySection[] = categories
+    .map((category, i) => ({ category, result: topByCategory[i] }))
+    .filter(({ result }) => result.items.length >= 3)
+    .map(({ category, result }) => ({
+      code: category.code,
+      label: category.label,
+      heading: t('topCategoryHeading', { category: category.label }),
+      seeMoreHref: withProvince(`/search?category=${category.code}`),
+      items: result.items.map((r) => {
+        const price = formatPriceRange(r.priceRange, tCommon);
+        return {
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          thumbnailUrl: r.thumbnailUrl,
+          tileClass: placeTileClass(r.id),
+          score: r.compositeScore !== null && r.reviewCount > 0 ? r.compositeScore : null,
+          reviewCount: r.reviewCount,
+          meta: r.area ?? (price ? `${price}đ` : null),
+        };
+      }),
+    }));
 
   // Plain HTML <form action> can't use next-intl's <Link> — resolve the
   // locale-prefixed path (e.g. `/en/search`) by hand instead.
@@ -127,7 +174,17 @@ export default async function HomePage({ params }: PageProps) {
                   options={OTHER_PROVINCES}
                   ariaLabel={t('heroArea')}
                   noResultsText={tCommon('noResultsFound')}
+                  sheetTitle={t('provinceSheetTitle')}
+                  sheetSearchPlaceholder={t('provinceSheetSearch')}
+                  closeLabel={tCommon('close')}
+                  counts={provinceCounts}
+                  countLabels={provinceCountLabels}
+                  useLocationLabel={t('useCurrentLocation')}
+                  locatingLabel={t('locating')}
+                  locationErrorLabel={t('locationError')}
                 />
+                {/* Mobile-only (design's search card header: "TP. Hồ Chí Minh · 186 quán"). */}
+                <span className="search-province-count">{tCommon('resultCount', { count: featured.total })}</span>
               </span>
               <button type="submit" className="search-submit">
                 {t('searchButtonShort')}
@@ -174,8 +231,8 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <div className="container page-sections">
-        <section className="section-block">
+      <div className="container page-sections home-sections">
+        <section className="section-block home-sec-categories">
           <div className="section-head">
             <h2 className="section-title">{t('categoriesHeading')}</h2>
             <Link href={withProvince('/search')} className="section-link">
@@ -237,46 +294,118 @@ export default async function HomePage({ params }: PageProps) {
           </div>
         </section>
 
-        {isHcmc ? (
-          <section className="section-block">
+        {areaEntries.length > 0 ? (
+          <section className="section-block home-sec-areas">
             <div className="section-head">
               <h2 className="section-title">{t('areasHeading')}</h2>
               <span className="section-caption">{t('areasCaption')}</span>
             </div>
             <div className="area-grid">
-              {DISTRICTS.map((district, i) => (
+              {areaEntries.slice(0, AREA_PREVIEW).map((district, i) => (
                 <Reveal key={district.slug} delay={staggerDelay(i)} y={16}>
                   <Link
                     href={`/district/${district.slug}`}
                     className={`area-card ${AREA_TILE_CLASSES[i % AREA_TILE_CLASSES.length]}`}
                   >
+                    <MapPinIcon size={46} className="area-card-decor" aria-hidden="true" />
                     <span className="area-card-name">{district.name}</span>
-                    <span className="area-card-meta">{tCommon('resultCount', { count: areaCounts[i].total })}</span>
+                    <span className="area-card-meta">{tCommon('resultCount', { count: district.count })}</span>
                   </Link>
                 </Reveal>
               ))}
             </div>
+            {areaEntries.length > AREA_PREVIEW ? (
+              <details className="home-areas-more">
+                <summary>{t('allAreasLink', { count: areaEntries.length })}</summary>
+                <div className="area-grid">
+                  {areaEntries.slice(AREA_PREVIEW).map((district, i) => (
+                    <Link
+                      key={district.slug}
+                      href={`/district/${district.slug}`}
+                      className={`area-card ${AREA_TILE_CLASSES[(i + AREA_PREVIEW) % AREA_TILE_CLASSES.length]}`}
+                    >
+                      <MapPinIcon size={46} className="area-card-decor" aria-hidden="true" />
+                      <span className="area-card-name">{district.name}</span>
+                      <span className="area-card-meta">{tCommon('resultCount', { count: district.count })}</span>
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </section>
         ) : null}
 
         {trendingUp.length > 0 ? (
-          <section className="section-block">
+          <section className="section-block home-sec-trending">
             <div className="section-head">
-              <h2 className="section-title">{t('trendingUpHeading')}</h2>
+              <h2 className="section-title home-trending-title">
+                {t('trendingUpHeading')}
+                <TrendingUpIcon size={14} className="home-trending-icon" aria-hidden="true" />
+              </h2>
               <span className="section-caption">{t('trendingUpCaption')}</span>
             </div>
-            <div className="card-grid">
+            <div className="card-grid home-desktop-only">
               {trendingUp.map((restaurant, i) => (
                 <Reveal key={restaurant.id} delay={staggerDelay(i)}>
                   <RestaurantCard restaurant={restaurant} />
                 </Reveal>
               ))}
             </div>
+            {/* Mobile: design's horizontal strip of compact ranked cards. */}
+            <div className="home-trending-strip">
+              {trendingUp.map((r, i) => {
+                const price = formatPriceRange(r.priceRange, tCommon);
+                return (
+                  <Link key={r.id} href={`/restaurant/${r.slug}`} className="home-trending-card">
+                    <span className={`home-trending-thumb ${r.thumbnailUrl ? '' : placeTileClass(r.id)}`}>
+                      {r.thumbnailUrl ? <Image src={r.thumbnailUrl} alt="" fill sizes="182px" style={{ objectFit: 'cover' }} /> : null}
+                      <span className="home-trending-rank">#{i + 1}</span>
+                      {r.viewGrowthPercent != null && r.viewGrowthPercent > 0 ? (
+                        <span className="home-trending-growth">
+                          {i === 0
+                            ? t('trendingGrowthViews', { percent: r.viewGrowthPercent })
+                            : t('trendingGrowth', { percent: r.viewGrowthPercent })}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="home-trending-body">
+                      <span className="home-trending-name">{r.name}</span>
+                      <span className="home-trending-score">
+                        {r.compositeScore !== null && r.reviewCount > 0 ? (
+                          <>
+                            <StarIcon size={12} filled className="home-top-star" />
+                            <span className="home-top-score">{r.compositeScore.toFixed(1)}</span>
+                            <span>({r.reviewCount})</span>
+                          </>
+                        ) : (
+                          <span>{tCommon('noRating')}</span>
+                        )}
+                      </span>
+                      <span className="home-trending-meta">
+                        {[r.categoryLabel, r.area ?? (price ? `${price}đ` : null)].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+            <p className="home-trending-footnote">{t('trendingUpCaption')}</p>
+          </section>
+        ) : null}
+
+        {topChipSections.length > 0 ? (
+          <section className="section-block home-sec-topchips">
+            <HomeTopByCategory
+              sections={topChipSections}
+              seeMoreLabel={t('seeMoreLink')}
+              noRatingLabel={tCommon('noRating')}
+              chipsLabel={t('categoriesHeading')}
+            />
           </section>
         ) : null}
 
         {topCategorySections.map(({ category, result }) => (
-          <section key={category.code} className="section-block">
+          <section key={category.code} className="section-block home-desktop-only">
             <div className="section-head">
               <h2 className="section-title">{t('topCategoryHeading', { category: category.label })}</h2>
               <Link href={withProvince(`/search?category=${category.code}`)} className="section-link">

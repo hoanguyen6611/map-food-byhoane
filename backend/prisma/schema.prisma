@@ -462,6 +462,8 @@ model Menu {
   name         String?
   isActive     Boolean    @default(true) @map("is_active")
   items        MenuItem[]
+  // Shown as "cập nhật 10/2026" on the public menu card (web detail page).
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
 
   @@map("menus")
 }
@@ -549,6 +551,9 @@ model Photo {
   height             Int?
   mimeType           String?           @map("mime_type")
   fileSizeBytes      Int?              @map("file_size_bytes")
+  // Optional short note from the uploader ("Tầng 2, góc cửa sổ") — shown
+  // in the web's full-screen photo viewer.
+  caption            String?
   // Gates PUBLIC visibility (see restaurant/review photo queries, which
   // filter `status: approved`) — admin-attached photos (admin/photo.service.ts)
   // set this to `approved` directly at creation (admin-curated, never run

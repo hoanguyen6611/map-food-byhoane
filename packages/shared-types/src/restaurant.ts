@@ -74,6 +74,37 @@ export interface RestaurantSummaryDto {
   /** Meters from the query point. Only present on /restaurants/nearby (a center+radius query has an inherent reference point); omitted on /restaurants/bounds. */
   distanceMeters: number | null;
   isOpenNow: boolean;
+  /** Display area for list rows ("Cà phê · Quận 3"): the stored district when
+   * set, else a district parsed from the full address text ("Quận 3"), else
+   * the ward — null only when the address has none of these. */
+  area: string | null;
+}
+
+/** `GET /restaurants/trending-up` row — a summary plus its week-over-week view growth. */
+export interface TrendingUpRestaurantDto extends RestaurantSummaryDto {
+  /** % change in page views, last 7 days vs the 7 days before (rounded).
+   * null when the previous window had no views (growth isn't a meaningful %). */
+  viewGrowthPercent: number | null;
+}
+
+/** `GET /districts?province=` — areas that actually have published restaurants. */
+export interface DistrictSummaryDto {
+  name: string;
+  /** Accent-free URL slug ("quan-3", "binh-thanh") — stable for /district/[slug]. */
+  slug: string;
+  restaurantCount: number;
+}
+
+/** `GET /provinces` — provinces with at least one published restaurant. */
+export interface ProvinceSummaryDto {
+  /** Exact stored `Address.province` value (pass back as `?province=`). */
+  name: string;
+  restaurantCount: number;
+}
+
+/** `GET /provinces/nearest?lat=&lng=` — province of the closest published restaurant. */
+export interface NearestProvinceDto {
+  name: string | null;
 }
 
 export interface NearbyRestaurantsQuery {

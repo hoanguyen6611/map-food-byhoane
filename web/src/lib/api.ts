@@ -6,15 +6,19 @@
 import type {
   CategoryDto,
   CuisineDto,
+  DistrictSummaryDto,
   FacilityDto,
   LeaderboardResponse,
+  NearestProvinceDto,
   Paginated,
+  ProvinceSummaryDto,
   RestaurantDetailDto,
   RestaurantSitemapEntryDto,
   RestaurantSlugLookupDto,
   RestaurantSummaryDto,
   ReviewListResponse,
   SearchSort,
+  TrendingUpRestaurantDto,
 } from '@foodmap/shared-types';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? 'http://localhost:3000';
@@ -73,6 +77,35 @@ export async function getCuisines(): Promise<CuisineDto[]> {
 // broader migration is out of scope for this one.
 export async function getFacilities(): Promise<FacilityDto[]> {
   return apiFetch<FacilityDto[]>('/facilities', CATALOG_REVALIDATE_SECONDS, ['facilities']);
+}
+
+/** Districts with published restaurants (+counts). null if the backend doesn't have the endpoint yet. */
+export async function getDistricts(province?: string): Promise<DistrictSummaryDto[] | null> {
+  const qs = toQueryString({ province });
+  try {
+    return await apiFetch<DistrictSummaryDto[]>(`/districts${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS, ['restaurants']);
+  } catch {
+    return null;
+  }
+}
+
+/** Provinces with published restaurants (+counts); [] if unavailable. */
+export async function getProvinces(): Promise<ProvinceSummaryDto[]> {
+  try {
+    return await apiFetch<ProvinceSummaryDto[]>('/provinces', LISTING_REVALIDATE_SECONDS, ['restaurants']);
+  } catch {
+    return [];
+  }
+}
+
+/** Province of the closest published restaurant; null if none/unavailable. */
+export async function getNearestProvince(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await apiFetch<NearestProvinceDto>(`/provinces/nearest?${toQueryString({ lat, lng })}`, 0);
+    return res.name;
+  } catch {
+    return null;
+  }
 }
 
 export interface SearchParams {
@@ -161,9 +194,9 @@ export async function getLeaderboard(limit?: number): Promise<LeaderboardRespons
   );
 }
 
-export async function getTrendingUp(params: { province?: string; limit?: number }): Promise<RestaurantSummaryDto[]> {
+export async function getTrendingUp(params: { province?: string; limit?: number }): Promise<TrendingUpRestaurantDto[]> {
   const qs = toQueryString(params);
-  return apiFetch<RestaurantSummaryDto[]>(`/restaurants/trending-up${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS, [
+  return apiFetch<TrendingUpRestaurantDto[]>(`/restaurants/trending-up${qs ? `?${qs}` : ''}`, LISTING_REVALIDATE_SECONDS, [
     'restaurants',
   ]);
 }

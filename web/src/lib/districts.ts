@@ -21,3 +21,17 @@ export const DISTRICTS: DistrictEntry[] = [
 export function findDistrictBySlug(slug: string): DistrictEntry | undefined {
   return DISTRICTS.find((d) => d.slug === slug);
 }
+
+/**
+ * Static entries first (instant, prerendered), then the live `/districts`
+ * list — any district that has published restaurants, including ones parsed
+ * from post-reform address text, gets a working /district/[slug] page.
+ */
+export async function resolveDistrict(slug: string): Promise<DistrictEntry | undefined> {
+  const fixed = findDistrictBySlug(slug);
+  if (fixed) return fixed;
+  const { getDistricts } = await import('./api');
+  const live = await getDistricts();
+  const hit = live?.find((d) => d.slug === slug);
+  return hit ? { slug: hit.slug, name: hit.name } : undefined;
+}

@@ -9,6 +9,8 @@ import { PlusIcon, MenuFolderIcon, CheckIcon } from '@/components/icons';
 interface Props {
   restaurantId: string;
   isLoggedIn: boolean;
+  /** Full-width labeled trigger (mobile detail page's "Thêm vào bộ sưu tập") instead of the icon square. */
+  wide?: boolean;
 }
 
 // Restaurant detail page's "Thêm vào bộ sưu tập" — a dropdown fetching the
@@ -16,7 +18,7 @@ interface Props {
 // context needed the way FavoritesProvider is for the favorites Set) with
 // an inline "+ create new" row, since a first-time user has no collections
 // yet to pick from.
-export function AddToCollectionButton({ restaurantId, isLoggedIn }: Props) {
+export function AddToCollectionButton({ restaurantId, isLoggedIn, wide }: Props) {
   const t = useTranslations('collections');
   const [open, setOpen] = useState(false);
   const [collections, setCollections] = useState<CollectionSummaryDto[] | null>(null);
@@ -39,8 +41,12 @@ export function AddToCollectionButton({ restaurantId, isLoggedIn }: Props) {
   async function handleOpen() {
     setOpen((v) => !v);
     if (collections === null) {
-      const result = await listMyCollectionsAction();
-      setCollections(result?.items ?? []);
+      const result = await listMyCollectionsAction(restaurantId);
+      const items = result?.items ?? [];
+      setCollections(items);
+      // "Đã có quán này" — already-containing collections start checked/disabled.
+      const already = items.filter((c) => c.containsRestaurant).map((c) => c.id);
+      if (already.length > 0) setAddedIds((prev) => new Set([...prev, ...already]));
     }
   }
 
@@ -64,16 +70,17 @@ export function AddToCollectionButton({ restaurantId, isLoggedIn }: Props) {
   if (!isLoggedIn) return null;
 
   return (
-    <div className="account-menu-wrap" ref={menuRef}>
+    <div className={`account-menu-wrap ${wide ? 'collection-wide-wrap' : ''}`} ref={menuRef}>
       <button
         type="button"
-        className="action-icon-btn"
+        className={wide ? 'collection-wide-btn' : 'action-icon-btn'}
         onClick={handleOpen}
         aria-expanded={open}
-        aria-label={t('addToCollectionButton')}
+        aria-label={wide ? undefined : t('addToCollectionButton')}
         title={t('addToCollectionButton')}
       >
         <MenuFolderIcon size={17} />
+        {wide ? <span>{t('addToCollectionButton')}</span> : null}
       </button>
 
       {open ? (

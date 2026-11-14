@@ -7,6 +7,7 @@ import type {
   RestaurantSitemapEntryDto,
   RestaurantSlugLookupDto,
   RestaurantSummaryDto,
+  TrendingUpRestaurantDto,
 } from '@foodmap/shared-types';
 import { RestaurantService } from './restaurant.service';
 import { SearchService } from '../search/search.service';
@@ -88,7 +89,7 @@ export class RestaurantController {
   getTrendingUp(
     @Query('province') province?: string,
     @Query('limit') limit?: string,
-  ): Promise<RestaurantSummaryDto[]> {
+  ): Promise<TrendingUpRestaurantDto[]> {
     const parsed = limit ? Number(limit) : DEFAULT_TRENDING_UP_LIMIT;
     const safeLimit = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, MAX_TRENDING_UP_LIMIT) : DEFAULT_TRENDING_UP_LIMIT;
     return this.searchService.findTrendingUp(province, safeLimit);

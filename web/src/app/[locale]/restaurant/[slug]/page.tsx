@@ -22,12 +22,43 @@ import { PhotoGalleryHero } from '@/components/PhotoGalleryHero';
 import { Reveal } from '@/components/Reveal';
 import { SocialLinksCard } from '@/components/SocialLinksCard';
 import { OwnerClaimForm } from '@/components/OwnerClaimForm';
-import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, PencilIcon } from '@/components/icons';
+import { FacilityIcon, MapPinIcon, PhoneIcon, MenuFolderIcon, StarIcon, PencilIcon, EyeIcon, ClockIcon, ChevronDownIcon } from '@/components/icons';
 import type { SocialPlatform } from '@foodmap/shared-types';
 import { getSession } from '@/lib/auth';
 
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3004';
 const REVIEWS_PAGE_SIZE = 10;
+
+/** "25k" / "1,2tr" style short price for the menu header's range. */
+function formatKShort(vnd: number): string {
+  if (vnd >= 1_000_000) return `${(vnd / 1_000_000).toFixed(1).replace(/\.0$/, '').replace('.', ',')}tr`;
+  return `${Math.round(vnd / 1000)}k`;
+}
+
+/** Straight-line distance in meters (haversine) — "Quán tương tự" shows how far each is from this one. */
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function formatDistance(m: number, locale: string): string {
+  if (m < 1000) return `${Math.round(m / 10) * 10} m`;
+  return `${(m / 1000).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US', { maximumFractionDigits: 1 })} km`;
+}
+
+function MenuRow({ name, popular, popularLabel, price }: { name: string; popular: boolean; popularLabel: string; price: string }) {
+  return (
+    <li className="detail-menu-row">
+      <span className="detail-menu-name">{name}</span>
+      {popular ? <span className="detail-menu-popular">🔥 {popularLabel}</span> : null}
+      <span className="detail-menu-price">{price}</span>
+    </li>
+  );
+}
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -197,6 +228,18 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
   }
 
   const directionsHref = `https://www.google.com/maps/dir/?api=1&destination=${restaurant.location.lat},${restaurant.location.lng}`;
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${restaurant.location.lat},${restaurant.location.lng}`;
+
+  // Menu: first 5 rows visible, the rest behind "Xem toàn bộ N món".
+  const MENU_PREVIEW = 5;
+  const menuItems = firstMenu?.items ?? [];
+  const menuPreview = menuItems.slice(0, MENU_PREVIEW);
+  const menuRest = menuItems.slice(MENU_PREVIEW);
+  const menuPrices = menuItems.map((i) => i.priceVnd).filter((v) => v > 0);
+  const menuPriceRange =
+    menuPrices.length > 0
+      ? `${formatKShort(Math.min(...menuPrices))} – ${formatKShort(Math.max(...menuPrices))}`
+      : null;
 
   return (
     <div className="container" style={{ paddingBottom: 48 }}>
@@ -221,6 +264,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             emptyText={t('noPhotos')}
             seeAllLabel={t('seeAllPhotos', { count: restaurant.photos.length })}
             moreCountLabel={t('morePhotosCount', { count: Math.max(0, restaurant.photos.length - 4) })}
+            countLabel={t('photoCount', { count: restaurant.photos.length })}
           />
           {/* Mobile-only floating controls over the hero (see globals.css's
               `.detail-hero-back-btn`/`.detail-hero-fav-overlay`) — on desktop
@@ -228,7 +272,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               in `.detail-mobile-actions`/the sidebar's action row instead. */}
           <BackButton label={t('backAriaLabel')} fallbackHref="/search" />
           <div className="detail-hero-fav-overlay">
-            <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn={!!session} />
+            <ShareButton title={restaurant.name} />
             <FavoriteButton restaurantId={restaurant.id} icon="bookmark" />
           </div>
         </div>
@@ -250,12 +294,20 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             <span className="detail-divider" aria-hidden="true" />
             <span className="detail-meta-text">
               {categoryLabel}
-              {priceLabel ? ` · ${priceLabel}đ` : ''} · {restaurant.address.district}
+              {priceLabel ? ` · ${priceLabel}đ` : ''}
+              {restaurant.address.district ? ` · ${restaurant.address.district}` : ''}
             </span>
-            <span className="detail-divider" aria-hidden="true" />
-            <span className="detail-meta-text">{t('viewCount', { count: restaurant.viewCount })}</span>
+            <span className="detail-divider detail-meta-views" aria-hidden="true" />
+            <span className="detail-meta-text detail-meta-views">{t('viewCount', { count: restaurant.viewCount })}</span>
             <OpenBadge isOpen={restaurant.isOpenNow} label={restaurant.isOpenNow ? tCommon('openNow') : tCommon('closedNow')} note={openNote} />
           </div>
+          {/* Mobile: views on their own line under the meta row (design). */}
+          <p className="detail-views-line">
+            <EyeIcon size={13} />
+            {t('viewCount', { count: restaurant.viewCount })}
+            {/* Optional until every backend serves it. */}
+            {restaurant.weeklyViewCount != null ? ` · ${t('weeklyViewCount', { count: restaurant.weeklyViewCount })}` : ''}
+          </p>
 
           {/* Mobile-only — the redesign's app-style layout puts these right
               under the header, not buried in the sidebar's stacked position
@@ -277,6 +329,11 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
             ) : null}
             <ShareButton title={restaurant.name} withLabel className="detail-action-btn" />
           </div>
+          {session ? (
+            <div className="detail-mobile-collection">
+              <AddToCollectionButton restaurantId={restaurant.id} isLoggedIn wide />
+            </div>
+          ) : null}
 
           <div className="tab-segment">
             <Link href={tabHref('info')} className={`tab-segment-btn ${activeTab === 'info' ? 'tab-segment-btn-active' : ''}`}>
@@ -289,8 +346,57 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
 
           {activeTab === 'info' ? (
             <>
+              {/* Mobile (design): one card — today's status with an expandable
+                  "Giờ cả tuần", then facility chips. Desktop keeps the two
+                  cards below (hidden on mobile). */}
+              <div className="detail-hours-summary">
+                <details className="detail-hours-details">
+                  <summary>
+                    <ClockIcon size={16} className="detail-hours-icon" />
+                    <span className={`detail-hours-status ${restaurant.isOpenNow ? 'detail-hours-status-open' : ''}`}>
+                      {restaurant.isOpenNow
+                        ? todayHours?.isOpen24h
+                          ? t('open24h')
+                          : activeRangeCloseTime
+                            ? t('openUntilToday', { time: activeRangeCloseTime })
+                            : tCommon('openNow')
+                        : tCommon('closedNow')}
+                    </span>
+                    <span className="detail-hours-toggle">
+                      {t('weekHours')}
+                      <ChevronDownIcon size={14} />
+                    </span>
+                  </summary>
+                  <div className="detail-hours-rows">
+                    {restaurant.openingHours.map((hour) => (
+                      <div
+                        key={hour.dayOfWeek}
+                        className={`detail-hours-row ${hour.dayOfWeek === todayIndex ? 'detail-hours-row-today' : ''}`}
+                      >
+                        <span>{tLabels(`day.${hour.dayOfWeek}`)}</span>
+                        <span className="font-num detail-hours-times">
+                          {getDayHoursLines(hour, t('closedDay'), t('open24h')).map((line) => (
+                            <span key={line}>{line}</span>
+                          ))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+                {restaurant.facilities.length > 0 ? (
+                  <div className="detail-facility-chips">
+                    {restaurant.facilities.map((f) => (
+                      <span key={f} className="detail-facility-chip">
+                        <FacilityIcon path={FACILITY_ICON_PATH[f as keyof typeof FACILITY_ICON_PATH] ?? DEFAULT_FACILITY_ICON_PATH} size={13} />
+                        {facilityLabel(f)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
               <Reveal>
-              <div className="info-card info-card-compact">
+              <div className="info-card info-card-compact detail-desktop-card">
                 <h2 className="info-card-title">{t('infoHeading')}</h2>
                 <div className="info-grid">
                   <div className="info-item">
@@ -335,23 +441,8 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               </div>
               </Reveal>
 
-              {restaurant.socialLinks.length > 0 ? (
-                <SocialLinksCard
-                  links={restaurant.socialLinks}
-                  heading={t('socialHeading')}
-                  caption={t('socialCaption')}
-                  verifiedNote={t('socialVerifiedNote')}
-                  reportHint={t('socialReportHint')}
-                  platformLabel={(platform: SocialPlatform) => t(`socialPlatform.${platform}`)}
-                />
-              ) : null}
-
-              {!restaurant.hasOwner ? (
-                <OwnerClaimForm restaurantId={restaurant.id} isLoggedIn={!!session} />
-              ) : null}
-
               <Reveal>
-              <div className="info-card info-card-compact">
+              <div className="info-card info-card-compact detail-desktop-card">
                 <div className="info-card-head">
                   <h2 className="info-card-title">{t('hoursHeading')}</h2>
                   {restaurant.isOpenNow && openNote ? (
@@ -382,36 +473,89 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
                   <span className="no-menu-title">{t('noMenu')}</span>
                 </div>
               ) : (
-                <div className="info-card info-card-compact">
-                  <h2 className="info-card-title">{t('menuHeading')}</h2>
+                <div className="info-card info-card-compact detail-menu-card">
+                  <div className="info-card-head">
+                    <h2 className="info-card-title">{t('menuHeading')}</h2>
+                    {firstMenu.items.length > 0 ? (
+                      <span className="detail-menu-summary">
+                        {t('menuItemCount', { count: firstMenu.items.length })}
+                        {menuPriceRange ? ` · ${menuPriceRange}` : ''}
+                      </span>
+                    ) : null}
+                  </div>
                   {firstMenu.items.length > 0 ? (
-                    <table className="menu-table">
-                      <caption className="sr-only">{t('menuCaption', { name: restaurant.name })}</caption>
-                      <tbody>
-                        {firstMenu.items.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              {item.name}
-                              {item.isPopular ? (
-                                <>
-                                  {' '}
-                                  <span aria-label={t('popularDish')}>🔥</span>
-                                </>
-                              ) : null}
-                            </td>
-                            <td className="price">{formatVndFull(item.priceVnd, locale)}</td>
-                          </tr>
+                    <ul className="detail-menu-list" aria-label={t('menuCaption', { name: restaurant.name })}>
+                      {menuPreview.map((item) => (
+                        <MenuRow key={item.id} name={item.name} popular={item.isPopular} popularLabel={t('popularBadge')} price={formatVndFull(item.priceVnd, locale)} />
+                      ))}
+                    </ul>
+                  ) : null}
+                  {menuRest.length > 0 ? (
+                    <details className="detail-menu-more">
+                      <summary>{t('menuSeeAll', { count: firstMenu.items.length })}</summary>
+                      <ul className="detail-menu-list">
+                        {menuRest.map((item) => (
+                          <MenuRow key={item.id} name={item.name} popular={item.isPopular} popularLabel={t('popularBadge')} price={formatVndFull(item.priceVnd, locale)} />
                         ))}
-                      </tbody>
-                    </table>
+                      </ul>
+                    </details>
                   ) : null}
                   {firstMenu.photos.length > 0 ? (
-                    <div className="info-card-body" style={{ marginTop: firstMenu.items.length > 0 ? 16 : 0 }}>
+                    <div className="info-card-body detail-menu-photos">
                       <ReviewCardPhotos photos={firstMenu.photos} />
+                      <span className="detail-menu-photos-caption">
+                        <strong>{t('menuPhotosHeading')}</strong>
+                        <span>
+                          {t('menuPhotosCount', { count: firstMenu.photos.length })}
+                          {firstMenu.updatedAt
+                            ? ` · ${t('menuUpdatedAt', { date: new Date(firstMenu.updatedAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }) })}`
+                            : ''}
+                        </span>
+                      </span>
                     </div>
                   ) : null}
                 </div>
               )}
+
+              {/* Mobile-only mini map + address (desktop has it in the sidebar). */}
+              <div className="detail-map-card">
+                <div className="detail-map-canvas">
+                  <MapCanvas
+                    pins={[
+                      {
+                        id: restaurant.id,
+                        lat: restaurant.location.lat,
+                        lng: restaurant.location.lng,
+                        score: restaurant.compositeScore?.toFixed(1) ?? '—',
+                        selected: true,
+                      },
+                    ]}
+                  />
+                </div>
+                <div className="detail-map-foot">
+                  <MapPinIcon size={16} className="detail-map-foot-icon" />
+                  <span className="detail-map-address">{restaurant.address.fullAddressText}</span>
+                  <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="detail-map-open">
+                    {t('openMap')}
+                  </a>
+                </div>
+              </div>
+
+              {restaurant.socialLinks.length > 0 ? (
+                <SocialLinksCard
+                  links={restaurant.socialLinks}
+                  heading={t('socialHeading')}
+                  caption={t('socialCaption')}
+                  verifiedNote={t('socialVerifiedNote')}
+                  reportHint={t('socialReportHint')}
+                  platformLabel={(platform: SocialPlatform) => t(`socialPlatform.${platform}`)}
+                />
+              ) : null}
+
+              {!restaurant.hasOwner ? (
+                <OwnerClaimForm restaurantId={restaurant.id} isLoggedIn={!!session} />
+              ) : null}
+
             </>
           ) : (
             <>
@@ -532,6 +676,43 @@ export default async function RestaurantDetailPage({ params, searchParams }: Pag
               </div>
             ))}
           </div>
+
+          {similar.length > 0 ? (
+            <div className="similar-strip-block">
+              <div className="similar-strip-head">
+                <span className="similar-strip-title">{t('similarHeading')}</span>
+                <Link href={`/search?category=${restaurant.categoryCode}`} className="similar-strip-more">
+                  {t('seeMoreShort')}
+                </Link>
+              </div>
+              <div className="similar-strip">
+                {similar.map((s) => (
+                  <Link key={s.id} href={`/restaurant/${s.slug}`} className="similar-strip-card">
+                    <span className={`similar-strip-thumb ${s.thumbnailUrl ? '' : placeTileClass(s.id)}`}>
+                      {s.thumbnailUrl ? <Image src={s.thumbnailUrl} alt="" fill sizes="150px" style={{ objectFit: 'cover' }} /> : null}
+                    </span>
+                    <span className="similar-strip-name">{s.name}</span>
+                    <span className="similar-strip-score">
+                      {s.compositeScore !== null && s.reviewCount > 0 ? (
+                        <>
+                          <StarIcon size={12} />
+                          <span className="similar-strip-score-value">{s.compositeScore.toFixed(1)}</span>
+                          <span>({s.reviewCount})</span>
+                        </>
+                      ) : (
+                        <span>{tCommon('noRating')}</span>
+                      )}
+                    </span>
+                    <span className="similar-strip-meta">
+                      {[s.area, formatDistance(distanceMeters(restaurant.location, { lat: s.lat, lng: s.lng }), locale)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {similar.length > 0 ? (
             <div className="similar-card">

@@ -24,6 +24,8 @@ export async function PlaceRow({ restaurant, thumb = 88, showStatus = true, area
   const tCommon = await getTranslations('common');
   const priceLabel = formatPriceRange(restaurant.priceRange, tCommon);
   const categoryLabel = restaurant.categoryLabel ?? null;
+  // Explicit `area` prop wins; else the summary's own area (backend-computed).
+  const areaLabel = area ?? restaurant.area ?? undefined;
 
   return (
     <Link href={`/restaurant/${restaurant.slug}`} className="place-row">
@@ -57,14 +59,14 @@ export async function PlaceRow({ restaurant, thumb = 88, showStatus = true, area
               <span className="place-row-score-meta">
                 ({restaurant.reviewCount})
                 {categoryLabel ? ` · ${categoryLabel}` : ''}
-                {area ? ` · ${area}` : ''}
+                {areaLabel ? ` · ${areaLabel}` : ''}
               </span>
             </>
           ) : (
             <span className="place-row-score-meta">
               {tCommon('noRating')}
               {categoryLabel ? ` · ${categoryLabel}` : ''}
-              {area ? ` · ${area}` : ''}
+              {areaLabel ? ` · ${areaLabel}` : ''}
             </span>
           )}
         </div>

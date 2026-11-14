@@ -15,6 +15,8 @@ interface Props {
   emptyText: string;
   seeAllLabel: string;
   moreCountLabel: string;
+  /** Mobile-only "16 ảnh" badge on the big tile. */
+  countLabel?: string;
 }
 
 const VISIBLE_TILE_COUNT = 4;
@@ -88,7 +90,7 @@ function SinglePhotoTile({ photo, alt }: SinglePhotoTileProps) {
  * restaurant+review-photos list from the backend (buildDetailDto) — this
  * component only handles layout/lightbox, not sourcing.
  */
-export function PhotoGalleryHero({ photos, photoAlts, emptyText, seeAllLabel, moreCountLabel }: Props) {
+export function PhotoGalleryHero({ photos, photoAlts, emptyText, seeAllLabel, moreCountLabel, countLabel }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   // Index into `photos` of the full-size view, layered on top of the grid
   // lightbox — null means "not showing a full-size photo".
@@ -133,6 +135,12 @@ export function PhotoGalleryHero({ photos, photoAlts, emptyText, seeAllLabel, mo
                   style={{ objectFit: 'cover' }}
                 />
               )}
+              {index === 0 && countLabel && photos.length > 1 ? (
+                <span className="photo-hero-count" aria-hidden="true">
+                  <CameraIcon size={12} />
+                  {countLabel}
+                </span>
+              ) : null}
               {isOverlayTile ? (
                 <span className="photo-hero-more-overlay">
                   <span className="photo-hero-more-count">{moreCountLabel}</span>

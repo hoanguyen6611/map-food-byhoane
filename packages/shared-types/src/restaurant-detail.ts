@@ -59,6 +59,8 @@ export interface MenuDto {
   // data) — uploaded via admin-web's MenuPhotosSection, displayed read-only
   // on the public web restaurant detail page.
   photos: PhotoDto[];
+  /** Last time the menu (or its photos) changed — "cập nhật 10/2026". */
+  updatedAt: string;
 }
 
 export type SocialPlatform = 'facebook' | 'instagram' | 'tiktok' | 'website';
@@ -80,6 +82,15 @@ export interface RestaurantSocialLinkDto {
 // `GET /restaurants/:id/ai-summary` endpoint (see AISummaryResponseDto in
 // ai-summary.ts) so a slow/optional AI fetch never blocks the core detail
 // response.
+/** Gallery photo on the restaurant detail page — adds who posted it, for the full-screen viewer. */
+export interface GalleryPhotoDto extends PhotoDto {
+  createdAt: string;
+  caption: string | null;
+  uploader: { id: string; displayName: string | null; avatarUrl: string | null } | null;
+  /** The review's overall stars when this photo came from a review, else null. */
+  reviewRating: number | null;
+}
+
 export interface RestaurantDetailDto {
   id: string;
   name: string;
@@ -97,7 +108,7 @@ export interface RestaurantDetailDto {
   isOpenNow: boolean;
   facilities: FacilityType[];
   menus: MenuDto[];
-  photos: PhotoDto[];
+  photos: GalleryPhotoDto[];
   // Which of `photos` (if any) is the explicitly-chosen "ảnh đại diện" —
   // null means no explicit choice, so the public thumbnail/gallery-hero
   // falls back to the oldest approved photo (see RestaurantService's
@@ -112,6 +123,8 @@ export interface RestaurantDetailDto {
   reviewCount: number;
   /** Raw page-view counter (every detail-page load, no dedup) — see AdminRestaurantService/RestaurantService's `viewCount` schema comment. */
   viewCount: number;
+  /** Page views in the last 7 days (RestaurantDailyStat). */
+  weeklyViewCount: number;
   reviews: ReviewDto[];
   // Whether Restaurant.ownerId is set — never the raw id itself, which the
   // public has no reason to see. Gates the "Bạn là chủ quán này?" claim CTA.

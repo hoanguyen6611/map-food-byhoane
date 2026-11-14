@@ -46,7 +46,8 @@
     "categoriesNavLink": "Danh mục",
     "leaderboardNavLink": "Xếp hạng",
     "footerBrandDesc": "Tìm quán ăn, cà phê và nhà hàng ở khắp Việt Nam qua đánh giá thật.",
-    "accountSectionLabel": "Tài khoản"
+    "accountSectionLabel": "Tài khoản",
+    "close": "Đóng"
   },
   "home": {
     "heroTitle": "Tìm đúng quán, không chỉ quán gần nhất",
@@ -74,7 +75,16 @@
     "statRestaurants": "Quán đã đánh giá",
     "statCriteria": "Tiêu chí chấm điểm",
     "seeAllLink": "Xem tất cả quán →",
-    "areasCaption": "Bấm để xem trang khu vực"
+    "areasCaption": "Bấm để xem trang khu vực",
+    "seeMoreLink": "Xem thêm",
+    "provinceSheetTitle": "Chọn tỉnh/thành",
+    "provinceSheetSearch": "Tìm tỉnh/thành…",
+    "useCurrentLocation": "Dùng vị trí hiện tại",
+    "locating": "Đang tìm vị trí…",
+    "locationError": "Không xác định được tỉnh/thành gần bạn.",
+    "allAreasLink": "Tất cả {count} khu vực",
+    "trendingGrowthViews": "↑ {percent}% lượt xem",
+    "trendingGrowth": "↑ {percent}%"
   },
   "search": {
     "titleAll": "Tìm kiếm quán ăn",
@@ -184,7 +194,19 @@
     "openUntilLong": "Mở đến {time}",
     "criteriaHeading": "Điểm theo tiêu chí",
     "pageOfSpaced": "Trang {page} / {totalPages}",
-    "seeMoreReviews": "Xem thêm"
+    "seeMoreReviews": "Xem thêm",
+    "photoCount": "{count} ảnh",
+    "openUntilToday": "Mở đến {time} hôm nay",
+    "weekHours": "Giờ cả tuần",
+    "menuItemCount": "{count} món",
+    "popularBadge": "Nổi bật",
+    "menuSeeAll": "Xem toàn bộ {count} món",
+    "menuPhotosHeading": "Ảnh thực đơn",
+    "menuPhotosCount": "{count} ảnh",
+    "openMap": "Mở bản đồ",
+    "seeMoreShort": "Xem thêm",
+    "weeklyViewCount": "{count} trong tuần này",
+    "menuUpdatedAt": "cập nhật {date}"
   },
   "notFound": {
     "title": "Không tìm thấy trang",

@@ -7,8 +7,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -44,8 +46,11 @@ export class CollectionController {
   @Get('me/collections')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  listMine(@CurrentUser() user: RequestUser): Promise<CollectionListResponse> {
-    return this.collectionService.listMine(user.id);
+  listMine(
+    @CurrentUser() user: RequestUser,
+    @Query('restaurantId', new ParseUUIDPipe({ optional: true })) restaurantId?: string,
+  ): Promise<CollectionListResponse> {
+    return this.collectionService.listMine(user.id, restaurantId);
   }
 
   // Public — no class-level guard: a collection's own `isPublic` flag (not

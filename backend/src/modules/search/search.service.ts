@@ -1,16 +1,21 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  DistrictSummaryDto,
+  NearestProvinceDto,
   Paginated,
   PriceRangeCode,
+  ProvinceSummaryDto,
   RestaurantCategoryCode,
   RestaurantSummaryDto,
+  TrendingUpRestaurantDto,
 } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { S3Service } from '../media/s3.service';
 import { isOpenNow, toVnNow } from '../restaurant/opening-hours.util';
 import { clampRadiusKm } from '../restaurant/restaurant.util';
 import type { SearchQueryDto } from './dto/search-query.dto';
+import { AREA_SQL, DISTRICT_SQL, districtCondition, slugifyArea } from './area.util';
 
 // Safety ceiling on DB-level candidates fetched before openNow/minRating
 // filtering (which — like build-prompts/03's approach — happens in JS,
@@ -48,6 +53,12 @@ interface RawRow {
   distance_meters: number | null;
   text_rank: number;
   cover_photo_id: string | null;
+  area: string | null;
+}
+
+interface TrendingRawRow extends RawRow {
+  views_recent: bigint | number | null;
+  views_prev: bigint | number | null;
 }
 
 export interface SearchContext {
@@ -138,7 +149,9 @@ export class SearchService {
     }
 
     if (query.district) {
-      conditions.push(Prisma.sql`a.district = ${query.district}`);
+      // Matches the stored district OR the district inside the full address
+      // text — post-reform addresses leave `district` empty (see area.util).
+      conditions.push(districtCondition(query.district));
     }
 
     if (query.province) {
@@ -197,7 +210,8 @@ export class SearchService {
         l.lat,
         l.lng,
         ${distanceExpr} AS distance_meters,
-        ${textRankExpr} AS text_rank
+        ${textRankExpr} AS text_rank,
+        ${AREA_SQL} AS area
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
@@ -243,7 +257,7 @@ export class SearchService {
    * directly (free); views use RestaurantDailyStat (RestaurantService.incrementViewCount),
    * since RestaurantStatus.viewCount alone has no time dimension.
    */
-  async findTrendingUp(province: string | undefined, limit = DEFAULT_TRENDING_UP_LIMIT): Promise<RestaurantSummaryDto[]> {
+  async findTrendingUp(province: string | undefined, limit = DEFAULT_TRENDING_UP_LIMIT): Promise<TrendingUpRestaurantDto[]> {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const recentStart = new Date(today);
@@ -253,7 +267,7 @@ export class SearchService {
 
     const provinceCondition = province ? Prisma.sql`AND a.province = ${province}` : Prisma.sql``;
 
-    const rows = await this.prisma.$queryRaw<RawRow[]>`
+    const rows = await this.prisma.$queryRaw<TrendingRawRow[]>`
       WITH view_stats AS (
         SELECT restaurant_id,
           SUM(CASE WHEN date >= ${recentStart} THEN view_count ELSE 0 END) AS views_recent,
@@ -285,7 +299,10 @@ export class SearchService {
         l.lat,
         l.lng,
         NULL::float AS distance_meters,
-        0 AS text_rank
+        0 AS text_rank,
+        ${AREA_SQL} AS area,
+        COALESCE(v.views_recent, 0) AS views_recent,
+        COALESCE(v.views_prev, 0) AS views_prev
       FROM restaurants r
       JOIN locations l ON l.id = r.location_id
       JOIN restaurant_categories rc ON rc.id = r.category_id
@@ -310,7 +327,82 @@ export class SearchService {
       LIMIT ${limit}
     `;
 
-    return this.hydrate(rows);
+    const summaries = await this.hydrate(rows);
+    return summaries.map((summary, i) => {
+      const recent = Number(rows[i].views_recent ?? 0);
+      const prev = Number(rows[i].views_prev ?? 0);
+      return {
+        ...summary,
+        viewGrowthPercent: prev > 0 ? Math.round(((recent - prev) / prev) * 100) : null,
+      };
+    });
+  }
+
+  /**
+   * `GET /districts?province=` — every district that has at least one
+   * published restaurant, with its count (stored district or the one parsed
+   * from the address text, see area.util). Most restaurants first.
+   */
+  async listDistricts(province: string | undefined): Promise<DistrictSummaryDto[]> {
+    const provinceCondition = province ? Prisma.sql`AND a.province = ${province}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{ name: string; restaurant_count: bigint }[]>`
+      SELECT t.name, COUNT(*) AS restaurant_count
+      FROM (
+        SELECT ${DISTRICT_SQL} AS name
+        FROM restaurants r
+        JOIN addresses a ON a.id = r.address_id
+        JOIN restaurant_status rs ON rs.restaurant_id = r.id
+        WHERE r.deleted_at IS NULL
+          AND rs.publication_status = 'published'
+          ${provinceCondition}
+      ) t
+      WHERE t.name IS NOT NULL AND t.name <> ''
+      GROUP BY t.name
+      ORDER BY restaurant_count DESC, t.name ASC
+    `;
+    return rows.map((r) => ({
+      name: r.name,
+      slug: slugifyArea(r.name),
+      restaurantCount: Number(r.restaurant_count),
+    }));
+  }
+
+  /** `GET /provinces` — provinces with published restaurants and their counts. */
+  async listProvinces(): Promise<ProvinceSummaryDto[]> {
+    const rows = await this.prisma.$queryRaw<{ name: string; restaurant_count: bigint }[]>`
+      SELECT a.province AS name, COUNT(*) AS restaurant_count
+      FROM restaurants r
+      JOIN addresses a ON a.id = r.address_id
+      JOIN restaurant_status rs ON rs.restaurant_id = r.id
+      WHERE r.deleted_at IS NULL
+        AND rs.publication_status = 'published'
+        AND a.province <> ''
+      GROUP BY a.province
+      ORDER BY restaurant_count DESC, a.province ASC
+    `;
+    return rows.map((r) => ({ name: r.name, restaurantCount: Number(r.restaurant_count) }));
+  }
+
+  /**
+   * `GET /provinces/nearest` — the province of the closest published
+   * restaurant (within 150 km), so "Dùng vị trí hiện tại" lands on a
+   * province that actually has data. No reverse-geocoding service needed.
+   */
+  async findNearestProvince(lat: number, lng: number): Promise<NearestProvinceDto> {
+    const rows = await this.prisma.$queryRaw<{ province: string }[]>`
+      SELECT a.province
+      FROM restaurants r
+      JOIN locations l ON l.id = r.location_id
+      JOIN addresses a ON a.id = r.address_id
+      JOIN restaurant_status rs ON rs.restaurant_id = r.id
+      WHERE r.deleted_at IS NULL
+        AND rs.publication_status = 'published'
+        AND a.province <> ''
+        AND ST_DWithin(l.geo_point, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography, 150000)
+      ORDER BY l.geo_point <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+      LIMIT 1
+    `;
+    return { name: rows[0]?.province ?? null };
   }
 
   private validate(query: SearchQueryDto): void {
@@ -404,6 +496,7 @@ export class SearchService {
       distanceMeters:
         row.distance_meters !== null ? Math.round(row.distance_meters) : null,
       isOpenNow: isOpenNow(hoursByRestaurant.get(row.id) ?? [], vnNow),
+      area: row.area ?? null,
     }));
   }
 

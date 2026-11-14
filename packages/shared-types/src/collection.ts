@@ -12,6 +12,8 @@ export interface CollectionSummaryDto {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Only on `GET /me/collections?restaurantId=` — whether that restaurant is already in this collection. */
+  containsRestaurant?: boolean;
 }
 
 export interface CollectionListResponse {

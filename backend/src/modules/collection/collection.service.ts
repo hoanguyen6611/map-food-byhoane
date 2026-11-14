@@ -23,14 +23,27 @@ export class CollectionService {
     return this.toSummaryDto(collection, 0);
   }
 
-  async listMine(userId: string): Promise<CollectionListResponse> {
+  /**
+   * With `restaurantId`, each summary also says whether that restaurant is
+   * already in it (`containsRestaurant`) — the "Thêm vào bộ sưu tập" sheet's
+   * "Đã có quán này" state.
+   */
+  async listMine(userId: string, restaurantId?: string): Promise<CollectionListResponse> {
     const collections = await this.prisma.collection.findMany({
       where: { userId },
-      include: { _count: { select: { items: true } } },
+      include: {
+        _count: { select: { items: true } },
+        ...(restaurantId ? { items: { where: { restaurantId }, select: { id: true } } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
     return {
-      items: collections.map((c) => this.toSummaryDto(c, c._count.items)),
+      items: collections.map((c) => {
+        const summary = this.toSummaryDto(c, c._count.items);
+        if (!restaurantId) return summary;
+        const matched = (c as typeof c & { items?: { id: string }[] }).items ?? [];
+        return { ...summary, containsRestaurant: matched.length > 0 };
+      }),
     };
   }
 

@@ -28,6 +28,8 @@ export interface RestaurantCardData {
   priceRange: RestaurantSummaryDto['priceRange'];
   isOpenNow?: boolean;
   categoryLabel?: string;
+  /** District/ward label from the backend (RestaurantSummaryDto.area), when known. */
+  area?: string | null;
 }
 
 interface Props {

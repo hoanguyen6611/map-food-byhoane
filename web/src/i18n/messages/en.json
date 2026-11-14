@@ -46,7 +46,8 @@
     "categoriesNavLink": "Categories",
     "leaderboardNavLink": "Leaderboard",
     "footerBrandDesc": "Find restaurants, cafes, and eateries in Ho Chi Minh City through real reviews.",
-    "accountSectionLabel": "Account"
+    "accountSectionLabel": "Account",
+    "close": "Close"
   },
   "home": {
     "heroTitle": "Find the right place, not just the nearest one",
@@ -74,7 +75,16 @@
     "statRestaurants": "Restaurants reviewed",
     "statCriteria": "Rating criteria",
     "seeAllLink": "See all restaurants →",
-    "areasCaption": "Tap to view an area page"
+    "areasCaption": "Tap to view an area page",
+    "seeMoreLink": "See more",
+    "provinceSheetTitle": "Choose a city/province",
+    "provinceSheetSearch": "Search cities/provinces…",
+    "useCurrentLocation": "Use my current location",
+    "locating": "Finding your location…",
+    "locationError": "Couldn’t find a city/province near you.",
+    "allAreasLink": "All {count} areas",
+    "trendingGrowthViews": "↑ {percent}% views",
+    "trendingGrowth": "↑ {percent}%"
   },
   "search": {
     "titleAll": "Search restaurants",
@@ -184,7 +194,19 @@
     "openUntilLong": "Open until {time}",
     "criteriaHeading": "Scores by criteria",
     "pageOfSpaced": "Page {page} / {totalPages}",
-    "seeMoreReviews": "See more"
+    "seeMoreReviews": "See more",
+    "photoCount": "{count} photos",
+    "openUntilToday": "Open until {time} today",
+    "weekHours": "Weekly hours",
+    "menuItemCount": "{count} items",
+    "popularBadge": "Popular",
+    "menuSeeAll": "See all {count} items",
+    "menuPhotosHeading": "Menu photos",
+    "menuPhotosCount": "{count} photos",
+    "openMap": "Open map",
+    "seeMoreShort": "See more",
+    "weeklyViewCount": "{count} this week",
+    "menuUpdatedAt": "updated {date}"
   },
   "notFound": {
     "title": "Page not found",
