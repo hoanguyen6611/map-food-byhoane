@@ -21,6 +21,7 @@ import type {
   SearchSort,
   TrendingUpRestaurantDto,
 } from '@foodmap/shared-types';
+import { DEFAULT_SITE_SETTINGS, type SiteSettingsDto } from '@foodmap/shared-types';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? 'http://localhost:3000';
 
@@ -221,4 +222,17 @@ export async function getReviewsForRestaurant(
     LISTING_REVALIDATE_SECONDS,
     [`restaurant:${restaurantId}`],
   );
+}
+
+/**
+ * Admin-editable footer links, scoring/level rules and About copy
+ * (admin-web "Nội dung & Cài đặt"). Defaults when the backend predates the
+ * endpoint or is unreachable, so the footer/About page always render.
+ */
+export async function getSiteSettings(): Promise<SiteSettingsDto> {
+  try {
+    return await apiFetch<SiteSettingsDto>('/site-settings', 300, ['site-settings']);
+  } catch {
+    return DEFAULT_SITE_SETTINGS;
+  }
 }

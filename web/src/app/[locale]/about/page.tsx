@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import { searchRestaurants } from '@/lib/api';
+import { getSiteSettings, searchRestaurants } from '@/lib/api';
+import { getAboutTranslator } from '@/lib/about-content';
 import { Link } from '@/i18n/navigation';
 
 // The 7 review-criteria codes actually rated (packages/shared-types/src/review.ts's
@@ -9,20 +9,9 @@ import { Link } from '@/i18n/navigation';
 // ReviewCriteriaBreakdownDto is a fixed, non-locale-aware string).
 const AXIS_CODES = ['food_quality', 'space', 'price', 'service', 'hygiene', 'wifi', 'parking'] as const;
 
-// Real backend constant (backend/src/modules/review/composite-score.util.ts's
-// MIN_VOTES_THRESHOLD) — cited here as an actual fact about how scoring
-// works, not invented for the page.
-const MIN_VOTES_THRESHOLD = 5;
-
-// Kept in sync by hand with backend/src/modules/user/gamification.service.ts's
-// POINTS_PER_*/LEVEL_THRESHOLDS/badge thresholds — same "cite the real
-// constant, don't invent copy" convention as MIN_VOTES_THRESHOLD/AXIS_CODES
-// above. Levels/points are computed live from real activity, never stored —
-// see that service's own doc comment.
-const POINTS_PER_REVIEW = 10;
-const POINTS_PER_CONTRIBUTION = 15;
-const POINTS_PER_HELPFUL_VOTE = 2;
-const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000];
+// Rule numbers (scoring threshold, points, level/badge thresholds) and all
+// copy come from admin-editable site settings — the same values the backend
+// actually scores with, so this page can't drift from the real rules.
 const BADGE_CODES = ['contributor_10', 'coffee_hunter', 'helpful_100'] as const;
 
 const SECTIONS = ['cach-cham-diem', 'tieu-chi', 'kiem-duyet', 'du-lieu', 'cap-do-thanh-vien'] as const;
@@ -35,16 +24,18 @@ interface PageProps {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'about' });
+  const t = await getAboutTranslator(locale);
   return { title: t('pageTitle') };
 }
 
-export default async function AboutPage({ searchParams }: PageProps) {
-  const { section: sectionParam } = await searchParams;
+export default async function AboutPage({ params, searchParams }: PageProps) {
+  const [{ locale }, { section: sectionParam }] = await Promise.all([params, searchParams]);
   const section: Section = SECTIONS.includes(sectionParam as Section) ? (sectionParam as Section) : 'cach-cham-diem';
 
-  const t = await getTranslations('about');
-  const totalResult = await searchRestaurants({ pageSize: 1 });
+  const [settings, totalResult] = await Promise.all([getSiteSettings(), searchRestaurants({ pageSize: 1 })]);
+  const t = await getAboutTranslator(locale, settings);
+  const { minVotesThreshold } = settings.scoring;
+  const rules = settings.gamification;
 
   function sectionHref(target: Section): string {
     return target === 'cach-cham-diem' ? '/about' : `/about?section=${target}`;
@@ -72,11 +63,11 @@ export default async function AboutPage({ searchParams }: PageProps) {
                 <span className="about-fact-label">{t('score.factRestaurants')}</span>
               </div>
               <div className="about-fact-card">
-                <span className="about-fact-value font-num">{MIN_VOTES_THRESHOLD}</span>
+                <span className="about-fact-value font-num">{minVotesThreshold}</span>
                 <span className="about-fact-label">{t('score.factThreshold')}</span>
               </div>
               <div className="about-fact-card">
-                <span className="about-fact-value font-num">7</span>
+                <span className="about-fact-value font-num">{AXIS_CODES.length}</span>
                 <span className="about-fact-label">{t('score.factCriteria')}</span>
               </div>
             </div>
@@ -145,22 +136,22 @@ export default async function AboutPage({ searchParams }: PageProps) {
             <p className="about-section-body">{t('levels.body')}</p>
             <div className="about-fact-grid">
               <div className="about-fact-card">
-                <span className="about-fact-value font-num">+{POINTS_PER_REVIEW}</span>
+                <span className="about-fact-value font-num">+{rules.pointsPerReview}</span>
                 <span className="about-fact-label">{t('levels.factReview')}</span>
               </div>
               <div className="about-fact-card">
-                <span className="about-fact-value font-num">+{POINTS_PER_CONTRIBUTION}</span>
+                <span className="about-fact-value font-num">+{rules.pointsPerContribution}</span>
                 <span className="about-fact-label">{t('levels.factContribution')}</span>
               </div>
               <div className="about-fact-card">
-                <span className="about-fact-value font-num">+{POINTS_PER_HELPFUL_VOTE}</span>
+                <span className="about-fact-value font-num">+{rules.pointsPerHelpfulVote}</span>
                 <span className="about-fact-label">{t('levels.factHelpful')}</span>
               </div>
             </div>
 
             <h2 className="about-section-subtitle">{t('levels.thresholdsTitle')}</h2>
             <div className="axis-doc-table">
-              {LEVEL_THRESHOLDS.map((threshold, index) => (
+              {rules.levelThresholds.map((threshold, index) => (
                 <div className="axis-doc-row" key={threshold}>
                   <span className="axis-doc-label">{t('levels.levelLabel', { level: index + 1 })}</span>
                   <span className="axis-doc-note">{t('levels.levelThreshold', { points: threshold })}</span>

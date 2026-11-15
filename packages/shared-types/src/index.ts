@@ -23,3 +23,4 @@ export * from './push';
 export * from './owner';
 export * from './social';
 export * from './collection';
+export * from './site-settings';

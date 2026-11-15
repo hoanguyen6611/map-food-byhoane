@@ -28,6 +28,7 @@ import { AdminFacilityService } from './admin-facility.service';
 import { AdminCuisineController } from './admin-cuisine.controller';
 import { AdminCuisineService } from './admin-cuisine.service';
 import { AuditLogService } from './audit-log.service';
+import { AdminSiteSettingsController } from './admin-site-settings.controller';
 import { PhotoService } from './photo.service';
 
 // Composition layer over other modules with elevated RBAC + AuditLog, built
@@ -60,6 +61,7 @@ import { PhotoService } from './photo.service';
     AdminCategoryController,
     AdminFacilityController,
     AdminCuisineController,
+    AdminSiteSettingsController,
   ],
   providers: [
     AdminRestaurantService,

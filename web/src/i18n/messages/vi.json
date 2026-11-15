@@ -1,5 +1,6 @@
 {
   "common": {
+    "footerComingSoon": "Sắp ra mắt",
     "footerAllAreas": "Tất cả khu vực",
     "footerContact": "Liên hệ",
     "footerTerms": "Điều khoản",
@@ -543,85 +544,6 @@
     "nearMeTitle": "Quán gần bạn",
     "nearMeEmpty": "Không tìm thấy quán nào gần bạn trong bán kính 3km.",
     "backToProvince": "← Quay lại {province}"
-  },
-  "about": {
-    "pageTitle": "Cách chấm điểm",
-    "footerHeading": "Về chúng tôi",
-    "navEyebrow": "Nội dung",
-    "nav": {
-      "cach-cham-diem": "Cách chấm điểm",
-      "tieu-chi": "7 tiêu chí",
-      "kiem-duyet": "Kiểm duyệt đánh giá",
-      "du-lieu": "Nguồn dữ liệu",
-      "cap-do-thanh-vien": "Cấp độ thành viên"
-    },
-    "score": {
-      "title": "Điểm của một quán được tính thế nào",
-      "body": "Điểm hiển thị trên trang quán không phải trung bình cộng đơn giản của mọi đánh giá. Hệ thống dùng công thức trung bình có điều chỉnh: quán càng có nhiều đánh giá thì điểm càng phản ánh sát trải nghiệm thật; quán mới chỉ có 1-2 đánh giá sẽ được kéo gần về mức trung bình chung của toàn hệ thống, để vài đánh giá đầu tiên (có thể quá khắt khe hoặc quá dễ dãi) không đẩy điểm lên hoặc xuống quá đà.",
-      "factRestaurants": "Quán trong hệ thống",
-      "factThreshold": "Đánh giá để điểm bắt đầu ổn định",
-      "factCriteria": "Tiêu chí có thể chấm thêm",
-      "calloutTitle": "Vì sao không chỉ lấy trung bình cộng",
-      "calloutBody": "Một quán vừa mở, được vài người quen ghé chấm 5 sao, không nên nghiễm nhiên đứng đầu bảng xếp hạng ngay. Công thức này giúp điểm số đáng tin hơn khi quán còn ít đánh giá, và dần phản ánh đúng trải nghiệm thật khi có nhiều người đánh giá hơn."
-    },
-    "axes": {
-      "title": "7 tiêu chí đánh giá",
-      "body": "Ngoài điểm tổng thể, người đánh giá có thể chấm thêm theo 7 tiêu chí riêng — hiển thị dưới dạng biểu đồ trên trang quán để bạn biết quán mạnh/yếu ở đâu. Các tiêu chí này không được tính vào điểm tổng ở đầu trang — điểm tổng chỉ đến từ đánh giá tổng thể. Người đánh giá có thể bỏ qua tiêu chí không dùng tới.",
-      "items": {
-        "food_quality": { "label": "Chất lượng món ăn", "note": "Vị, độ tươi, độ ổn định giữa các lần ghé." },
-        "space": { "label": "Không gian", "note": "Độ ồn, chỗ ngồi, ánh sáng, độ thoáng." },
-        "price": { "label": "Giá cả", "note": "Tương quan giữa giá và phần ăn nhận được." },
-        "service": { "label": "Phục vụ", "note": "Thái độ, tốc độ ra món, xử lý khi sai order." },
-        "hygiene": { "label": "Vệ sinh", "note": "Bàn ghế, chén đũa, khu chế biến nhìn thấy được." },
-        "wifi": { "label": "Wifi", "note": "Chỉ áp dụng khi quán có wifi." },
-        "parking": { "label": "Chỗ để xe", "note": "Có chỗ, có người trông, mất phí hay không." }
-      }
-    },
-    "moderation": {
-      "title": "Đánh giá được kiểm duyệt ra sao",
-      "body": "Mục tiêu là giữ đánh giá thật, không phải giữ điểm đẹp cho quán.",
-      "steps": {
-        "1": { "title": "Chỉ người đã đăng nhập", "body": "Mỗi tài khoản chỉ đánh giá lại cùng một quán sau tối thiểu 24 giờ kể từ lần gần nhất, để hạn chế spam." },
-        "2": { "title": "Lọc tự động", "body": "Hệ thống chấm điểm rủi ro cho từng đánh giá (link quảng cáo, cụm từ spam, đăng dồn dập…) — đánh giá rủi ro cao được giữ lại để người kiểm duyệt xem trước khi hiển thị công khai." },
-        "3": { "title": "Cộng đồng báo cáo", "body": "Người dùng có thể báo cáo đánh giá hoặc thông tin quán sai lệch; đội kiểm duyệt xem xét và quyết định." }
-      }
-    },
-    "data": {
-      "title": "Dữ liệu đến từ đâu",
-      "body": "Thông tin quán do cộng đồng đóng góp và cập nhật liên tục. Giờ mở cửa, số điện thoại và tiện ích có thể thay đổi — nếu bạn thấy sai, gửi cập nhật ngay trên trang quán qua ứng dụng di động.",
-      "sourcesTitle": "Hai nguồn chính",
-      "source1Name": "Người dùng app",
-      "source1Body": "điểm số, ảnh, nhận xét, và báo cáo thay đổi (giờ mở cửa, đã đóng cửa, thông tin sai) cho quán đã có sẵn.",
-      "source2Name": "Đóng góp quán mới",
-      "source2Body": "ai cũng có thể thêm một quán chưa có trên bản đồ — hệ thống kiểm duyệt nhanh trước khi hiển thị công khai.",
-      "disclaimer": "Dữ liệu quán hiển thị có thể chưa đầy đủ với mọi quán tại TP. Hồ Chí Minh — hệ thống phát triển dần theo đóng góp của cộng đồng."
-    },
-    "levels": {
-      "title": "Cấp độ thành viên được tính thế nào",
-      "body": "Mỗi hoạt động thật trên tài khoản của bạn được cộng điểm — điểm càng cao, cấp độ càng tăng. Không có cách nào mua hay làm giả điểm: mọi con số đều tính trực tiếp từ đánh giá, đóng góp và lượt hữu ích thật của bạn, tính lại mỗi khi bạn mở trang hồ sơ.",
-      "factReview": "điểm / đánh giá được duyệt",
-      "factContribution": "điểm / quán đóng góp được duyệt",
-      "factHelpful": "điểm / lượt hữu ích nhận được",
-      "thresholdsTitle": "Mốc lên cấp",
-      "levelLabel": "Cấp {level}",
-      "levelThreshold": "Từ {points} điểm",
-      "badgesTitle": "Huy hiệu thành tích",
-      "badges": {
-        "contributor_10": {
-          "title": "Đóng góp 10 quán mới",
-          "body": "Đạt được khi có từ 10 quán bạn đóng góp đã được duyệt và hiển thị công khai."
-        },
-        "coffee_hunter": {
-          "title": "Thợ săn cà phê",
-          "body": "Đạt được khi bạn đã viết từ 10 đánh giá được duyệt cho các quán thuộc danh mục Quán cà phê."
-        },
-        "helpful_100": {
-          "title": "100 lượt hữu ích",
-          "body": "Đạt được khi tổng số lượt \"Hữu ích\" người khác dành cho đánh giá của bạn đạt từ 100 trở lên."
-        }
-      },
-      "disclaimer": "Huy hiệu và cấp độ chỉ mang tính ghi nhận đóng góp — không ảnh hưởng đến điểm số hay thứ hạng của quán ăn."
-    }
   },
   "addRestaurant": {
     "title": "Thêm địa điểm",

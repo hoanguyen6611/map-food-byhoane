@@ -23,6 +23,7 @@ export interface MobileFooterData {
   socials: { network: 'facebook' | 'instagram' | 'tiktok'; href: string; label: string }[];
   languageLabel: string;
   copyright: string;
+  comingSoonLabel: string;
 }
 
 type Variant = 'full' | 'compact' | 'hidden';
@@ -121,10 +122,16 @@ export function MobileFooter({ data }: { data: MobileFooterData }) {
           <div className="mfooter-socials">
             {data.socials.map(({ network, href, label }) => {
               const Icon = SOCIAL_ICON[network];
-              return (
+              // No URL configured yet (SOCIAL_LINKS): still drawn per the
+              // design, but inert — never a dead link.
+              return href ? (
                 <a key={network} href={href} className="mfooter-social" aria-label={label} target="_blank" rel="noopener noreferrer">
                   <Icon size={16} aria-hidden="true" />
                 </a>
+              ) : (
+                <span key={network} className="mfooter-social mfooter-social-pending" role="img" aria-label={`${label} — ${data.comingSoonLabel}`} title={data.comingSoonLabel}>
+                  <Icon size={16} aria-hidden="true" />
+                </span>
               );
             })}
           </div>

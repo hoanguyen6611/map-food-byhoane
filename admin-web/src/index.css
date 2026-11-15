@@ -1263,3 +1263,101 @@ body {
   width: 100%;
   resize: vertical;
 }
+
+/* ---------- Nội dung & Cài đặt (AdminSiteSettingsPage) ---------- */
+
+.settings-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 760px;
+}
+
+.settings-readonly {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+}
+
+.settings-heading {
+  font-size: 15px;
+  margin: 8px 0 6px;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+}
+
+.settings-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-grid-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.settings-text-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+
+.settings-text-head,
+.settings-text-row {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.settings-text-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.settings-text-label {
+  font-size: 13px;
+  color: var(--color-text);
+  padding-top: 9px;
+}
+
+.settings-text-row input,
+.settings-text-row textarea {
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-text-row textarea {
+  resize: vertical;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .settings-text-head {
+    display: none;
+  }
+  .settings-text-row,
+  .settings-grid-3,
+  .settings-grid-5 {
+    grid-template-columns: 1fr;
+  }
+}

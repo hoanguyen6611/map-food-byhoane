@@ -2,21 +2,14 @@ import { Injectable } from '@nestjs/common';
 import type { BadgeCode, GamificationDto, LeaderboardEntryDto } from '@foodmap/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
+import { SiteSettingsService } from '../site-settings/site-settings.service';
+import type { GamificationSettings } from '@foodmap/shared-types';
 
-// Exported so GamificationService.getLeaderboard's raw SQL aggregation uses
-// the exact same weights as computeForUser's per-user live computation —
-// the two code paths can never silently drift apart.
-export const POINTS_PER_REVIEW = 10;
-export const POINTS_PER_CONTRIBUTION = 15;
-export const POINTS_PER_HELPFUL_VOTE = 2;
-
-// Level `i+1` starts at LEVEL_THRESHOLDS[i] points. 5 levels; level 5 has no
-// ceiling (pointsToNextLevel/nextLevelThreshold are null once reached).
-const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000];
-
-const COFFEE_HUNTER_REVIEW_THRESHOLD = 10;
-const CONTRIBUTOR_BADGE_THRESHOLD = 10;
-const HELPFUL_BADGE_THRESHOLD = 100;
+// Points per activity, level thresholds and badge thresholds are
+// admin-editable (site settings → gamification, defaults in
+// packages/shared-types/src/site-settings.ts). computeForUser and
+// getLeaderboard read the same settings object per call, so a user's own
+// profile and the leaderboard can never disagree.
 
 const COFFEE_CATEGORY_CODE = 'quan_ca_phe';
 
@@ -46,17 +39,18 @@ export class GamificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mediaService: MediaService,
+    private readonly siteSettings: SiteSettingsService,
   ) {}
 
   async computeForUser(userId: string): Promise<GamificationDto> {
-    const counts = await this.fetchActivityCounts(userId);
+    const [counts, rules] = await Promise.all([this.fetchActivityCounts(userId), this.siteSettings.get('gamification')]);
     const points =
-      counts.publishedReviewCount * POINTS_PER_REVIEW +
-      counts.approvedContributionCount * POINTS_PER_CONTRIBUTION +
-      counts.helpfulVotesReceived * POINTS_PER_HELPFUL_VOTE;
+      counts.publishedReviewCount * rules.pointsPerReview +
+      counts.approvedContributionCount * rules.pointsPerContribution +
+      counts.helpfulVotesReceived * rules.pointsPerHelpfulVote;
 
-    const { level, pointsToNextLevel, nextLevelThreshold } = this.computeLevel(points);
-    const badges = this.computeBadges(counts);
+    const { level, pointsToNextLevel, nextLevelThreshold } = this.computeLevel(points, rules);
+    const badges = this.computeBadges(counts, rules);
 
     return {
       points,
@@ -79,15 +73,16 @@ export class GamificationService {
    * users, same visibility rule PublicProfileDto's own gate uses.
    */
   async getLeaderboard(limit: number): Promise<LeaderboardEntryDto[]> {
+    const rules = await this.siteSettings.get('gamification');
     const rows = await this.prisma.$queryRaw<LeaderboardRawRow[]>`
       SELECT
         u.id AS user_id,
         up.display_name,
         p.storage_key,
         (
-          COALESCE(rev.count, 0) * ${POINTS_PER_REVIEW}
-          + COALESCE(con.count, 0) * ${POINTS_PER_CONTRIBUTION}
-          + COALESCE(hv.count, 0) * ${POINTS_PER_HELPFUL_VOTE}
+          COALESCE(rev.count, 0) * ${rules.pointsPerReview}
+          + COALESCE(con.count, 0) * ${rules.pointsPerContribution}
+          + COALESCE(hv.count, 0) * ${rules.pointsPerHelpfulVote}
         )::int AS points
       FROM users u
       JOIN user_profiles up ON up.user_id = u.id
@@ -118,7 +113,7 @@ export class GamificationService {
       displayName: row.display_name,
       avatarUrl: row.storage_key ? this.mediaService.resolveUrl(row.storage_key) : null,
       points: row.points,
-      level: this.computeLevel(row.points).level,
+      level: this.computeLevel(row.points, rules).level,
     }));
   }
 
@@ -163,17 +158,18 @@ export class GamificationService {
     };
   }
 
-  private computeLevel(points: number): {
+  private computeLevel(points: number, rules: GamificationSettings): {
     level: number;
     pointsToNextLevel: number | null;
     nextLevelThreshold: number | null;
   } {
+    const thresholds = rules.levelThresholds;
     let level = 1;
-    for (let i = 1; i < LEVEL_THRESHOLDS.length; i++) {
-      if (points >= LEVEL_THRESHOLDS[i]) level = i + 1;
+    for (let i = 1; i < thresholds.length; i++) {
+      if (points >= thresholds[i]) level = i + 1;
     }
     const nextLevelThreshold =
-      level < LEVEL_THRESHOLDS.length ? LEVEL_THRESHOLDS[level] : null;
+      level < thresholds.length ? thresholds[level] : null;
     return {
       level,
       nextLevelThreshold,
@@ -181,15 +177,15 @@ export class GamificationService {
     };
   }
 
-  private computeBadges(counts: ActivityCounts): BadgeCode[] {
+  private computeBadges(counts: ActivityCounts, rules: GamificationSettings): BadgeCode[] {
     const badges: BadgeCode[] = [];
-    if (counts.approvedContributionCount >= CONTRIBUTOR_BADGE_THRESHOLD) {
+    if (counts.approvedContributionCount >= rules.badgeThresholds.contributor_10) {
       badges.push('contributor_10');
     }
-    if (counts.coffeeReviewCount >= COFFEE_HUNTER_REVIEW_THRESHOLD) {
+    if (counts.coffeeReviewCount >= rules.badgeThresholds.coffee_hunter) {
       badges.push('coffee_hunter');
     }
-    if (counts.helpfulVotesReceived >= HELPFUL_BADGE_THRESHOLD) {
+    if (counts.helpfulVotesReceived >= rules.badgeThresholds.helpful_100) {
       badges.push('helpful_100');
     }
     return badges;

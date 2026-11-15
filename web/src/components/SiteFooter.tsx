@@ -1,8 +1,10 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import type { RestaurantCategoryCode } from '@foodmap/shared-types';
 import { Link } from '@/i18n/navigation';
 import { DISTRICTS } from '@/lib/districts';
-import { FOOTER_LINKS, SITE_NAME, SOCIAL_LINKS } from '@/lib/constants';
+import { SITE_NAME } from '@/lib/constants';
+import { getSiteSettings } from '@/lib/api';
+import { getAboutTranslator } from '@/lib/about-content';
 import { MapLogoIcon } from './icons';
 import { FooterColumn } from './FooterColumn';
 import { MobileFooter, type MobileFooterData } from './MobileFooter';
@@ -20,11 +22,10 @@ const FOOTER_CATEGORIES: RestaurantCategoryCode[] = ['quan_an', 'quan_ca_phe', '
 
 /** README's `SiteFooter`. */
 export async function SiteFooter() {
-  const [t, tLabels, tAbout] = await Promise.all([
-    getTranslations('common'),
-    getTranslations('labels'),
-    getTranslations('about'),
-  ]);
+  const locale = await getLocale();
+  const [t, tLabels, settings] = await Promise.all([getTranslations('common'), getTranslations('labels'), getSiteSettings()]);
+  const tAbout = await getAboutTranslator(locale, settings);
+  const { social: SOCIAL_LINKS, links: FOOTER_LINKS } = settings.footer;
 
   const year = new Date().getFullYear();
   const mobileData: MobileFooterData = {
@@ -51,11 +52,15 @@ export async function SiteFooter() {
       ...(FOOTER_LINKS.privacy ? [{ href: FOOTER_LINKS.privacy, label: t('footerPrivacy') }] : []),
       ...(FOOTER_LINKS.communityGuidelines ? [{ href: FOOTER_LINKS.communityGuidelines, label: t('footerCommunity') }] : []),
     ],
-    socials: (['facebook', 'instagram', 'tiktok'] as const)
-      .filter((network) => SOCIAL_LINKS[network])
-      .map((network) => ({ network, href: SOCIAL_LINKS[network], label: t(`footerSocial.${network}`, { site: SITE_NAME }) })),
+    // All three always shown (design); an empty URL renders as an inert "Sắp ra mắt" icon.
+    socials: (['facebook', 'instagram', 'tiktok'] as const).map((network) => ({
+      network,
+      href: SOCIAL_LINKS[network],
+      label: t(`footerSocial.${network}`, { site: SITE_NAME }),
+    })),
     languageLabel: t('languageMenuHeading'),
     copyright: `© ${year} ${SITE_NAME}`,
+    comingSoonLabel: t('footerComingSoon'),
   };
 
   return (

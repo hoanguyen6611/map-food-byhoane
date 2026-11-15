@@ -8694,3 +8694,10 @@ html[data-nav-pending='same'] #main-content {
     background: var(--color-border-hairline);
   }
 }
+
+@media (max-width: 767px) {
+  .mfooter-social-pending {
+    color: var(--color-ink-muted);
+    cursor: default;
+  }
+}

@@ -147,7 +147,7 @@ export function SplashOverlay({ siteName, tagline, loadingText, ariaLabel, domai
           <div className="fm-splash-fill" />
         </div>
         <span className="fm-splash-loading">{loadingText}</span>
-        <span className="fm-splash-domain">{domain}</span>
+        {/* <span className="fm-splash-domain">{domain}</span> */}
       </div>
     </div>
   );

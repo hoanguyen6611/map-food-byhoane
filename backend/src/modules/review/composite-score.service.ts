@@ -5,6 +5,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiSummaryService } from '../ai/ai-summary.service';
 import { calculateCompositeScore } from './composite-score.util';
+import { SiteSettingsService } from '../site-settings/site-settings.service';
 
 export const COMPOSITE_SCORE_QUEUE = 'composite-score';
 export const COMPOSITE_SCORE_JOB = 'recompute';
@@ -34,6 +35,7 @@ export class CompositeScoreService implements OnModuleInit {
     private readonly prisma: PrismaService,
     @InjectQueue(COMPOSITE_SCORE_QUEUE) private readonly queue: Queue,
     private readonly aiSummaryService: AiSummaryService,
+    private readonly siteSettings: SiteSettingsService,
   ) {}
 
   // Registering the same repeat pattern on every boot is safe — BullMQ
@@ -83,7 +85,7 @@ export class CompositeScoreService implements OnModuleInit {
   // tested against the exact PRD §10.8 acceptance case) — this method's job
   // is just gathering v/R/C from the DB and persisting the result.
   async recompute(restaurantId: string): Promise<void> {
-    const [restaurantAgg, globalAgg, lastReview] = await Promise.all([
+    const [restaurantAgg, globalAgg, lastReview, scoring] = await Promise.all([
       this.prisma.review.aggregate({
         where: { restaurantId, status: 'published', deletedAt: null },
         _avg: { overallRating: true },
@@ -98,12 +100,13 @@ export class CompositeScoreService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true },
       }),
+      this.siteSettings.get('scoring'),
     ]);
 
     const v = restaurantAgg._count._all;
     const R = restaurantAgg._avg.overallRating ?? 0;
     const C = globalAgg._avg.overallRating ?? DEFAULT_GLOBAL_PRIOR;
-    const compositeScore = calculateCompositeScore(v, R, C);
+    const compositeScore = calculateCompositeScore(v, R, C, scoring.minVotesThreshold);
 
     await this.prisma.restaurantStatus.update({
       where: { restaurantId },

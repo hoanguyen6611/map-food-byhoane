@@ -1,5 +1,7 @@
 // "m" in the Bayesian damping formula — docs/01-prd-mvp.md §10.8's minimum
 // votes threshold before a restaurant's raw average is trusted on its own.
+// Default only: the live value is admin-editable (site settings → scoring),
+// passed in by CompositeScoreService.
 export const MIN_VOTES_THRESHOLD = 5;
 
 /**
@@ -13,9 +15,10 @@ export function calculateCompositeScore(
   reviewCount: number,
   restaurantAverage: number,
   globalPriorMean: number,
+  minVotesThreshold: number = MIN_VOTES_THRESHOLD,
 ): number | null {
   if (reviewCount <= 0) return null;
   const v = reviewCount;
-  const m = MIN_VOTES_THRESHOLD;
+  const m = minVotesThreshold;
   return (v / (v + m)) * restaurantAverage + (m / (v + m)) * globalPriorMean;
 }

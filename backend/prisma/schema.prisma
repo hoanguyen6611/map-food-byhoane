@@ -1104,6 +1104,19 @@ model WebPushSubscription {
 
 // ---------- System (docs/06-database-erd.md §10) ----------
 
+// Admin-editable site settings (admin-web "Nội dung & Cài đặt"): one JSON
+// row per key — footer, scoring, gamification, about. Missing row = the
+// defaults in packages/shared-types/src/site-settings.ts. Read through
+// SiteSettingsService (cached), never directly.
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
 // Append-only audit trail for every admin/moderator mutation, per
 // docs/05-system-architecture.md §10 — required starting this module.
 model AuditLog {

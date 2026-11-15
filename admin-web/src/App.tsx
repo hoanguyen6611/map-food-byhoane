@@ -14,6 +14,7 @@ import { AdminCategoryManagementPage } from './pages/AdminCategoryManagementPage
 import { AdminFacilityManagementPage } from './pages/AdminFacilityManagementPage'
 import { AdminCuisineManagementPage } from './pages/AdminCuisineManagementPage'
 import { AdminActivityPage } from './pages/AdminActivityPage'
+import { AdminSiteSettingsPage } from './pages/AdminSiteSettingsPage'
 import { OwnerDashboardPage } from './pages/owner/OwnerDashboardPage'
 import { OwnerRestaurantEditPage } from './pages/owner/OwnerRestaurantEditPage'
 import { OwnerPhotosPage } from './pages/owner/OwnerPhotosPage'
@@ -37,6 +38,7 @@ function App() {
             <Route path="/facilities" element={<AdminFacilityManagementPage />} />
             <Route path="/cuisines" element={<AdminCuisineManagementPage />} />
             <Route path="/activity" element={<AdminActivityPage />} />
+            <Route path="/settings" element={<AdminSiteSettingsPage />} />
           </Route>
         </Route>
         <Route element={<RoleRoute allow={['owner']} />}>
